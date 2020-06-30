@@ -1,4 +1,5 @@
 use crate::db::models::funds::Fund;
+use crate::v0::api_token::API_TOKEN_HEADER;
 use thiserror::Error;
 
 pub struct RestClient {
@@ -31,7 +32,7 @@ impl RestClient {
         let mut res = client.get(&request);
 
         if let Some(api_token) = &self.api_token {
-            res = res.header("API-Token", api_token.to_string());
+            res = res.header(API_TOKEN_HEADER, api_token.to_string());
         }
         res.send()
     }

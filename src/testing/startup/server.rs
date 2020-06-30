@@ -1,5 +1,4 @@
 use crate::server_settings::ServiceSettings;
-use assert_cmd;
 use assert_cmd::cargo::CommandCargoExt;
 use std::process::Command;
 use thiserror::Error;
@@ -46,6 +45,12 @@ impl Starter {
 
         std::thread::sleep(std::time::Duration::from_secs(1));
         Ok(Server::new(child, self.settings.clone()))
+    }
+}
+
+impl Default for Starter {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

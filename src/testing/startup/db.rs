@@ -1,4 +1,4 @@
-use crate::db::{models::api_token::APITokenData, schema::api_tokens};
+use crate::db::{models::api_tokens::APITokenData, schema::api_tokens};
 use assert_fs::{fixture::PathChild, TempDir};
 use diesel::{connection::Connection, prelude::*};
 use std::io;
@@ -30,7 +30,7 @@ impl DbBuilder {
     }
 
     fn create_db_if_not_exists(&self, db_path: &str) -> Result<(), DbBuilderError> {
-        rusqlite::Connection::open(db_path).map_err(|e| DbBuilderError::CannotCreateDatabase(e))?;
+        rusqlite::Connection::open(db_path).map_err(DbBuilderError::CannotCreateDatabase)?;
         Ok(())
     }
 
@@ -46,7 +46,7 @@ impl DbBuilder {
             migration_folder,
             &mut handle,
         )
-        .map_err(|e| DbBuilderError::MigrationsError(e))
+        .map_err(DbBuilderError::MigrationsError)
     }
 
     fn try_do_migration(&self, connection: &SqliteConnection) -> Result<(), DbBuilderError> {
@@ -59,7 +59,7 @@ impl DbBuilder {
     fn try_insert_token(&self, connection: &SqliteConnection) -> Result<(), DbBuilderError> {
         if let Some(token) = &self.token {
             let values = (
-                api_tokens::dsl::token.eq(token.token.as_ref().clone()),
+                api_tokens::dsl::token.eq(&(*token.token.as_ref())),
                 api_tokens::dsl::creation_time.eq(token.creation_time),
                 api_tokens::dsl::expire_time.eq(token.expire_time),
             );
@@ -67,7 +67,7 @@ impl DbBuilder {
             diesel::insert_into(api_tokens::table)
                 .values(values)
                 .execute(connection)
-                .map_err(|e| DbBuilderError::DieselError(e))?;
+                .map_err(DbBuilderError::DieselError)?;
         }
         Ok(())
     }
@@ -86,6 +86,12 @@ impl DbBuilder {
         self.try_do_migration(&connection)?;
         self.try_insert_token(&connection)?;
         Ok(PathBuf::from(db.path()))
+    }
+}
+
+impl Default for DbBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

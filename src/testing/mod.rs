@@ -2,14 +2,11 @@ pub mod rest_client;
 pub mod server;
 pub mod startup;
 
-use crate::{
-    db::{models::api_token, models::api_token::APITokenData},
-    v0::api_token::APIToken,
-};
+use crate::{db::models::api_tokens::APITokenData, v0::api_token::APIToken};
 
 use chrono::offset::Utc;
 
-pub fn get_testing_token() -> (api_token::APITokenData, String) {
+pub fn get_testing_token() -> (APITokenData, String) {
     let data = b"ffffffffffffffffffffffffffffffff".to_vec();
     let token_data = APITokenData {
         token: APIToken::new(data.clone()),

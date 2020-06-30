@@ -3,7 +3,7 @@ use crate::v0::{context::SharedContext, errors::HandleError};
 use warp::{Filter, Rejection};
 
 /// Header where token should be present in requests
-const API_TOKEN_HEADER: &str = "API-Token";
+pub const API_TOKEN_HEADER: &str = "API-Token";
 
 /// API Token wrapper type
 #[derive(PartialEq, Eq)]
@@ -92,9 +92,16 @@ pub async fn api_token_filter(
 
 #[cfg(test)]
 mod test {
-    use crate::db::{
-        models::api_tokens as api_token_model, models::api_tokens::APITokenData,
-        schema::api_tokens, testing as db_testing, DBConnectionPool,
+    use crate::{
+        db::{
+            models::api_tokens::APITokenData, schema::api_tokens, testing as db_testing,
+            DBConnectionPool,
+        },
+        testing::get_testing_token,
+        v0::{
+            api_token::{api_token_filter, API_TOKEN_HEADER},
+            context::test::new_in_memmory_db_test_shared_context,
+        },
     };
     use diesel::{ExpressionMethods, RunQueryDsl};
 
