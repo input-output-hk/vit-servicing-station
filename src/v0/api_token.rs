@@ -96,23 +96,7 @@ mod test {
         models::api_tokens as api_token_model, models::api_tokens::APITokenData,
         schema::api_tokens, testing as db_testing, DBConnectionPool,
     };
-    use crate::v0::api_token::{api_token_filter, APIToken, API_TOKEN_HEADER};
-    use crate::v0::context::test::new_in_memmory_db_test_shared_context;
-    use chrono::Utc;
     use diesel::{ExpressionMethods, RunQueryDsl};
-
-    pub fn get_testing_token() -> (api_token_model::APITokenData, String) {
-        let data = b"ffffffffffffffffffffffffffffffff".to_vec();
-        let token_data = APITokenData {
-            token: APIToken(data.clone()),
-            creation_time: Utc::now().timestamp(),
-            expire_time: Utc::now().timestamp(),
-        };
-        (
-            token_data,
-            base64::encode_config(data, base64::URL_SAFE_NO_PAD),
-        )
-    }
 
     pub fn insert_token_to_db(token: APITokenData, db: &DBConnectionPool) {
         let conn = db.get().unwrap();
