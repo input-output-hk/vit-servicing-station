@@ -1,20 +1,11 @@
-#[macro_use]
-extern crate diesel;
-#[macro_use]
-extern crate structopt;
+extern crate vit_servicing_station;
 
-#[cfg(test)]
-#[macro_use]
-extern crate diesel_migrations;
-
-pub mod db;
-pub mod server;
-pub mod server_settings;
-pub mod utils;
-pub mod v0;
-
-use crate::server_settings::ServiceSettings;
 use structopt::StructOpt;
+use vit_servicing_station::{
+    db, server,
+    server_settings::{self, ServiceSettings},
+    v0,
+};
 
 #[tokio::main]
 async fn main() {
