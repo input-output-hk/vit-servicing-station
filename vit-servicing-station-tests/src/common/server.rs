@@ -1,7 +1,11 @@
 use super::clients::{GraphqlClient, RestClient};
+<<<<<<< HEAD
 use super::logger::Logger;
 use std::path::PathBuf;
 use std::process::Child;
+=======
+use std::{path::Path, process::Child};
+>>>>>>> 5af35d6... added tls handling for rest client
 use vit_servicing_station_lib::server::settings::ServiceSettings;
 
 pub struct Server {
@@ -30,6 +34,16 @@ impl Server {
     pub fn rest_client_with_token(&self, token: &str) -> RestClient {
         let mut rest_client = self.rest_client();
         rest_client.set_api_token(token.to_string());
+        rest_client
+    }
+
+    pub fn secure_rest_client_with_token<P: AsRef<Path>>(
+        &self,
+        token: &str,
+        cert_file: P,
+    ) -> RestClient {
+        let mut rest_client = self.rest_client_with_token(token);
+        rest_client.set_certificate(cert_file);
         rest_client
     }
 

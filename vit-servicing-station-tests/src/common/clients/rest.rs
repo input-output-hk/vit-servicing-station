@@ -1,3 +1,4 @@
+use std::{fs::File, io::Read, path::Path};
 use hyper::StatusCode;
 use reqwest::blocking::Response;
 use thiserror::Error;
@@ -5,7 +6,6 @@ use vit_servicing_station_lib::{
     db::models::{funds::Fund, proposals::Proposal},
     v0::api_token::API_TOKEN_HEADER,
 };
-
 #[derive(Debug, Clone)]
 pub struct RestClientLogger {
     enabled: bool,
@@ -55,6 +55,7 @@ const ORIGIN: &str = "Origin";
 pub struct RestClient {
     path_builder: RestPathBuilder,
     api_token: Option<String>,
+    certificate: Option<reqwest::Certificate>,
     logger: RestClientLogger,
     origin: Option<String>,
 }
@@ -63,10 +64,22 @@ impl RestClient {
     pub fn new(address: String) -> Self {
         Self {
             api_token: None,
+            certificate: None,
             path_builder: RestPathBuilder::new(address),
             logger: RestClientLogger { enabled: true },
             origin: None,
         }
+    }
+
+    pub fn set_certificate<P: AsRef<Path>>(&mut self, cert_file: P) {
+        self.certificate = Some(Self::extract_certificate(cert_file));
+    }
+
+    fn extract_certificate<P: AsRef<Path>>(cert_file: P) -> reqwest::Certificate {
+        let mut buf = Vec::new();
+        let path = cert_file.as_ref().as_os_str().to_str().unwrap();
+        File::open(path).unwrap().read_to_end(&mut buf).unwrap();
+        reqwest::Certificate::from_der(&buf).unwrap()
     }
 
     pub fn health(&self) -> Result<(), RestError> {
@@ -127,6 +140,16 @@ impl RestClient {
         serde_json::from_str(&content).map_err(RestError::CannotDeserialize)
     }
 
+    fn get_client(&self) -> reqwest::blocking::Client {
+        match &self.certificate {
+            None => reqwest::blocking::Client::new(),
+            Some(cert) => reqwest::blocking::Client::builder()
+                .use_rustls_tls()
+                .add_root_certificate(cert.clone())
+                .build()
+                .unwrap(),
+        }
+    }
     pub fn proposal_raw(&self, id: &str) -> Result<Response, RestError> {
         self.get(&self.path_builder().proposal(id))
             .map_err(RestError::RequestError)
@@ -138,7 +161,7 @@ impl RestClient {
         let content = response.text()?;
         self.logger.log_text(&content);
         serde_json::from_str(&content).map_err(RestError::CannotDeserialize)
-    }
+	}
 
     pub fn fund_raw(&self, id: &str) -> Result<Response, RestError> {
         self.get(&self.path_builder().fund(id))
@@ -156,8 +179,7 @@ impl RestClient {
 
     pub fn get(&self, path: &str) -> Result<reqwest::blocking::Response, reqwest::Error> {
         self.logger.log_request(path);
-        let client = reqwest::blocking::Client::new();
-        let mut res = client.get(path);
+        let mut res = self.get_client().get(path);
 
         if let Some(api_token) = &self.api_token {
             res = res.header(API_TOKEN_HEADER, api_token.to_string());
