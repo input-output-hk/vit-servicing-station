@@ -9,6 +9,7 @@ use vit_servicing_station_lib::server::settings::LogLevel;
 
 pub struct ServerBootstrapper {
     settings_builder: ServerSettingsBuilder,
+    in_settings_file: Option<PathBuf>,
     allowed_origins: Option<String>,
 }
 
@@ -21,6 +22,7 @@ impl ServerBootstrapper {
 
         Self {
             settings_builder,
+            in_settings_file: None,
             allowed_origins: None,
         }
     }
@@ -55,17 +57,23 @@ impl ServerBootstrapper {
         self
     }
 
-    pub fn start(&self, temp_dir: &TempDir) -> Result<Server, ServerBootstrapperError> {
+    pub fn with_settings_file(&mut self, path: PathBuf) -> &mut Self {
+        self.in_settings_file = Some(path);
+        self
+    }
+
+    pub fn start(&self) -> Result<Server, ServerBootstrapperError> {
         let settings = self.settings_builder.build();
         let logger_file: PathBuf = temp_dir.child("log.log").path().into();
         let mut command_builder: BootstrapCommandBuilder = Default::default();
-
-        command_builder
-            .address(&settings.address.to_string())
-            .db_url(&settings.db_url)
-            .log_file(&logger_file)
-            .enable_api_tokens(settings.enable_api_tokens)
-            .block0_path(&settings.block0_path);
+        match &self.in_settings_file {
+            None => command_builder
+                .address(&settings.address.to_string())
+                .enable_api_tokens(settings.enable_api_tokens)
+                .db_url(&settings.db_url)
+                .block0_path(&settings.block0_path),
+            Some(settings_file) => command_builder.in_settings_file(&settings_file),
+        };
 
         if let Some(allowed_origins) = self.allowed_origins.as_ref() {
             command_builder.allowed_origins(allowed_origins);
@@ -78,7 +86,6 @@ impl ServerBootstrapper {
         let mut command = command_builder.build();
         println!("{:?}", command);
         let child = command.stdout(Stdio::inherit()).spawn()?;
-
         std::thread::sleep(std::time::Duration::from_secs(1));
         Ok(Server::new(child, settings, logger_file))
     }

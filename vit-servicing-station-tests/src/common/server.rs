@@ -1,6 +1,9 @@
 use super::clients::{GraphqlClient, RestClient};
 use super::logger::Logger;
-use std::{path::{Path,PathBuf}, process::Child};
+use std::{
+    path::{Path, PathBuf},
+    process::Child,
+};
 use vit_servicing_station_lib::server::settings::ServiceSettings;
 
 pub struct Server {

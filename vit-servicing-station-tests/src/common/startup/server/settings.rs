@@ -1,12 +1,10 @@
 use crate::common::startup::get_available_port;
 use assert_fs::{fixture::PathChild, TempDir};
-use std::{
-    net::SocketAddr,
-    path::{Path, PathBuf},
-};
-use vit_servicing_station_lib::server::settings::{
-    dump_settings_to_file, load_settings_from_file, Cors, LogLevel, ServiceSettings,
-};
+use std::path::Path;
+use std::{net::SocketAddr, path::PathBuf};
+use vit_servicing_station_lib::server::settings::load_settings_from_file;
+use vit_servicing_station_lib::server::settings::Cors;
+use vit_servicing_station_lib::server::settings::{dump_settings_to_file, ServiceSettings, Tls};
 
 pub struct ServerSettingsBuilder {
     settings: ServiceSettings,
@@ -54,6 +52,11 @@ impl ServerSettingsBuilder {
 
     pub fn with_api_tokens(&mut self, enabled: bool) -> &mut Self {
         self.settings.enable_api_tokens = enabled;
+        self
+    }
+
+    pub fn with_tls_config(&mut self, tls: Tls) -> &mut Self {
+        self.settings.tls = tls;
         self
     }
 

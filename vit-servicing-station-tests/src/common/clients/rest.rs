@@ -1,6 +1,6 @@
-use std::{fs::File, io::Read, path::Path};
 use hyper::StatusCode;
 use reqwest::blocking::Response;
+use std::{fs::File, io::Read, path::Path};
 use thiserror::Error;
 use vit_servicing_station_lib::{
     db::models::{funds::Fund, proposals::Proposal},
@@ -161,7 +161,7 @@ impl RestClient {
         let content = response.text()?;
         self.logger.log_text(&content);
         serde_json::from_str(&content).map_err(RestError::CannotDeserialize)
-	}
+    }
 
     pub fn fund_raw(&self, id: &str) -> Result<Response, RestError> {
         self.get(&self.path_builder().fund(id))
