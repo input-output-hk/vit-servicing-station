@@ -1,10 +1,11 @@
+pub mod arguments;
+pub mod tls;
+
 use crate::common::{
     data,
     startup::{db::DbBuilder, server::ServerBootstrapper},
 };
 use assert_fs::TempDir;
-
-pub mod arguments;
 
 #[test]
 pub fn bootstrap_with_random_data() -> Result<(), Box<dyn std::error::Error>> {
