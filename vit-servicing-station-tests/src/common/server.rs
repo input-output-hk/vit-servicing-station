@@ -1,11 +1,6 @@
 use super::clients::{GraphqlClient, RestClient};
-<<<<<<< HEAD
 use super::logger::Logger;
-use std::path::PathBuf;
-use std::process::Child;
-=======
-use std::{path::Path, process::Child};
->>>>>>> 5af35d6... added tls handling for rest client
+use std::{path::{Path,PathBuf}, process::Child};
 use vit_servicing_station_lib::server::settings::ServiceSettings;
 
 pub struct Server {
