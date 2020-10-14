@@ -1,5 +1,6 @@
 use hyper::StatusCode;
 use reqwest::blocking::Response;
+use std::net::SocketAddr;
 use std::{fs::File, io::Read, path::Path};
 use thiserror::Error;
 use vit_servicing_station_lib::{
@@ -66,6 +67,16 @@ impl RestClient {
             api_token: None,
             certificate: None,
             path_builder: RestPathBuilder::new(address),
+            logger: RestClientLogger { enabled: true },
+            origin: None,
+        }
+    }
+
+    pub fn new_secure(address: String) -> Self {
+        Self {
+            api_token: None,
+            certificate: None,
+            path_builder: RestPathBuilder::new_secure(address),
             logger: RestClientLogger { enabled: true },
             origin: None,
         }
@@ -242,15 +253,25 @@ impl RestClient {
 
 #[derive(Debug, Clone)]
 pub struct RestPathBuilder {
-    address: String,
+    addr: SocketAddr,
     root: String,
+    use_https: bool,
 }
 
 impl RestPathBuilder {
     pub fn new<S: Into<String>>(address: S) -> Self {
         RestPathBuilder {
             root: "/api/v0/".to_string(),
-            address: address.into(),
+            addr: address.into().parse().unwrap(),
+            use_https: false,
+        }
+    }
+
+    pub fn new_secure<S: Into<String>>(address: S) -> Self {
+        RestPathBuilder {
+            root: "/api/v0/".to_string(),
+            addr: address.into().parse().unwrap(),
+            use_https: true,
         }
     }
 
@@ -283,7 +304,21 @@ impl RestPathBuilder {
     }
 
     pub fn path(&self, path: &str) -> String {
-        format!("http://{}{}{}", self.address, self.root, path)
+        format!(
+            "{}://{}{}{}",
+            self.https_or_http(),
+            self.addr,
+            self.root,
+            path
+        )
+    }
+
+    pub fn https_or_http(&self) -> &str {
+        if self.use_https {
+            "https"
+        } else {
+            "http"
+        }
     }
 }
 

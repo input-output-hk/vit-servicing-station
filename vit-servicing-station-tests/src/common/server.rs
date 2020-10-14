@@ -40,7 +40,8 @@ impl Server {
         token: &str,
         cert_file: P,
     ) -> RestClient {
-        let mut rest_client = self.rest_client_with_token(token);
+        let mut rest_client = RestClient::new_secure(self.settings.address.to_string());
+        rest_client.set_api_token(token.to_string());
         rest_client.set_certificate(cert_file);
         rest_client
     }
