@@ -62,7 +62,7 @@ impl ServerBootstrapper {
         self
     }
 
-    pub fn start(&self) -> Result<Server, ServerBootstrapperError> {
+    pub fn start(&self, temp_dir: &TempDir) -> Result<Server, ServerBootstrapperError> {
         let settings = self.settings_builder.build();
         let logger_file: PathBuf = temp_dir.child("log.log").path().into();
         let mut command_builder: BootstrapCommandBuilder = Default::default();

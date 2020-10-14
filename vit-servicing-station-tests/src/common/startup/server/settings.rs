@@ -4,6 +4,7 @@ use std::path::Path;
 use std::{net::SocketAddr, path::PathBuf};
 use vit_servicing_station_lib::server::settings::load_settings_from_file;
 use vit_servicing_station_lib::server::settings::Cors;
+use vit_servicing_station_lib::server::settings::LogLevel;
 use vit_servicing_station_lib::server::settings::{dump_settings_to_file, ServiceSettings, Tls};
 
 pub struct ServerSettingsBuilder {

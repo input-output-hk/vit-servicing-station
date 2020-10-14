@@ -1,5 +1,3 @@
-use jortestkit::openssl::generate_keys;
-
 use crate::common::{
     data,
     paths::BLOCK0_BIN,
@@ -9,6 +7,8 @@ use crate::common::{
     },
 };
 use assert_fs::TempDir;
+use jortestkit::openssl::generate_keys;
+use std::net::SocketAddr;
 use vit_servicing_station_lib::server::settings::Tls;
 
 #[test]
@@ -21,7 +21,7 @@ pub fn secure_rest() -> Result<(), Box<dyn std::error::Error>> {
         .with_proposals(data::proposals())
         .build(&temp_dir)?;
 
-    let (prv_key_file, cert_file) = generate_keys(&temp_dir);
+    let (prv_key_file, cert_file, der_file) = generate_keys(&temp_dir);
 
     let tls = Tls {
         cert_file: Some(cert_file.to_str().unwrap().to_string()),
@@ -38,9 +38,11 @@ pub fn secure_rest() -> Result<(), Box<dyn std::error::Error>> {
 
     let server = ServerBootstrapper::new()
         .with_settings_file(dump_settings(&temp_dir, &settings))
-        .start()?;
+        .start(&temp_dir)?;
 
-    let secured_rest_client = server.secure_rest_client_with_token(&token, &cert_file);
+    //std::thread::sleep(std::time::Duration::from_secs(100));
+
+    let secured_rest_client = server.secure_rest_client_with_token(&token, &der_file);
     assert!(secured_rest_client.health().is_ok());
     Ok(())
 }
