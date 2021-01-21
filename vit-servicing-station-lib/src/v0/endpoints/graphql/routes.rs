@@ -31,7 +31,9 @@ pub async fn filter(
             // execute query
             let response = schema.execute(request).await;
             // return result
-            Ok::<_, Infallible>(async_graphql_warp::Response::from(response))
+            Ok::<async_graphql_warp::Response, Infallible>(async_graphql_warp::Response::from(
+                response,
+            ))
         },
     );
 
