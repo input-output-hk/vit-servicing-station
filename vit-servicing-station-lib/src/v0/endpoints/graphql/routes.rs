@@ -23,7 +23,7 @@ pub async fn filter(
     .data(db_connection_pool)
     .finish();
 
-    let graph_ql = async_graphql_warp::graphql(schema).and_then(
+    /*let graph_ql = async_graphql_warp::graphql(schema).and_then(
         |(schema, request): (
             async_graphql::Schema<QueryRoot, EmptyMutation, EmptySubscription>,
             async_graphql::Request,
@@ -35,9 +35,9 @@ pub async fn filter(
                 response,
             ))
         },
-    );
+    );*/
 
-    root.and(graph_ql).boxed()
+    root.map(|| format!("unavailable!",)).boxed()
 }
 
 #[cfg(test)]
