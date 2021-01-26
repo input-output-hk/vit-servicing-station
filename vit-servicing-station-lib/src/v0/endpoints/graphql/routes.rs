@@ -22,20 +22,20 @@ pub async fn filter(
     )
     .data(db_connection_pool)
     .finish();
-
-    let graph_ql = async_graphql_warp::graphql(schema).and_then(
-        |(schema, request): (
-            async_graphql::Schema<QueryRoot, EmptyMutation, EmptySubscription>,
-            async_graphql::Request,
-        )| async move {
-            // execute query
-            let response = schema.execute(request).await;
-            // return result
-            Ok::<_, Infallible>(async_graphql_warp::Response::from(response))
-        },
-    );
-
-    root.and(graph_ql).boxed()
+    /*
+        let graph_ql = async_graphql_warp::graphql(schema).and_then(
+            |(schema, request): (
+                async_graphql::Schema<QueryRoot, EmptyMutation, EmptySubscription>,
+                async_graphql::Request,
+            )| async move {
+                // execute query
+                let response = schema.execute(request).await;
+                // return result
+                Ok::<_, Infallible>(async_graphql_warp::Response::from(response))
+            },
+        );
+    */
+    root.map(|| "unavailable".to_string()).boxed()
 }
 
 #[cfg(test)]
