@@ -3,7 +3,7 @@ openapi: 3.0.3
 info:
   title: VIT as a Service Rest API
   description: VaaS Rest API v0
-  version: 0.1.1
+  version: 0.1.2
   contact:
     url: ''
 
@@ -128,6 +128,14 @@ components:
         next_fund_start_time:
           type: string
           format: date-time
+        lock_start_time:
+          type: string
+          format: date-time
+          description: Timestamp for the start of the locking period
+        lock_end_time:
+          type: string
+          format: date-time
+          description: Timestamp for the end of the locking period
         chain_vote_plans:
           type: array
           items:
