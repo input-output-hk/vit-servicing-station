@@ -1,7 +1,9 @@
 use super::{RestClient, RestError};
 use askama::Template;
 use thiserror::Error;
-use vit_servicing_station_lib::db::models::{funds::Fund, proposals::Proposal};
+use vit_servicing_station_lib::db::models::{
+    challenges::Challenge, funds::Fund, proposals::Proposal,
+};
 
 pub mod templates;
 
@@ -44,6 +46,22 @@ impl GraphqlClient {
         let data = funds.render()?;
         let query_result = self.run_query(&data)?;
         serde_json::from_value(query_result["data"]["funds"].clone())
+            .map_err(GraphQlClientError::CannotDeserialize)
+    }
+
+    pub fn challenges(&self) -> Result<Vec<Challenge>, GraphQlClientError> {
+        let challenges = templates::Challenges;
+        let data = challenges.render()?;
+        let query_result = self.run_query(&data)?;
+        serde_json::from_value(query_result["data"]["challenges"].clone())
+            .map_err(GraphQlClientError::CannotDeserialize)
+    }
+
+    pub fn challenge_by_id(&self, id: i32) -> Result<Challenge, GraphQlClientError> {
+        let challenge = templates::ChallengeById { id };
+        let data = challenge.render()?;
+        let query_result = self.run_query(&data)?;
+        serde_json::from_value(query_result["data"]["challenge"].clone())
             .map_err(GraphQlClientError::CannotDeserialize)
     }
 

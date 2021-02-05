@@ -82,3 +82,13 @@ pub struct Funds;
 pub struct FundByIdWrongArgType {
     pub id: String,
 }
+
+#[derive(Template)]
+#[template(path = "challenges.txt")]
+pub struct Challenges;
+
+#[derive(Template)]
+#[template(path = "challenge_by_id.txt")]
+pub struct ChallengeById {
+    pub id: i32,
+}

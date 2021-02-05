@@ -1,0 +1,12 @@
+{
+  "query": "{
+    challenges {
+      id,
+      title,
+      description,
+      rewardsTotal,
+      fundId,
+      challengeUrl,
+    },
+  }"
+}

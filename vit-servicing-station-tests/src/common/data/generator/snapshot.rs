@@ -78,4 +78,8 @@ impl Snapshot {
     pub fn challenges(&self) -> Vec<Challenge> {
         self.challenges.clone()
     }
+
+    pub fn challenge_by_id(&self, id: i32) -> Option<&Challenge> {
+        self.challenges.iter().find(|x| x.id == id)
+    }
 }
