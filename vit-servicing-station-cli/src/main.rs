@@ -2,6 +2,7 @@ mod api_token;
 mod app;
 mod csv;
 mod db_utils;
+mod ideascale;
 mod init_db;
 mod task;
 
