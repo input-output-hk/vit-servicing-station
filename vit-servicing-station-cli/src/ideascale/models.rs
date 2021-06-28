@@ -1,47 +1,82 @@
-use serde::Serialize;
+use serde::{Deserialize, Deserializer};
+use vit_servicing_station_lib::db::models as db_models;
+use vit_servicing_station_lib::db::models::proposals::ChallengeType;
 
 #[derive(Debug, Deserialize)]
 pub struct Challenge {
-    id: u64,
+    pub id: i32,
     #[serde(alias = "name")]
-    title: String,
-    description: String,
+    pub title: String,
+    pub description: String,
     #[serde(alias = "groupId")]
-    fund_id: u64,
+    pub fund_id: i32,
+    #[serde(alias = "funnelId")]
+    pub funnel_id: i32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Funnel {
+    pub id: i32,
+    #[serde(alias = "name")]
+    pub title: String,
+    pub description: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Fund {
-    id: u64,
-    name: String,
+    pub id: u64,
+    pub name: String,
     #[serde(alias = "campaigns")]
-    challenges: Vec<Challenge>,
+    pub challenges: Vec<Challenge>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Proposal {
     #[serde(alias = "id")]
-    proposal_id: i32,
-    proposal_category: String,
+    pub proposal_id: i32,
+    pub proposal_category: Option<String>,
     #[serde(alias = "title")]
-    proposal_title: String,
+    pub proposal_title: String,
     #[serde(alias = "text")]
-    proposal_summary: String,
-    #[serde(alias = "describe_your_solution_to_the_problem")]
-    proposal_solution: String,
-    #[serde(alias = "ada_payment_address__must_be_a_shelly_address__starting_with__addr__")]
-    proposal_public_key: String,
-    #[serde(alias = "requested_funds_in_ada")]
-    proposal_funds: i64,
-    #[serde(alias = "url")]
-    proposal_url: String,
-    #[serde(default)]
-    proposal_files_url: String,
-    #[serde(default)]
-    proposal_impact_score: i64,
-    #[serde(alias = "relevant_experience")]
-    proposal_relevant_experience: String,
+    pub proposal_summary: String,
 
-    #[serde(alias = "why_is_it_important_")]
-    proposal_why: String,
+    #[serde(alias = "url")]
+    pub proposal_url: String,
+    #[serde(default)]
+    pub proposal_files_url: String,
+    #[serde(default)]
+    pub proposal_impact_score: i64,
+
+    #[serde(alias = "customFieldsByKey")]
+    pub custom_fields: ProposalCustomFieldsByKey,
+
+    #[serde(alias = "authorInfo")]
+    pub proposer: Proposer,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Proposer {
+    pub name: String,
+    #[serde(alias = "email")]
+    pub contact: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ProposalCustomFieldsByKey {
+    #[serde(alias = "problem_solution")]
+    pub proposal_solution: String,
+    #[serde(alias = "ada_payment_address")]
+    pub proposal_public_key: String,
+    #[serde(alias = "requested_funds")]
+    pub proposal_funds: String,
+    #[serde(alias = "relevant_experience")]
+    pub proposal_relevant_experience: String,
+    #[serde(alias = "importance")]
+    pub proposal_why: Option<String>,
+}
+
+impl Funnel {
+    pub fn is_community(&self) -> bool {
+        self.title.contains("Challenge Setting")
+    }
 }
