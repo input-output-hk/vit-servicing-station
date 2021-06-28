@@ -32,7 +32,7 @@ lazy_static::lazy_static!(
     static ref CLIENT: reqwest::Client = reqwest::Client::new();
 );
 
-async fn request_data<T: DeserializeOwned>(api_token: &str, url: Url) -> Result<T, Error> {
+async fn request_data<T: DeserializeOwned>(api_token: String, url: Url) -> Result<T, Error> {
     CLIENT
         .get(url)
         .header("api_token", api_token)
@@ -43,7 +43,7 @@ async fn request_data<T: DeserializeOwned>(api_token: &str, url: Url) -> Result<
         .map_err(Error::RequestError)
 }
 
-async fn get_funds_data(api_token: &str) -> Result<Vec<Fund>, Error> {
+pub async fn get_funds_data(api_token: String) -> Result<Vec<Fund>, Error> {
     request_data(
         api_token,
         BASE_IDEASCALE_URL.join("campaigns/groups").unwrap(),
@@ -53,7 +53,7 @@ async fn get_funds_data(api_token: &str) -> Result<Vec<Fund>, Error> {
 
 const ASSESSMENT_ID_ATTR: &str = "assessmentId";
 
-async fn get_assessment_id(stage_id: i32, api_token: &str) -> Result<i64, Error> {
+pub async fn get_assessment_id(stage_id: i32, api_token: String) -> Result<i64, Error> {
     let assessment: serde_json::Value = request_data(
         api_token,
         BASE_IDEASCALE_URL
@@ -71,7 +71,7 @@ async fn get_assessment_id(stage_id: i32, api_token: &str) -> Result<i64, Error>
         .unwrap())
 }
 
-async fn get_assessments_score(assessment_id: i64, api_token: &str) -> Result<Scores, Error> {
+pub async fn get_assessments_score(assessment_id: i64, api_token: String) -> Result<Scores, Error> {
     let scores: Vec<Score> = request_data(
         api_token,
         BASE_IDEASCALE_URL
@@ -82,7 +82,10 @@ async fn get_assessments_score(assessment_id: i64, api_token: &str) -> Result<Sc
     Ok(scores.into_iter().map(|s| (s.id, s.score)).collect())
 }
 
-async fn get_proposals_data(challenge_id: i64, api_token: &str) -> Result<Vec<Proposal>, Error> {
+pub async fn get_proposals_data(
+    challenge_id: i32,
+    api_token: String,
+) -> Result<Vec<Proposal>, Error> {
     request_data(
         api_token,
         BASE_IDEASCALE_URL
@@ -92,7 +95,10 @@ async fn get_proposals_data(challenge_id: i64, api_token: &str) -> Result<Vec<Pr
     .await
 }
 
-async fn get_funnels_data_for_fund(api_token: &str, fund: usize) -> Result<Vec<Funnel>, Error> {
+pub async fn get_funnels_data_for_fund(
+    fund: usize,
+    api_token: String,
+) -> Result<Vec<Funnel>, Error> {
     let challenges: Vec<Funnel> = request_data(
         api_token,
         BASE_IDEASCALE_URL.join(&format!("funnels")).unwrap(),
@@ -143,7 +149,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_funnels() {
-        let proposals = get_funnels_data_for_fund(API_TOKEN, 4).await.unwrap();
+        let proposals = get_funnels_data_for_fund(4, API_TOKEN).await.unwrap();
         for proposal in proposals {
             println!("{:?}", proposal);
         }

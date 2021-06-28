@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer};
 use vit_servicing_station_lib::db::models as db_models;
 use vit_servicing_station_lib::db::models::proposals::ChallengeType;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Challenge {
     pub id: i32,
     #[serde(alias = "name")]
@@ -14,7 +14,7 @@ pub struct Challenge {
     pub funnel_id: i32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Funnel {
     pub id: i32,
     #[serde(alias = "name")]
@@ -22,7 +22,7 @@ pub struct Funnel {
     pub description: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Fund {
     pub id: u64,
     pub name: String,
@@ -30,7 +30,7 @@ pub struct Fund {
     pub challenges: Vec<Challenge>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Proposal {
     #[serde(alias = "id")]
     pub proposal_id: i32,
@@ -54,14 +54,14 @@ pub struct Proposal {
     pub proposer: Proposer,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Proposer {
     pub name: String,
     #[serde(alias = "email")]
     pub contact: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ProposalCustomFieldsByKey {
     #[serde(alias = "problem_solution")]
     pub proposal_solution: String,
