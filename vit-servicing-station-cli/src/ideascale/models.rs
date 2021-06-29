@@ -24,7 +24,7 @@ pub struct Funnel {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Fund {
-    pub id: u64,
+    pub id: i32,
     pub name: String,
     #[serde(alias = "campaigns")]
     pub challenges: Vec<Challenge>,
@@ -44,14 +44,15 @@ pub struct Proposal {
     pub proposal_url: String,
     #[serde(default)]
     pub proposal_files_url: String,
-    #[serde(default)]
-    pub proposal_impact_score: i64,
 
     #[serde(alias = "customFieldsByKey")]
     pub custom_fields: ProposalCustomFieldsByKey,
 
     #[serde(alias = "authorInfo")]
     pub proposer: Proposer,
+
+    #[serde(alias = "stageId")]
+    pub stage_id: i32,
 }
 
 #[derive(Debug, Deserialize, Clone)]

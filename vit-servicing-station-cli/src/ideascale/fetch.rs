@@ -82,6 +82,14 @@ pub async fn get_assessments_score(assessment_id: i64, api_token: String) -> Res
     Ok(scores.into_iter().map(|s| (s.id, s.score)).collect())
 }
 
+pub async fn get_assessments_scores_by_stage_id(
+    stage_id: i32,
+    api_token: String,
+) -> Result<Scores, Error> {
+    let assessment_id = get_assessment_id(stage_id, api_token.clone()).await?;
+    get_assessments_score(assessment_id, api_token).await
+}
+
 pub async fn get_proposals_data(
     challenge_id: i32,
     api_token: String,
@@ -119,7 +127,7 @@ mod tests {
     const API_TOKEN: &str = "";
     #[tokio::test]
     async fn test_fetch_funds() {
-        let results = get_funds_data(API_TOKEN)
+        let results = get_funds_data(API_TOKEN.to_string())
             .await
             .expect("All current campaigns data");
         println!("{}", results.len());
@@ -130,8 +138,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_assessment_scores() {
-        let assessment_id = get_assessment_id(76890, API_TOKEN).await.unwrap();
-        let assessments_scores = get_assessments_score(assessment_id, API_TOKEN)
+        let assessment_id = get_assessment_id(76890, API_TOKEN.to_string())
+            .await
+            .unwrap();
+        let assessments_scores = get_assessments_score(assessment_id, API_TOKEN.to_string())
             .await
             .unwrap();
         for score in assessments_scores {
@@ -141,7 +151,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_proposals() {
-        let proposals = get_proposals_data(25939, API_TOKEN).await.unwrap();
+        let proposals = get_proposals_data(25939, API_TOKEN.to_string())
+            .await
+            .unwrap();
         for proposal in proposals {
             println!("{:?}", proposal);
         }
@@ -149,7 +161,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_funnels() {
-        let proposals = get_funnels_data_for_fund(4, API_TOKEN).await.unwrap();
+        let proposals = get_funnels_data_for_fund(4, API_TOKEN.to_string())
+            .await
+            .unwrap();
         for proposal in proposals {
             println!("{:?}", proposal);
         }
