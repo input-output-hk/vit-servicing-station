@@ -12,6 +12,8 @@ pub struct Challenge {
     pub fund_id: i32,
     #[serde(alias = "funnelId")]
     pub funnel_id: i32,
+    #[serde(alias = "campaignUrl")]
+    pub challenge_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -53,6 +55,9 @@ pub struct Proposal {
 
     #[serde(alias = "stageId")]
     pub stage_id: i32,
+
+    #[serde(alias = "campaignId")]
+    pub challenge_id: i32,
 }
 
 #[derive(Debug, Deserialize, Clone)]

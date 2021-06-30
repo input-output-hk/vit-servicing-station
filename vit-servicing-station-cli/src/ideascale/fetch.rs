@@ -107,11 +107,8 @@ pub async fn get_funnels_data_for_fund(
     fund: usize,
     api_token: String,
 ) -> Result<Vec<Funnel>, Error> {
-    let challenges: Vec<Funnel> = request_data(
-        api_token,
-        BASE_IDEASCALE_URL.join(&format!("funnels")).unwrap(),
-    )
-    .await?;
+    let challenges: Vec<Funnel> =
+        request_data(api_token, BASE_IDEASCALE_URL.join("funnels").unwrap()).await?;
     Ok(challenges
         .into_iter()
         .filter(|f| f.title.starts_with(&format!("Fund {}", fund)))
