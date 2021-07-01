@@ -1,4 +1,5 @@
 use serde::{Deserialize, Deserializer};
+use std::collections::HashMap;
 use vit_servicing_station_lib::db::models as db_models;
 use vit_servicing_station_lib::db::models::proposals::ChallengeType;
 
@@ -69,8 +70,6 @@ pub struct Proposer {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ProposalCustomFieldsByKey {
-    #[serde(alias = "problem_solution")]
-    pub proposal_solution: String,
     #[serde(alias = "ada_payment_address")]
     pub proposal_public_key: String,
     #[serde(alias = "requested_funds")]
@@ -79,6 +78,8 @@ pub struct ProposalCustomFieldsByKey {
     pub proposal_relevant_experience: String,
     #[serde(alias = "importance")]
     pub proposal_why: Option<String>,
+    #[serde(flatten)]
+    pub extra: serde_json::Value,
 }
 
 impl Funnel {

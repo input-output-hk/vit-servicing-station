@@ -2,16 +2,24 @@ use structopt::StructOpt;
 
 use crate::ideascale::fetch::{get_assessment_id, Scores};
 use crate::ideascale::models::{Challenge, Fund, Funnel, Proposal};
-use chrono::Utc;
-use std::collections::{HashMap, HashSet};
-use std::io;
+
 use vit_servicing_station_lib::db::load_db_connection_pool;
+use vit_servicing_station_lib::db::models as db_models;
 use vit_servicing_station_lib::db::models::proposals::{community_choice, simple};
 use vit_servicing_station_lib::db::models::proposals::{
     Category, ChallengeType, FullProposalInfo, Proposer,
 };
 use vit_servicing_station_lib::db::models::vote_options::{VoteOptions, VoteOptionsMap};
 use vit_servicing_station_lib::db::models::voteplans::Voteplan;
+
+use crate::task::ExecTask;
+use chrono::Utc;
+
+use futures::TryFutureExt;
+use std::collections::{HashMap, HashSet};
+use std::io;
+use std::path::PathBuf;
+
 mod fetch;
 mod models;
 
@@ -26,13 +34,31 @@ pub enum Error {
 
     #[error(transparent)]
     IoError(#[from] std::io::Error),
+
+    #[error(transparent)]
+    DeserializeError(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    QueryError(#[from] diesel::result::Error),
 }
 
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab")]
 pub struct Import {
+    #[structopt(long)]
     fund: usize,
-    funnel_id: usize,
+
+    #[structopt(long)]
+    api_token: String,
+
+    #[structopt(long)]
+    voteplans_path: PathBuf,
+
+    #[structopt(long)]
+    db_url: String,
+
+    #[structopt(flatten)]
+    governance_parameters: GovernanceParameters,
 }
 
 #[derive(Debug)]
@@ -54,6 +80,15 @@ struct GovernanceParameters {
     fund_start_time: chrono::DateTime<Utc>,
     fund_end_time: chrono::DateTime<Utc>,
     next_fund_start_time: chrono::DateTime<Utc>,
+}
+
+pub struct DbData {
+    voteplans: Vec<Voteplan>,
+    challenges: Vec<db_models::challenges::Challenge>,
+    fund: db_models::funds::Fund,
+    proposals: Vec<db_models::proposals::Proposal>,
+    simple_proposal_data: Vec<simple::ChallengeSqlValues>,
+    community_proposal_data: Vec<community_choice::ChallengeSqlValues>,
 }
 
 pub async fn fetch_all(fund: usize, api_token: String) -> Result<IdeaScaleData, Error> {
@@ -119,18 +154,20 @@ fn build_proposals_data(
     ideascale_data: &IdeaScaleData,
     voteplan: &Voteplan,
 ) -> Vec<vit_servicing_station_lib::db::models::proposals::Proposal> {
+    let challenges = &ideascale_data.challenges;
     ideascale_data
         .proposals
         .values()
-        .map(
-            |p| vit_servicing_station_lib::db::models::proposals::Proposal {
+        .map(|p| {
+            let challenge = challenges.get(&p.challenge_id).unwrap();
+            vit_servicing_station_lib::db::models::proposals::Proposal {
                 internal_id: 0,
                 proposal_id: p.proposal_id.to_string(),
                 // TODO: Fill missing fields -> fill with challenges
                 proposal_category: Category {
-                    category_id: "".to_string(),
-                    category_name: "".to_string(),
-                    category_description: "".to_string(),
+                    category_id: challenge.id.to_string(),
+                    category_name: challenge.title.clone(),
+                    category_description: challenge.description.clone(),
                 },
                 proposal_title: p.proposal_title.clone(),
                 proposal_summary: p.proposal_summary.clone(),
@@ -155,12 +192,16 @@ fn build_proposals_data(
                 // TODO: where to get chain proposal id?
                 chain_proposal_id: vec![],
                 chain_proposal_index: 0,
-                // TODO: Where to get the options?
+                // TODO: check null option tag
                 chain_vote_options: VoteOptions(
-                    [("yes".to_string(), 0u8), ("no".to_string(), 1u8)]
-                        .iter()
-                        .cloned()
-                        .collect(),
+                    [
+                        ("".to_string(), 0u8),
+                        ("yes".to_string(), 1u8),
+                        ("no".to_string(), 2u8),
+                    ]
+                    .iter()
+                    .cloned()
+                    .collect(),
                 ),
                 chain_voteplan_id: voteplan.chain_voteplan_id.clone(),
                 chain_vote_start_time: voteplan.chain_vote_start_time,
@@ -170,17 +211,20 @@ fn build_proposals_data(
                 chain_vote_encryption_key: voteplan.chain_vote_encryption_key.clone(),
                 fund_id: ideascale_data.fund.id,
                 challenge_id: p.challenge_id,
-            },
-        )
+            }
+        })
         .collect()
 }
 
 fn build_extra_proposals_data(
     ideascale_data: &IdeaScaleData,
-) -> (
-    Vec<simple::ChallengeSqlValues>,
-    Vec<community_choice::ChallengeSqlValues>,
-) {
+) -> Result<
+    (
+        Vec<simple::ChallengeSqlValues>,
+        Vec<community_choice::ChallengeSqlValues>,
+    ),
+    Error,
+> {
     let funnels = &ideascale_data.funnels;
     let challenges = &ideascale_data.challenges;
 
@@ -196,40 +240,35 @@ fn build_extra_proposals_data(
         }
     };
 
-    ideascale_data.proposals.values().fold(
-        (vec![], vec![]),
-        |(mut simple, mut community), proposal| {
-            match challenge_type_by_challenge_id(proposal.challenge_id) {
-                ChallengeType::Simple => {
-                    simple.push(
-                        simple::ChallengeInfo {
-                            proposal_solution: proposal.custom_fields.proposal_solution.clone(),
-                        }
+    let (mut simple, mut community) = (vec![], vec![]);
+    for proposal in ideascale_data.proposals.values() {
+        match challenge_type_by_challenge_id(proposal.challenge_id) {
+            ChallengeType::Simple => {
+                let challenge_info: simple::ChallengeInfo =
+                    serde_json::from_value(proposal.custom_fields.extra.clone())?;
+                simple.push(
+                    challenge_info
                         .to_sql_values_with_proposal_id(&proposal.proposal_id.to_string()),
-                    );
-                }
-                ChallengeType::CommunityChoice => community.push(
-                    community_choice::ChallengeInfo {
-                        // TODO: fill this attributes
-                        proposal_brief: "".to_string(),
-                        proposal_importance: "".to_string(),
-                        proposal_goal: "".to_string(),
-                        proposal_metrics: "".to_string(),
-                    }
-                    .to_sql_values_with_proposal_id(&proposal.proposal_id.to_string()),
-                ),
-            };
-            (simple, community)
-        },
-    )
+                );
+            }
+            ChallengeType::CommunityChoice => {
+                let challenge_info: community_choice::ChallengeInfo =
+                    serde_json::from_value(proposal.custom_fields.extra.clone())?;
+                community.push(
+                    challenge_info
+                        .to_sql_values_with_proposal_id(&proposal.proposal_id.to_string()),
+                );
+            }
+        }
+    }
+    Ok((simple, community))
 }
 
-fn push_to_db(
+fn build_db_data(
     ideascale_data: &IdeaScaleData,
     voteplans: HashMap<i32, Voteplan>,
     governance_parameters: &GovernanceParameters,
-    db_url: &str,
-) -> Result<(), Error> {
+) -> Result<DbData, Error> {
     let voteplan_data = voteplans
         .values()
         .next()
@@ -254,7 +293,7 @@ fn push_to_db(
         )
         .collect();
     // build fund data
-    let fund = vit_servicing_station_lib::db::models::funds::Fund {
+    let fund = db_models::funds::Fund {
         id: 0,
         fund_name: ideascale_data.fund.name.clone(),
         fund_goal: governance_parameters.fund_goal.clone(),
@@ -269,7 +308,26 @@ fn push_to_db(
     };
 
     let proposals = build_proposals_data(&ideascale_data, &voteplan_data);
-    let (simple_data, community_data) = build_extra_proposals_data(&ideascale_data);
+    let (simple_data, community_data) = build_extra_proposals_data(&ideascale_data)?;
+    Ok(DbData {
+        voteplans,
+        challenges,
+        fund,
+        proposals,
+        simple_proposal_data: simple_data,
+        community_proposal_data: community_data,
+    })
+}
+
+fn push_to_db(db_data: DbData, db_url: &str) -> Result<(), Error> {
+    let DbData {
+        voteplans,
+        challenges,
+        fund,
+        proposals,
+        simple_proposal_data,
+        community_proposal_data,
+    } = db_data;
 
     // start db connection
     let pool = load_db_connection_pool(db_url)
@@ -280,51 +338,74 @@ fn push_to_db(
         .map_err(|e| io::Error::new(io::ErrorKind::NotConnected, format!("{}", e)))?;
 
     // upload fund to db
-    vit_servicing_station_lib::db::queries::funds::insert_fund(fund, &db_conn)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+    vit_servicing_station_lib::db::queries::funds::insert_fund(fund, &db_conn)?;
 
     // upload voteplans
-    vit_servicing_station_lib::db::queries::voteplans::batch_insert_voteplans(&voteplans, &db_conn)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+    vit_servicing_station_lib::db::queries::voteplans::batch_insert_voteplans(
+        &voteplans, &db_conn,
+    )?;
 
     // upload proposals
-    vit_servicing_station_lib::db::queries::proposals::batch_insert_proposals(&proposals, &db_conn)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+    vit_servicing_station_lib::db::queries::proposals::batch_insert_proposals(
+        &proposals, &db_conn,
+    )?;
 
     // upload challenges
     vit_servicing_station_lib::db::queries::challenges::batch_insert_challenges(
         &challenges,
         &db_conn,
-    )
-    .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+    )?;
 
     vit_servicing_station_lib::db::queries::proposals::batch_insert_community_choice_challenge_data(
-        &community_data,
+        &community_proposal_data,
         &db_conn,
-    )
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+    )?;
 
     vit_servicing_station_lib::db::queries::proposals::batch_insert_simple_challenge_data(
-        &simple_data,
+        &simple_proposal_data,
         &db_conn,
-    )
-    .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+    )?;
 
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::ideascale::fetch_all;
+fn load_voteplans_from_file_path(path: &PathBuf) -> Result<Vec<Voteplan>, Error> {
+    let file = std::fs::File::open(path)?;
+    Ok(serde_json::from_reader(file)?)
+}
 
-    const API_TOKEN: &str = "";
+impl ExecTask for Import {
+    type ResultValue = ();
 
-    #[tokio::test]
-    async fn test_fetch_funds() {
-        let results = fetch_all(4, API_TOKEN.to_string())
-            .await
-            .expect("All current campaigns data");
+    fn exec(&self) -> std::io::Result<Self::ResultValue> {
+        let Import {
+            fund,
+            voteplans_path,
+            db_url,
+            governance_parameters,
+            api_token,
+        } = self;
 
-        println!("{:?}", results);
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .build()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
+
+        let idescale_data =
+            futures::executor::block_on(runtime.spawn(fetch_all(*fund, api_token.clone())))?
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
+
+        let voteplans: HashMap<i32, Voteplan> = load_voteplans_from_file_path(voteplans_path)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?
+            .into_iter()
+            .map(|v| (v.id, v))
+            .collect();
+
+        let db_data = build_db_data(&idescale_data, voteplans, governance_parameters)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
+
+        push_to_db(db_data, &db_url)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
+
+        Ok(())
     }
 }
