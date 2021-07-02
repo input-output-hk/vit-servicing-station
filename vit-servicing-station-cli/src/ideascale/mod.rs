@@ -16,6 +16,7 @@ use crate::task::ExecTask;
 use chrono::Utc;
 
 use futures::TryFutureExt;
+use serde::de::DeserializeOwned;
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::PathBuf;
@@ -52,7 +53,10 @@ pub struct Import {
     api_token: String,
 
     #[structopt(long)]
-    voteplans_path: PathBuf,
+    voteplans: PathBuf,
+
+    #[structopt(long)]
+    rewards: PathBuf,
 
     #[structopt(long)]
     db_url: String,
@@ -90,6 +94,8 @@ pub struct DbData {
     simple_proposal_data: Vec<simple::ChallengeSqlValues>,
     community_proposal_data: Vec<community_choice::ChallengeSqlValues>,
 }
+
+pub type Rewards = HashMap<i32, i64>;
 
 pub async fn fetch_all(fund: usize, api_token: String) -> Result<IdeaScaleData, Error> {
     let funnels_task = tokio::spawn(fetch::get_funnels_data_for_fund(fund, api_token.clone()));
@@ -163,7 +169,6 @@ fn build_proposals_data(
             vit_servicing_station_lib::db::models::proposals::Proposal {
                 internal_id: 0,
                 proposal_id: p.proposal_id.to_string(),
-                // TODO: Fill missing fields -> fill with challenges
                 proposal_category: Category {
                     category_id: challenge.id.to_string(),
                     category_name: challenge.title.clone(),
@@ -192,10 +197,9 @@ fn build_proposals_data(
                 // TODO: where to get chain proposal id?
                 chain_proposal_id: vec![],
                 chain_proposal_index: 0,
-                // TODO: check null option tag
                 chain_vote_options: VoteOptions(
                     [
-                        ("".to_string(), 0u8),
+                        ("blank".to_string(), 0u8),
                         ("yes".to_string(), 1u8),
                         ("no".to_string(), 2u8),
                     ]
@@ -266,8 +270,9 @@ fn build_extra_proposals_data(
 
 fn build_db_data(
     ideascale_data: &IdeaScaleData,
-    voteplans: HashMap<i32, Voteplan>,
+    voteplans: &HashMap<i32, Voteplan>,
     governance_parameters: &GovernanceParameters,
+    rewards: &Rewards,
 ) -> Result<DbData, Error> {
     let voteplan_data = voteplans
         .values()
@@ -278,19 +283,19 @@ fn build_db_data(
     let challenges: Vec<_> = ideascale_data
         .challenges
         .values()
-        .map(
-            |c| vit_servicing_station_lib::db::models::challenges::Challenge {
-                id: 0,
-                challenge_type: ChallengeType::Simple,
-                title: c.title.clone(),
-                description: c.description.clone(),
-                // TODO: Get the rewards: should be imported as an external data (cli argument)
-                rewards_total: 0,
-                proposers_rewards: 0,
-                fund_id: ideascale_data.fund.id,
-                challenge_url: c.challenge_url.clone(),
-            },
-        )
+        .map(|c| db_models::challenges::Challenge {
+            id: 0,
+            challenge_type: ChallengeType::Simple,
+            title: c.title.clone(),
+            description: c.description.clone(),
+            rewards_total: *rewards.get(&c.id).expect(&format!(
+                "Rewards not found for challenge with id: {}",
+                c.id
+            )),
+            proposers_rewards: 0,
+            fund_id: ideascale_data.fund.id,
+            challenge_url: c.challenge_url.clone(),
+        })
         .collect();
     // build fund data
     let fund = db_models::funds::Fund {
@@ -369,7 +374,7 @@ fn push_to_db(db_data: DbData, db_url: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn load_voteplans_from_file_path(path: &PathBuf) -> Result<Vec<Voteplan>, Error> {
+fn load_json_from_file_path<T: DeserializeOwned>(path: &PathBuf) -> Result<T, Error> {
     let file = std::fs::File::open(path)?;
     Ok(serde_json::from_reader(file)?)
 }
@@ -380,7 +385,8 @@ impl ExecTask for Import {
     fn exec(&self) -> std::io::Result<Self::ResultValue> {
         let Import {
             fund,
-            voteplans_path,
+            voteplans,
+            rewards,
             db_url,
             governance_parameters,
             api_token,
@@ -394,13 +400,17 @@ impl ExecTask for Import {
             futures::executor::block_on(runtime.spawn(fetch_all(*fund, api_token.clone())))?
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
 
-        let voteplans: HashMap<i32, Voteplan> = load_voteplans_from_file_path(voteplans_path)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?
-            .into_iter()
-            .map(|v| (v.id, v))
-            .collect();
+        let voteplans: HashMap<i32, Voteplan> =
+            load_json_from_file_path::<Vec<Voteplan>>(voteplans)
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?
+                .into_iter()
+                .map(|v| (v.id, v))
+                .collect();
 
-        let db_data = build_db_data(&idescale_data, voteplans, governance_parameters)
+        let rewards: Rewards = load_json_from_file_path(rewards)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
+
+        let db_data = build_db_data(&idescale_data, &voteplans, governance_parameters, &rewards)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
 
         push_to_db(db_data, &db_url)
