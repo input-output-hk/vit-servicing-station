@@ -1,7 +1,4 @@
-use serde::{Deserialize, Deserializer};
-use std::collections::HashMap;
-use vit_servicing_station_lib::db::models as db_models;
-use vit_servicing_station_lib::db::models::proposals::ChallengeType;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Challenge {

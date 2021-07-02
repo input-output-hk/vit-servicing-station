@@ -2,7 +2,7 @@ use super::models::{Fund, Proposal};
 
 use serde::Deserialize;
 
-use crate::ideascale::models::{Challenge, Funnel};
+use crate::ideascale::models::Funnel;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -113,56 +113,4 @@ pub async fn get_funnels_data_for_fund(
         .into_iter()
         .filter(|f| f.title.starts_with(&format!("Fund {}", fund)))
         .collect())
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::ideascale::fetch::{
-        get_assessment_id, get_assessments_score, get_funds_data, get_funnels_data_for_fund,
-        get_proposals_data,
-    };
-    const API_TOKEN: &str = "";
-    #[tokio::test]
-    async fn test_fetch_funds() {
-        let results = get_funds_data(API_TOKEN.to_string())
-            .await
-            .expect("All current campaigns data");
-        println!("{}", results.len());
-        for campaign in results {
-            println!("{:?}", campaign);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_assessment_scores() {
-        let assessment_id = get_assessment_id(76890, API_TOKEN.to_string())
-            .await
-            .unwrap();
-        let assessments_scores = get_assessments_score(assessment_id, API_TOKEN.to_string())
-            .await
-            .unwrap();
-        for score in assessments_scores {
-            println!("{:?}", score);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_fetch_proposals() {
-        let proposals = get_proposals_data(25939, API_TOKEN.to_string())
-            .await
-            .unwrap();
-        for proposal in proposals {
-            println!("{:?}", proposal);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_fetch_funnels() {
-        let proposals = get_funnels_data_for_fund(4, API_TOKEN.to_string())
-            .await
-            .unwrap();
-        for proposal in proposals {
-            println!("{:?}", proposal);
-        }
-    }
 }

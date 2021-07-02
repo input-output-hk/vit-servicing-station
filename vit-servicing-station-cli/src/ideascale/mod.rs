@@ -1,25 +1,22 @@
 use structopt::StructOpt;
 
-use crate::ideascale::fetch::{get_assessment_id, Scores};
+use crate::ideascale::fetch::Scores;
 use crate::ideascale::models::{Challenge, Fund, Funnel, Proposal};
 
 use vit_servicing_station_lib::db::load_db_connection_pool;
 use vit_servicing_station_lib::db::models as db_models;
 use vit_servicing_station_lib::db::models::proposals::{community_choice, simple};
-use vit_servicing_station_lib::db::models::proposals::{
-    Category, ChallengeType, FullProposalInfo, Proposer,
-};
-use vit_servicing_station_lib::db::models::vote_options::{VoteOptions, VoteOptionsMap};
+use vit_servicing_station_lib::db::models::proposals::{Category, ChallengeType, Proposer};
+use vit_servicing_station_lib::db::models::vote_options::VoteOptions;
 use vit_servicing_station_lib::db::models::voteplans::Voteplan;
 
 use crate::task::ExecTask;
 use chrono::Utc;
 
-use futures::TryFutureExt;
 use serde::de::DeserializeOwned;
 use std::collections::{HashMap, HashSet};
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 mod fetch;
 mod models;
@@ -97,7 +94,7 @@ pub struct DbData {
 
 pub type Rewards = HashMap<i32, i64>;
 
-pub async fn fetch_all(fund: usize, api_token: String) -> Result<IdeaScaleData, Error> {
+async fn fetch_all(fund: usize, api_token: String) -> Result<IdeaScaleData, Error> {
     let funnels_task = tokio::spawn(fetch::get_funnels_data_for_fund(fund, api_token.clone()));
     let funds_task = tokio::spawn(fetch::get_funds_data(api_token.clone()));
     let funnels = funnels_task
@@ -144,12 +141,8 @@ pub async fn fetch_all(fund: usize, api_token: String) -> Result<IdeaScaleData, 
         funnels,
         fund: funds
             .into_iter()
-            .filter(|f| f.name.contains(&format!("Fund{}", fund)))
-            .next()
-            .expect(&format!(
-                "Selected fund {}, wasn't among the available funds",
-                fund
-            )),
+            .find(|f| f.name.contains(&format!("Fund{}", fund)))
+            .unwrap_or_else(|| panic!("Selected fund {}, wasn't among the available funds", fund)),
         challenges: challenges.into_iter().map(|c| (c.id, c)).collect(),
         proposals: proposals.into_iter().map(|p| (p.proposal_id, p)).collect(),
         scores,
@@ -183,10 +176,12 @@ fn build_proposals_data(
                 proposal_impact_score: ideascale_data
                     .scores
                     .get(&p.proposal_id)
-                    .expect(&format!(
-                        "Impact score not found for proposal with id {}",
-                        p.proposal_id
-                    ))
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "Impact score not found for proposal with id {}",
+                            p.proposal_id
+                        )
+                    })
                     .round() as i64,
                 proposer: Proposer {
                     proposer_name: p.proposer.name.clone(),
@@ -232,10 +227,14 @@ fn build_extra_proposals_data(
     let funnels = &ideascale_data.funnels;
     let challenges = &ideascale_data.challenges;
 
-    let mut challenge_type_by_challenge_id = |id: i32| -> ChallengeType {
+    let challenge_type_by_challenge_id = |id: i32| -> ChallengeType {
+        let funnel_id = challenges
+            .get(&id)
+            .unwrap_or_else(|| panic!("Couldn't find a challenge with id: {}", id))
+            .funnel_id;
         if funnels
-            .get(&challenges.get(&id).unwrap().funnel_id)
-            .unwrap()
+            .get(&funnel_id)
+            .unwrap_or_else(|| panic!("Couldn't find a funnel with id: {}", funnel_id))
             .is_community()
         {
             ChallengeType::CommunityChoice
@@ -288,10 +287,9 @@ fn build_db_data(
             challenge_type: ChallengeType::Simple,
             title: c.title.clone(),
             description: c.description.clone(),
-            rewards_total: *rewards.get(&c.id).expect(&format!(
-                "Rewards not found for challenge with id: {}",
-                c.id
-            )),
+            rewards_total: *rewards
+                .get(&c.id)
+                .unwrap_or_else(|| panic!("Rewards not found for challenge with id: {}", c.id)),
             proposers_rewards: 0,
             fund_id: ideascale_data.fund.id,
             challenge_url: c.challenge_url.clone(),
@@ -374,7 +372,7 @@ fn push_to_db(db_data: DbData, db_url: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn load_json_from_file_path<T: DeserializeOwned>(path: &PathBuf) -> Result<T, Error> {
+fn load_json_from_file_path<T: DeserializeOwned>(path: &Path) -> Result<T, Error> {
     let file = std::fs::File::open(path)?;
     Ok(serde_json::from_reader(file)?)
 }
