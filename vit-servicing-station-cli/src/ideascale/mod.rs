@@ -1,25 +1,26 @@
-use structopt::StructOpt;
+mod fetch;
+mod models;
 
 use crate::ideascale::fetch::Scores;
 use crate::ideascale::models::{Challenge, Fund, Funnel, Proposal};
+use crate::task::ExecTask;
 
+use chain_impl_mockchain::certificate::VotePlan;
+use chain_impl_mockchain::vote::PayloadType;
+use jormungandr_lib::interfaces::VotePlanDef;
 use vit_servicing_station_lib::db::load_db_connection_pool;
 use vit_servicing_station_lib::db::models as db_models;
 use vit_servicing_station_lib::db::models::proposals::{community_choice, simple};
 use vit_servicing_station_lib::db::models::proposals::{Category, ChallengeType, Proposer};
 use vit_servicing_station_lib::db::models::vote_options::VoteOptions;
-use vit_servicing_station_lib::db::models::voteplans::Voteplan;
 
-use crate::task::ExecTask;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
+use structopt::StructOpt;
 
-use serde::de::DeserializeOwned;
 use std::collections::{HashMap, HashSet};
 use std::io;
+use std::io::Read;
 use std::path::{Path, PathBuf};
-
-mod fetch;
-mod models;
 
 // TODO: set error messages
 #[derive(thiserror::Error, Debug)]
@@ -60,6 +61,9 @@ pub struct Import {
 
     #[structopt(flatten)]
     governance_parameters: GovernanceParameters,
+
+    #[structopt(flatten)]
+    voting_parameters: VotingParameters,
 }
 
 #[derive(Debug)]
@@ -83,8 +87,16 @@ struct GovernanceParameters {
     next_fund_start_time: chrono::DateTime<Utc>,
 }
 
+#[derive(Debug, StructOpt)]
+struct VotingParameters {
+    vote_start_time: DateTime<Utc>,
+    vote_end_time: DateTime<Utc>,
+    vote_committee_time: DateTime<Utc>,
+    chain_vote_encryption_key: String,
+}
+
 pub struct DbData {
-    voteplans: Vec<Voteplan>,
+    voteplans: Vec<db_models::voteplans::Voteplan>,
     challenges: Vec<db_models::challenges::Challenge>,
     fund: db_models::funds::Fund,
     proposals: Vec<db_models::proposals::Proposal>,
@@ -151,7 +163,8 @@ async fn fetch_all(fund: usize, api_token: String) -> Result<IdeaScaleData, Erro
 
 fn build_proposals_data(
     ideascale_data: &IdeaScaleData,
-    voteplan: &Voteplan,
+    voting_paramters: &VotingParameters,
+    voteplan: &VotePlan,
 ) -> Vec<vit_servicing_station_lib::db::models::proposals::Proposal> {
     let challenges = &ideascale_data.challenges;
     ideascale_data
@@ -202,12 +215,12 @@ fn build_proposals_data(
                     .cloned()
                     .collect(),
                 ),
-                chain_voteplan_id: voteplan.chain_voteplan_id.clone(),
-                chain_vote_start_time: voteplan.chain_vote_start_time,
-                chain_vote_end_time: voteplan.chain_vote_end_time,
-                chain_committee_end_time: voteplan.chain_committee_end_time,
-                chain_voteplan_payload: voteplan.chain_voteplan_payload.clone(),
-                chain_vote_encryption_key: voteplan.chain_vote_encryption_key.clone(),
+                chain_voteplan_id: voteplan.to_id().to_string(),
+                chain_vote_start_time: voting_paramters.vote_start_time.timestamp(),
+                chain_vote_end_time: voting_paramters.vote_end_time.timestamp(),
+                chain_committee_end_time: voting_paramters.vote_committee_time.timestamp(),
+                chain_voteplan_payload: payload_type_to_string(voteplan.payload_type()),
+                chain_vote_encryption_key: voting_paramters.chain_vote_encryption_key.clone(),
                 fund_id: ideascale_data.fund.id,
                 challenge_id: p.challenge_id,
             }
@@ -269,8 +282,9 @@ fn build_extra_proposals_data(
 
 fn build_db_data(
     ideascale_data: &IdeaScaleData,
-    voteplans: &HashMap<i32, Voteplan>,
+    voteplans: &HashMap<String, VotePlan>,
     governance_parameters: &GovernanceParameters,
+    voting_paramters: &VotingParameters,
     rewards: &Rewards,
 ) -> Result<DbData, Error> {
     let voteplan_data = voteplans
@@ -278,7 +292,19 @@ fn build_db_data(
         .next()
         .expect("Voteplans should't be empty");
 
-    let voteplans: Vec<Voteplan> = voteplans.values().cloned().collect();
+    let voteplans: Vec<db_models::voteplans::Voteplan> = voteplans
+        .values()
+        .map(|v| db_models::voteplans::Voteplan {
+            id: 0,
+            chain_voteplan_id: v.to_id().to_string(),
+            chain_vote_start_time: voting_paramters.vote_start_time.timestamp(),
+            chain_vote_end_time: voting_paramters.vote_end_time.timestamp(),
+            chain_committee_end_time: voting_paramters.vote_committee_time.timestamp(),
+            chain_voteplan_payload: payload_type_to_string(voteplan_data.payload_type()),
+            chain_vote_encryption_key: voting_paramters.chain_vote_encryption_key.clone(),
+            fund_id: ideascale_data.fund.id,
+        })
+        .collect();
     let challenges: Vec<_> = ideascale_data
         .challenges
         .values()
@@ -310,7 +336,7 @@ fn build_db_data(
         challenges: challenges.clone(),
     };
 
-    let proposals = build_proposals_data(&ideascale_data, &voteplan_data);
+    let proposals = build_proposals_data(&ideascale_data, &voting_paramters, &voteplan_data);
     let (simple_data, community_data) = build_extra_proposals_data(&ideascale_data)?;
     Ok(DbData {
         voteplans,
@@ -372,7 +398,15 @@ fn push_to_db(db_data: DbData, db_url: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn load_json_from_file_path<T: DeserializeOwned>(path: &Path) -> Result<T, Error> {
+fn payload_type_to_string(payload_type: PayloadType) -> String {
+    match payload_type {
+        PayloadType::Public => "Public",
+        PayloadType::Private => "Private",
+    }
+    .to_string()
+}
+
+fn load_json_from_file_path<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, Error> {
     let file = std::fs::File::open(path)?;
     Ok(serde_json::from_reader(file)?)
 }
@@ -387,6 +421,7 @@ impl ExecTask for Import {
             rewards,
             db_url,
             governance_parameters,
+            voting_parameters,
             api_token,
         } = self;
 
@@ -398,18 +433,25 @@ impl ExecTask for Import {
             futures::executor::block_on(runtime.spawn(fetch_all(*fund, api_token.clone())))?
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
 
-        let voteplans: HashMap<i32, Voteplan> =
-            load_json_from_file_path::<Vec<Voteplan>>(voteplans)
+        let voteplans: HashMap<String, VotePlan> =
+            load_json_from_file_path::<Vec<VotePlanDef>>(voteplans)
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?
                 .into_iter()
-                .map(|v| (v.id, v))
+                .map(Into::into)
+                .map(|v: VotePlan| (v.to_id().to_string(), v))
                 .collect();
 
         let rewards: Rewards = load_json_from_file_path(rewards)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
 
-        let db_data = build_db_data(&idescale_data, &voteplans, governance_parameters, &rewards)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
+        let db_data = build_db_data(
+            &idescale_data,
+            &voteplans,
+            governance_parameters,
+            &voting_parameters,
+            &rewards,
+        )
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
 
         push_to_db(db_data, &db_url)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
