@@ -1,3 +1,4 @@
+use crate::ideascale::Import;
 use crate::task::ExecTask;
 use std::io;
 use structopt::StructOpt;
@@ -5,7 +6,7 @@ use vit_servicing_station_lib::db::{
     load_db_connection_pool, migrations::initialize_db_with_migration,
 };
 
-#[derive(Debug, PartialEq, StructOpt)]
+#[derive(Debug, StructOpt)]
 pub enum Db {
     /// Initialize a DB with the proper migrations, DB file is created if not exists.
     Init {
@@ -13,6 +14,7 @@ pub enum Db {
         #[structopt(long = "db-url")]
         db_url: String,
     },
+    ImportFromIdeascale(Box<Import>),
 }
 
 impl Db {
@@ -33,6 +35,7 @@ impl ExecTask for Db {
     fn exec(&self) -> io::Result<Self::ResultValue> {
         match self {
             Db::Init { db_url } => Db::init_with_migrations(db_url),
+            Db::ImportFromIdeascale(import) => import.exec(),
         }
     }
 }
