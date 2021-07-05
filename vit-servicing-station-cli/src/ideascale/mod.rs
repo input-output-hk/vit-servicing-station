@@ -14,12 +14,11 @@ use vit_servicing_station_lib::db::models::proposals::{community_choice, simple}
 use vit_servicing_station_lib::db::models::proposals::{Category, ChallengeType, Proposer};
 use vit_servicing_station_lib::db::models::vote_options::VoteOptions;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, Utc};
 use structopt::StructOpt;
 
 use std::collections::{HashMap, HashSet};
 use std::io;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 
 // TODO: set error messages
@@ -89,11 +88,17 @@ struct GovernanceParameters {
 
 #[derive(Debug, StructOpt)]
 struct VotingParameters {
-    vote_start_time: DateTime<Utc>,
-    vote_end_time: DateTime<Utc>,
-    vote_committee_time: DateTime<Utc>,
+    #[structopt(long, parse(try_from_str = chrono::DateTime::parse_from_rfc3339))]
+    vote_start_time: DateTime<FixedOffset>,
+    #[structopt(long, parse(try_from_str = chrono::DateTime::parse_from_rfc3339))]
+    vote_end_time: DateTime<FixedOffset>,
+    #[structopt(long, parse(try_from_str = chrono::DateTime::parse_from_rfc3339))]
+    vote_committee_time: DateTime<FixedOffset>,
     chain_vote_encryption_key: String,
 }
+
+#[derive(serde::Deserialize)]
+struct VotePlanDeserializeHelper(#[serde(with = "VotePlanDef")] VotePlan);
 
 pub struct DbData {
     voteplans: Vec<db_models::voteplans::Voteplan>,
@@ -105,6 +110,12 @@ pub struct DbData {
 }
 
 pub type Rewards = HashMap<i32, i64>;
+
+impl From<VotePlanDeserializeHelper> for VotePlan {
+    fn from(v: VotePlanDeserializeHelper) -> Self {
+        v.0
+    }
+}
 
 async fn fetch_all(fund: usize, api_token: String) -> Result<IdeaScaleData, Error> {
     let funnels_task = tokio::spawn(fetch::get_funnels_data_for_fund(fund, api_token.clone()));
@@ -434,7 +445,7 @@ impl ExecTask for Import {
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
 
         let voteplans: HashMap<String, VotePlan> =
-            load_json_from_file_path::<Vec<VotePlanDef>>(voteplans)
+            load_json_from_file_path::<Vec<VotePlanDeserializeHelper>>(voteplans)
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?
                 .into_iter()
                 .map(Into::into)
