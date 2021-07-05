@@ -174,7 +174,7 @@ async fn fetch_all(fund: usize, api_token: String) -> Result<IdeaScaleData, Erro
 
 fn build_proposals_data(
     ideascale_data: &IdeaScaleData,
-    voting_paramters: &VotingParameters,
+    voting_parameters: &VotingParameters,
     voteplan: &VotePlan,
 ) -> Vec<vit_servicing_station_lib::db::models::proposals::Proposal> {
     let challenges = &ideascale_data.challenges;
@@ -227,11 +227,11 @@ fn build_proposals_data(
                     .collect(),
                 ),
                 chain_voteplan_id: voteplan.to_id().to_string(),
-                chain_vote_start_time: voting_paramters.vote_start_time.timestamp(),
-                chain_vote_end_time: voting_paramters.vote_end_time.timestamp(),
-                chain_committee_end_time: voting_paramters.vote_committee_time.timestamp(),
+                chain_vote_start_time: voting_parameters.vote_start_time.timestamp(),
+                chain_vote_end_time: voting_parameters.vote_end_time.timestamp(),
+                chain_committee_end_time: voting_parameters.vote_committee_time.timestamp(),
                 chain_voteplan_payload: payload_type_to_string(voteplan.payload_type()),
-                chain_vote_encryption_key: voting_paramters.chain_vote_encryption_key.clone(),
+                chain_vote_encryption_key: voting_parameters.chain_vote_encryption_key.clone(),
                 fund_id: ideascale_data.fund.id,
                 challenge_id: p.challenge_id,
             }
