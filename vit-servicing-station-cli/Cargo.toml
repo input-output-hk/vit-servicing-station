@@ -12,8 +12,10 @@ base64 = "0.12.1"
 chain-impl-mockchain = { git = "https://github.com/input-output-hk/chain-libs.git", branch = "master" }
 chrono = "0.4.13"
 csv = "1.1"
+blake2 = "0.9"
 diesel = "1.4"
 futures = "0.3"
+hex = "0.4"
 jormungandr-lib = { git = "https://github.com/input-output-hk/jormungandr.git", branch = "master" }
 lazy_static = "1.4"
 rand = "0.7.3"

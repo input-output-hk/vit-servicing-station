@@ -17,6 +17,7 @@ use vit_servicing_station_lib::db::models::vote_options::VoteOptions;
 use chrono::{DateTime, FixedOffset, Utc};
 use structopt::StructOpt;
 
+use blake2::{digest::Output, Blake2b, Digest};
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -174,18 +175,26 @@ async fn fetch_all(fund: usize, api_token: String) -> Result<IdeaScaleData, Erro
 
 fn build_proposals_data(
     ideascale_data: &IdeaScaleData,
+    chain_proposals: &HashMap<String, chain_impl_mockchain::certificate::Proposal>,
     voting_parameters: &VotingParameters,
-    voteplan: &VotePlan,
-) -> Vec<vit_servicing_station_lib::db::models::proposals::Proposal> {
+    voteplan_by_proposal_id: &HashMap<String, (String, PayloadType)>,
+) -> Vec<db_models::proposals::Proposal> {
     let challenges = &ideascale_data.challenges;
+
     ideascale_data
         .proposals
         .values()
         .map(|p| {
             let challenge = challenges.get(&p.challenge_id).unwrap();
-            vit_servicing_station_lib::db::models::proposals::Proposal {
+            let proposal_id = blake2b_hash(&format!("{}", p.proposal_id.to_string()))
+                .as_slice()
+                .to_vec();
+            let proposal_id_str = hex::encode(&proposal_id);
+            let (voteplan_id, payload_type) =
+                voteplan_by_proposal_id.get(&proposal_id_str).unwrap();
+            db_models::proposals::Proposal {
                 internal_id: 0,
-                proposal_id: p.proposal_id.to_string(),
+                proposal_id: hex::encode(&proposal_id),
                 proposal_category: Category {
                     category_id: challenge.id.to_string(),
                     category_name: challenge.title.clone(),
@@ -214,7 +223,7 @@ fn build_proposals_data(
                     proposer_relevant_experience: "".to_string(),
                 },
                 // TODO: where to get chain proposal id?
-                chain_proposal_id: vec![],
+                chain_proposal_id: proposal_id,
                 chain_proposal_index: 0,
                 chain_vote_options: VoteOptions(
                     [
@@ -226,11 +235,11 @@ fn build_proposals_data(
                     .cloned()
                     .collect(),
                 ),
-                chain_voteplan_id: voteplan.to_id().to_string(),
+                chain_voteplan_id: voteplan_id.clone(),
                 chain_vote_start_time: voting_parameters.vote_start_time.timestamp(),
                 chain_vote_end_time: voting_parameters.vote_end_time.timestamp(),
                 chain_committee_end_time: voting_parameters.vote_committee_time.timestamp(),
-                chain_voteplan_payload: payload_type_to_string(voteplan.payload_type()),
+                chain_voteplan_payload: payload_type_to_string(*payload_type),
                 chain_vote_encryption_key: voting_parameters.chain_vote_encryption_key.clone(),
                 fund_id: ideascale_data.fund.id,
                 challenge_id: p.challenge_id,
@@ -294,8 +303,9 @@ fn build_extra_proposals_data(
 fn build_db_data(
     ideascale_data: &IdeaScaleData,
     voteplans: &HashMap<String, VotePlan>,
+    chain_proposals: &HashMap<String, chain_impl_mockchain::certificate::Proposal>,
     governance_parameters: &GovernanceParameters,
-    voting_paramters: &VotingParameters,
+    voting_parameters: &VotingParameters,
     rewards: &Rewards,
 ) -> Result<DbData, Error> {
     let voteplan_data = voteplans
@@ -303,16 +313,30 @@ fn build_db_data(
         .next()
         .expect("Voteplans should't be empty");
 
+    let voteplans_by_proposal_id: HashMap<String, (String, PayloadType)> = voteplans
+        .values()
+        .flat_map(|voteplan| {
+            voteplan.proposals().iter().map(
+                move |p: &chain_impl_mockchain::certificate::Proposal| {
+                    (
+                        p.external_id().to_string(),
+                        (voteplan.to_id().to_string(), voteplan.payload_type()),
+                    )
+                },
+            )
+        })
+        .collect();
+
     let voteplans: Vec<db_models::voteplans::Voteplan> = voteplans
         .values()
         .map(|v| db_models::voteplans::Voteplan {
             id: 0,
             chain_voteplan_id: v.to_id().to_string(),
-            chain_vote_start_time: voting_paramters.vote_start_time.timestamp(),
-            chain_vote_end_time: voting_paramters.vote_end_time.timestamp(),
-            chain_committee_end_time: voting_paramters.vote_committee_time.timestamp(),
+            chain_vote_start_time: voting_parameters.vote_start_time.timestamp(),
+            chain_vote_end_time: voting_parameters.vote_end_time.timestamp(),
+            chain_committee_end_time: voting_parameters.vote_committee_time.timestamp(),
             chain_voteplan_payload: payload_type_to_string(voteplan_data.payload_type()),
-            chain_vote_encryption_key: voting_paramters.chain_vote_encryption_key.clone(),
+            chain_vote_encryption_key: voting_parameters.chain_vote_encryption_key.clone(),
             fund_id: ideascale_data.fund.id,
         })
         .collect();
@@ -347,7 +371,12 @@ fn build_db_data(
         challenges: challenges.clone(),
     };
 
-    let proposals = build_proposals_data(&ideascale_data, &voting_paramters, &voteplan_data);
+    let proposals = build_proposals_data(
+        &ideascale_data,
+        &chain_proposals,
+        &voting_parameters,
+        &voteplans_by_proposal_id,
+    );
     let (simple_data, community_data) = build_extra_proposals_data(&ideascale_data)?;
     Ok(DbData {
         voteplans,
@@ -422,6 +451,12 @@ fn load_json_from_file_path<T: serde::de::DeserializeOwned>(path: &Path) -> Resu
     Ok(serde_json::from_reader(file)?)
 }
 
+fn blake2b_hash(content: impl AsRef<[u8]>) -> Output<Blake2b> {
+    let mut hasher = blake2::Blake2b::new();
+    blake2::Digest::update(&mut hasher, content);
+    hasher.finalize()
+}
+
 impl ExecTask for Import {
     type ResultValue = ();
 
@@ -452,12 +487,23 @@ impl ExecTask for Import {
                 .map(|v: VotePlan| (v.to_id().to_string(), v))
                 .collect();
 
+        let chain_proposals: HashMap<String, chain_impl_mockchain::certificate::Proposal> =
+            voteplans
+                .values()
+                .flat_map(|voteplan| voteplan.proposals().iter())
+                .cloned()
+                .map(|p: chain_impl_mockchain::certificate::Proposal| {
+                    (p.external_id().to_string(), p)
+                })
+                .collect();
+
         let rewards: Rewards = load_json_from_file_path(rewards)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?;
 
         let db_data = build_db_data(
             &idescale_data,
             &voteplans,
+            &chain_proposals,
             governance_parameters,
             &voting_parameters,
             &rewards,
