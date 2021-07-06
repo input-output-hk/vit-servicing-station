@@ -44,18 +44,24 @@ pub enum Error {
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab")]
 pub struct Import {
+    /// Fund number id
     #[structopt(long)]
     fund: usize,
 
+    /// ideascale API token
     #[structopt(long)]
     api_token: String,
 
+    /// Path to a voteplan definition file
     #[structopt(long)]
     voteplans: PathBuf,
 
+    /// Path to a json file containing the related rewards per challenge.
+    /// `{ challenge_id:  reward_amount}`
     #[structopt(long)]
     rewards: PathBuf,
 
+    /// Url or file path for the vit servicing station database
     #[structopt(long)]
     db_url: String,
 
