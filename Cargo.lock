@@ -2971,7 +2971,7 @@ checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
 
 [[package]]
 name = "vit-servicing-station-cli"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "base64 0.12.3",
  "chrono",
@@ -2989,7 +2989,7 @@ dependencies = [
 
 [[package]]
 name = "vit-servicing-station-lib"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "async-trait",
  "base64 0.12.3",
@@ -3020,7 +3020,7 @@ dependencies = [
 
 [[package]]
 name = "vit-servicing-station-server"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "log",
  "structopt",
@@ -3034,7 +3034,7 @@ dependencies = [
 
 [[package]]
 name = "vit-servicing-station-tests"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "assert_cmd",
  "assert_fs",
