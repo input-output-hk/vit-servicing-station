@@ -16,6 +16,7 @@ table! {
         proposers_rewards -> BigInt,
         fund_id -> Integer,
         challenge_url -> Text,
+        highlights -> Nullable<Text>,
     }
 }
 
@@ -39,6 +40,7 @@ table! {
         fund_name -> Text,
         fund_goal -> Text,
         registration_snapshot_time -> BigInt,
+        next_registration_snapshot_time -> BigInt,
         voting_power_threshold -> BigInt,
         fund_start_time -> BigInt,
         fund_end_time -> BigInt,
