@@ -1,4 +1,5 @@
 use super::logic;
+use crate::v0::endpoints::proposals::requests::ProposalsByVoteplanIdAndIndex;
 use crate::v0::{context::SharedContext, result::HandlerResult};
 use warp::{Rejection, Reply};
 
@@ -8,6 +9,15 @@ pub async fn get_proposal(id: i32, context: SharedContext) -> Result<impl Reply,
 
 pub async fn get_all_proposals(context: SharedContext) -> Result<impl Reply, Rejection> {
     Ok(HandlerResult(logic::get_all_proposals(context).await))
+}
+
+pub async fn get_proposals_by_voteplan_id_and_index(
+    body: ProposalsByVoteplanIdAndIndex,
+    context: SharedContext,
+) -> Result<impl Reply, Rejection> {
+    Ok(HandlerResult(
+        logic::get_proposals_by_voteplan_id_and_index(body, context).await,
+    ))
 }
 
 #[cfg(test)]
