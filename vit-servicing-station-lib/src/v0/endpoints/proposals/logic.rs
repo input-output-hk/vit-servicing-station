@@ -27,7 +27,7 @@ pub async fn get_proposals_by_voteplan_id_and_index(
         .map(|proposal_query| {
             tokio::spawn(
                 proposals_queries::query_proposals_by_voteplan_id_and_indexes(
-                    proposal_query.voteplan_id,
+                    proposal_query.vote_plan_id,
                     proposal_query.indexes,
                     pool.clone(),
                 ),

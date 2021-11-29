@@ -32,7 +32,7 @@ pub mod test {
         },
     };
     use crate::v0::context::test::new_in_memmory_db_test_shared_context;
-    use crate::v0::endpoints::proposals::requests::ProposalVoteplanIdAndIndex;
+    use crate::v0::endpoints::proposals::requests::ProposalVoteplanIdAndIndexes;
     use warp::Filter;
 
     #[tokio::test]
@@ -124,8 +124,8 @@ pub mod test {
             .and(with_context)
             .and_then(get_proposals_by_voteplan_id_and_index);
 
-        let request = ProposalVoteplanIdAndIndex {
-            voteplan_id: proposal.proposal.chain_voteplan_id.clone(),
+        let request = ProposalVoteplanIdAndIndexes {
+            vote_plan_id: proposal.proposal.chain_voteplan_id.clone(),
             indexes: vec![proposal.proposal.chain_proposal_index],
         };
 
