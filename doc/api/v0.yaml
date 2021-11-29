@@ -70,7 +70,6 @@ paths:
           application/json:
             schema:
                 $ref: '#/components/schemas/ProposalsByVoteplanIdAndIndexQuery'
-
       responses:
         "200":
           description: Valid response
@@ -78,8 +77,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProposalWithChallengeInfo"
-        "404":
-          description: The requested proposals were not found
 
     get:
       operationId: getAllProposals
