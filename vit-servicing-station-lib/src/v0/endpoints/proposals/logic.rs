@@ -46,7 +46,6 @@ pub async fn get_proposals_by_voteplan_id_and_index(
 
     Ok(results
         .into_iter()
-        .map(IntoIterator::into_iter)
-        .flatten()
+        .flat_map(IntoIterator::into_iter)
         .collect())
 }
