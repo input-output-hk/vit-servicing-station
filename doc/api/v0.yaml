@@ -99,12 +99,12 @@ paths:
         "404":
           description: The requested fund was not found
 
-  /api/v0/proposals:
+  /api/v0/proposals/{voter_group_id}:
     post:
       summary: Get proposal by id
       tags: [ proposal ]
       description: |
-        Retrieves queried proposals.
+        Retrieves queried proposals for the provided voter group identifier.
       requestBody:
         description: List of voteplan id and indexes query
         required: true
@@ -135,13 +135,14 @@ paths:
                 items:
                   $ref: "#/components/schemas/ProposalWithChallengeInfo"
 
-  /api/v0/proposals/{id}:
+  /api/v0/proposals/{id}/{voter_group_id}:
     get:
       operationId: getProposal
       summary: Get proposal by id
       tags: [proposal]
       description: |
-        Retrieves information on the identified proposal.
+        Retrieves information on the identified proposal for a voter with the
+        provided voter group id.
       parameters:
         - in: path
           name: id
@@ -210,6 +211,11 @@ paths:
       parameters:
         - in: path
           name: proposal_id
+          schema:
+            type: integer
+          required: true
+        - in: path
+          name: voter_group_id
           schema:
             type: integer
           required: true
@@ -321,6 +327,10 @@ components:
           items:
             $ref: "#/components/schemas/VotePlan"
           description: Vote plans registered for voting in this fund campaign.
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/VoterGroup"
         challenges:
           type: array
           items:
@@ -392,6 +402,11 @@ components:
           type: integer
           format: int32
           description: The fund ID this vote plan belongs to.
+        voting_token:
+          type: string
+          format: [0-9a-f]{56}(\.[0-9a-f]{1,64})?
+          description: |
+            The identifier of voting power token used withing this plan.
 
     Proposal:
       properties:
@@ -766,3 +781,16 @@ components:
         fund_id:
           type: integer
           format: int32
+
+    VoterGroup:
+      properties:
+        id: integer
+          description: Unique identifier of this voter group
+        name: string
+          description: Voter group name
+        voting_token:
+          type: string
+          format: [0-9a-f]{56}(\.[0-9a-f]{1,64})?
+          description: |
+            The identifier of voting power token used withing this group. All vote plans within a
+            group are guaranteed to use the same token.
