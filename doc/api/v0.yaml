@@ -104,7 +104,7 @@ paths:
       summary: Get proposal by id
       tags: [ proposal ]
       description: |
-        Retrieves queried proposals for the provided voter group identifier.
+        Retrieves queried proposals.
       requestBody:
         description: List of voteplan id and indexes query
         required: true
@@ -126,6 +126,13 @@ paths:
       tags: [proposal]
       description: |
         Lists all available proposals.
+      parameters:
+        - in: path
+          name: voter_group_id
+          description: Get proposals only for the specified vote group.
+          schema:
+            type: integer
+          required: false
       responses:
         "200":
           description: Valid response
@@ -135,14 +142,13 @@ paths:
                 items:
                   $ref: "#/components/schemas/ProposalWithChallengeInfo"
 
-  /api/v0/proposals/{id}/{voter_group_id}:
+  /api/v0/proposals/{id}:
     get:
       operationId: getProposal
       summary: Get proposal by id
       tags: [proposal]
       description: |
-        Retrieves information on the identified proposal for a voter with the
-        provided voter group id.
+        Retrieves information on the identified proposal.
       parameters:
         - in: path
           name: id
@@ -211,11 +217,6 @@ paths:
       parameters:
         - in: path
           name: proposal_id
-          schema:
-            type: integer
-          required: true
-        - in: path
-          name: voter_group_id
           schema:
             type: integer
           required: true
