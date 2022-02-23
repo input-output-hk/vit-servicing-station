@@ -57,7 +57,7 @@ paths:
         "404":
           description: The requested fund was not found
 
-  /api/v0/proposals/{voter_group_id}:
+  /api/v0/proposals:
     post:
       summary: Get proposal by id
       tags: [ proposal ]
@@ -84,13 +84,6 @@ paths:
       tags: [proposal]
       description: |
         Lists all available proposals.
-      parameters:
-        - in: path
-          name: voter_group_id
-          description: Get proposals only for the specified vote group.
-          schema:
-            type: integer
-          required: false
       responses:
         "200":
           description: Valid response
@@ -283,54 +276,16 @@ components:
           description: |
             The identifier of voting power token used withing this plan.
 
-    Proposal:
+    ChainProposalInfo:
       properties:
-        internal_id:
+        voter_group_id:
           type: integer
-          format: int32
-          description: The API identifier for this proposal.
-        proposal_id:
-          type: string
-          description: Unique identifier for this proposal.
-        proposal_category:
-          type: object
-          properties:
-            category_id:
-              type: string
-            category_name:
-              type: string
-            category_description:
-              type: string
-        proposal_title:
-          type: string
-          description: Short title of the proposal.
-        proposal_summary:
-          type: string
-          description: Brief description of the proposal.
+          description: |
+            The identifier of the voter group this on-chain proposal is intended to be used by.
         proposal_public_key:
           type: string
           format: binary
-        proposal_funds:
-          type: integer
-          format: int64
-          description: The amount of funds requested by this proposal.
-        proposal_url:
-          type: string
-          description: URL to a web page with details on this proposal.
-        proposal_files:
-          type: string
-        proposer:
-          type: object
-          properties:
-            proposer_name:
-              type: string
-              description: Name of the author of the proposal.
-            proposer_email:
-              type: string
-              description: Email address of the author of the proposal.
-            proposer_url:
-              type: string
-              description: URL to a web resource with details about the author of the proposal.
+          description: Public key for voting privacy preserving protocol (if enabled).
         chain_proposal_id:
           type: string
           description: Identifier of the proposal on the blockchain.
@@ -360,6 +315,57 @@ components:
           type: string
           description: |
             Whether the voting is done using the public or the privacy-preserving protocol.
+
+    Proposal:
+      properties:
+        internal_id:
+          type: integer
+          format: int32
+          description: The API identifier for this proposal.
+        proposal_id:
+          type: string
+          description: Unique identifier for this proposal.
+        proposal_category:
+          type: object
+          properties:
+            category_id:
+              type: string
+            category_name:
+              type: string
+            category_description:
+              type: string
+        proposal_title:
+          type: string
+          description: Short title of the proposal.
+        proposal_summary:
+          type: string
+          description: Brief description of the proposal.
+        proposal_funds:
+          type: integer
+          format: int64
+          description: The amount of funds requested by this proposal.
+        proposal_url:
+          type: string
+          description: URL to a web page with details on this proposal.
+        proposal_files:
+          type: string
+        proposer:
+          type: object
+          properties:
+            proposer_name:
+              type: string
+              description: Name of the author of the proposal.
+            proposer_email:
+              type: string
+              description: Email address of the author of the proposal.
+            proposer_url:
+              type: string
+              description: URL to a web resource with details about the author of the proposal.
+        chain_info:
+          type: array
+          description: Corresponding on-chain proposals for different voter groups.
+          items:
+            $ref: "#/components/schemas/ChainProposalInfo"
 
     ChallengeType:
       type: string
