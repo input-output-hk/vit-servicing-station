@@ -9,7 +9,7 @@ use crate::common::{
 use assert_cmd::assert::OutputAssertExt;
 use assert_fs::{fixture::PathChild, TempDir};
 use chain_impl_mockchain::testing::scenario::template::{ProposalDefBuilder, VotePlanDefBuilder};
-use chrono::NaiveDateTime;
+use time::{macros::format_description, OffsetDateTime};
 
 #[test]
 pub fn load_data_test() {
@@ -104,33 +104,33 @@ pub fn voting_snapshot_build() {
     }
 
     let vote_plan = vote_plan_builder.build();
-    let format = "%Y-%m-%d %H:%M:%S";
+    let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour]");
     let mut parameters = ValidVotePlanParameters::from_single(vote_plan);
     parameters.set_voting_power_threshold(8_000);
     parameters.set_voting_start(
-        NaiveDateTime::parse_from_str("2015-09-05 23:56:04", format)
+        OffsetDateTime::parse("2015-09-05 23:56:04 00", format)
             .unwrap()
-            .timestamp(),
+            .unix_timestamp(),
     );
     parameters.set_voting_tally_start(
-        NaiveDateTime::parse_from_str("2015-09-05 23:56:04", format)
+        OffsetDateTime::parse("2015-09-05 23:56:04 00", format)
             .unwrap()
-            .timestamp(),
+            .unix_timestamp(),
     );
     parameters.set_voting_tally_end(
-        NaiveDateTime::parse_from_str("2015-09-05 23:56:04", format)
+        OffsetDateTime::parse("2015-09-05 23:56:04 00", format)
             .unwrap()
-            .timestamp(),
+            .unix_timestamp(),
     );
     parameters.set_next_fund_start_time(
-        NaiveDateTime::parse_from_str("2015-09-12 23:56:04", format)
+        OffsetDateTime::parse("2015-09-12 23:56:04 00", format)
             .unwrap()
-            .timestamp(),
+            .unix_timestamp(),
     );
     parameters.set_registration_snapshot_time(
-        NaiveDateTime::parse_from_str("2015-09-03 20:00:00", format)
+        OffsetDateTime::parse("2015-09-03 20:00:00 00", format)
             .unwrap()
-            .timestamp(),
+            .unix_timestamp(),
     );
 
     let mut template = ArbitraryValidVotingTemplateGenerator::new();

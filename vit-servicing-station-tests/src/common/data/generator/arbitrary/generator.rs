@@ -1,6 +1,6 @@
-use chrono::{offset::Utc, Duration};
 use rand::{rngs::OsRng, RngCore};
 use std::{collections::HashMap, iter};
+use time::{Duration, OffsetDateTime};
 use vit_servicing_station_lib::{db::models::api_tokens::ApiTokenData, v0::api_token::ApiToken};
 
 #[derive(Clone)]
@@ -44,7 +44,7 @@ impl ArbitraryGenerator {
     }
 
     pub fn token_hash(&mut self) -> String {
-        base64::encode_config(self.bytes().to_vec(), base64::URL_SAFE_NO_PAD)
+        base64::encode_config(self.bytes(), base64::URL_SAFE_NO_PAD)
     }
 
     pub fn id(&mut self) -> i32 {
@@ -53,13 +53,13 @@ impl ArbitraryGenerator {
 
     pub fn token(&mut self) -> (String, ApiTokenData) {
         let data = self.bytes().to_vec();
-        let token_creation_time = Utc::now() - Duration::days(1);
-        let toket_expiry_time = Utc::now() + Duration::days(1);
+        let token_creation_time = OffsetDateTime::now_utc() - Duration::days(1);
+        let toket_expiry_time = OffsetDateTime::now_utc() + Duration::days(1);
 
         let token_data = ApiTokenData {
             token: ApiToken::new(data.clone()),
-            creation_time: token_creation_time.timestamp(),
-            expire_time: toket_expiry_time.timestamp(),
+            creation_time: token_creation_time.unix_timestamp(),
+            expire_time: toket_expiry_time.unix_timestamp(),
         };
         (
             base64::encode_config(data, base64::URL_SAFE_NO_PAD),
