@@ -7,7 +7,7 @@ pub fn db_file_exists(db_url: &str) -> io::Result<()> {
     if !std::path::Path::new(db_url).exists() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("{} url does not exists", db_url.to_string()),
+            format!("{} url does not exists", db_url),
         ));
     }
     Ok(())
@@ -37,7 +37,7 @@ mod test {
     fn backup_file() -> io::Result<()> {
         let file_path = "./tmp_db.db";
         let content = b"foo bar";
-        let content_vec = content.iter().cloned().collect::<Vec<u8>>();
+        let content_vec = content.to_vec();
         // create a file with some content
         fs::write(file_path, content)?;
 

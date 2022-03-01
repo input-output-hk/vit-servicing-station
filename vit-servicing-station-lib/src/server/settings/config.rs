@@ -81,7 +81,7 @@ pub struct Tls {
 #[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
 pub struct CorsOrigin(String);
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct AllowedOrigins(Vec<CorsOrigin>);
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, StructOpt)]
@@ -108,7 +108,7 @@ pub enum LogLevel {
     Trace,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, StructOpt)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, StructOpt, Default)]
 #[serde(deny_unknown_fields)]
 #[structopt(rename_all = "kebab-case")]
 pub struct Log {
@@ -266,12 +266,6 @@ impl Deref for AllowedOrigins {
     }
 }
 
-impl Default for AllowedOrigins {
-    fn default() -> Self {
-        AllowedOrigins(Vec::new())
-    }
-}
-
 impl From<LogLevel> for LevelFilter {
     fn from(level: LogLevel) -> Self {
         match level {
@@ -333,15 +327,6 @@ impl fmt::Display for LogLevel {
 impl Default for LogLevel {
     fn default() -> Self {
         LogLevel::Disabled
-    }
-}
-
-impl Default for Log {
-    fn default() -> Self {
-        Self {
-            log_output_path: None,
-            log_level: None,
-        }
     }
 }
 
@@ -416,7 +401,7 @@ mod test {
             SocketAddr::from_str("127.0.0.1:3030").unwrap()
         );
         assert_eq!(config.block0_path, "./test/bin.test");
-        assert_eq!(config.enable_api_tokens, true);
+        assert!(config.enable_api_tokens);
         assert_eq!(
             config.log.log_output_path.unwrap(),
             std::path::PathBuf::from_str("./server.log").unwrap()
@@ -475,7 +460,7 @@ mod test {
         );
 
         assert!(settings.tls.is_loaded());
-        assert_eq!(settings.enable_api_tokens, true);
+        assert!(settings.enable_api_tokens);
         assert_eq!(settings.tls.cert_file.unwrap(), "foo.bar");
         assert_eq!(settings.tls.priv_key_file.unwrap(), "bar.foo");
         assert_eq!(settings.db_url, "database.sqlite3");
