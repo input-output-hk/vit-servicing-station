@@ -234,7 +234,9 @@ impl RestClient {
 
     pub fn get(&self, path: &str) -> Result<reqwest::blocking::Response, reqwest::Error> {
         self.logger.log_request(path);
-        let client = reqwest::blocking::Client::new();
+        let client = reqwest::blocking::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .build()?;
         let mut res = client.get(path);
 
         if let Some(api_token) = &self.api_token {
