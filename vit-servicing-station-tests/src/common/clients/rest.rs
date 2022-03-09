@@ -6,6 +6,7 @@ use url::Url;
 use vit_servicing_station_lib::db::models::challenges::Challenge;
 use vit_servicing_station_lib::db::models::community_advisors_reviews::AdvisorReview;
 use vit_servicing_station_lib::db::models::proposals::FullProposalInfo;
+use vit_servicing_station_lib::server::settings::ServiceSettings;
 use vit_servicing_station_lib::{
     db::models::{funds::Fund, proposals::Proposal},
     v0::api_token::API_TOKEN_HEADER,
@@ -63,6 +64,26 @@ pub struct RestClient {
     api_token: Option<String>,
     logger: RestClientLogger,
     origin: Option<String>,
+}
+
+impl From<&ServiceSettings> for RestClient {
+    fn from(settings: &ServiceSettings) -> Self {
+        let url = {
+            let scheme = {
+                if settings.tls.cert_file.is_some() {
+                    "https"
+                } else {
+                    "http"
+                }
+            };
+            //we accepted ServiceSettings struct in constructor, so address should be proper
+            //SockerAddr struct, therefore we won't have any problems with parsing result
+            format!("{}://{}", scheme, settings.address)
+                .parse()
+                .unwrap()
+        };
+        Self::new(url)
+    }
 }
 
 impl RestClient {
