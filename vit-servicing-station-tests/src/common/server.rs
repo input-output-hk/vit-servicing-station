@@ -20,14 +20,29 @@ impl Server {
     }
 
     pub fn rest_client(&self) -> RestClient {
-        RestClient::new(self.settings.address.to_string())
+        let url = {
+            let scheme = {
+                if self.settings.tls.cert_file.is_some() {
+                    "https"
+                } else {
+                    "http"
+                }
+            };
+            //we accepted ServiceSettings struct in constructor, so address should be proper
+            //SockerAddr struct, therefore we won't have any problems with parsing result  
+            format!("{}://{}",scheme,self.settings.address).parse().unwrap()
+        };
+        RestClient::new(url)
     }
 
     pub fn settings(&self) -> ServiceSettings {
         self.settings.clone()
     }
 
-    pub fn rest_client_with_token(&self, token: &str) -> RestClient {
+    pub fn rest_client_with_token(
+        &self,
+        token: &str,
+    ) -> RestClient {
         let mut rest_client = self.rest_client();
         rest_client.set_api_token(token.to_string());
         rest_client

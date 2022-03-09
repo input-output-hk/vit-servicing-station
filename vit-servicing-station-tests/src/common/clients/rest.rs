@@ -2,6 +2,7 @@ use hyper::StatusCode;
 use reqwest::blocking::Response;
 use std::collections::HashMap;
 use thiserror::Error;
+use url::Url;
 use vit_servicing_station_lib::db::models::challenges::Challenge;
 use vit_servicing_station_lib::db::models::community_advisors_reviews::AdvisorReview;
 use vit_servicing_station_lib::db::models::proposals::FullProposalInfo;
@@ -65,10 +66,10 @@ pub struct RestClient {
 }
 
 impl RestClient {
-    pub fn new(address: String) -> Self {
+    pub fn new(url: Url) -> Self {
         Self {
             api_token: None,
-            path_builder: RestPathBuilder::new(address),
+            path_builder: RestPathBuilder::new(url),
             logger: RestClientLogger { enabled: true },
             origin: None,
         }
@@ -277,15 +278,15 @@ impl RestClient {
 
 #[derive(Debug, Clone)]
 pub struct RestPathBuilder {
-    address: String,
+    address: Url,
     root: String,
 }
 
 impl RestPathBuilder {
-    pub fn new<S: Into<String>>(address: S) -> Self {
+    pub fn new(address: Url) -> Self {
         RestPathBuilder {
-            root: "/api/v0/".to_string(),
-            address: address.into(),
+            root: "api/v0/".to_string(),
+            address,
         }
     }
 
@@ -322,11 +323,11 @@ impl RestPathBuilder {
     }
 
     pub fn service_version(&self) -> String {
-        format!("http://{}{}{}", self.address, "/api/", "vit-version")
+        format!("{}{}{}", self.address, "api/", "vit-version")
     }
 
     pub fn path(&self, path: &str) -> String {
-        format!("http://{}{}{}", self.address, self.root, path)
+        format!("{}{}{}", self.address, self.root, path)
     }
 }
 
