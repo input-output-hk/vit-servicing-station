@@ -40,7 +40,7 @@ dyn-clone = "1.0.4"
 [dependencies.reqwest]
 version = "0.11"
 default-features = false
-features = ["blocking"]
+features = ["blocking","native-tls"]
 
 # This solves building on windows when sqlite3lib is not installed or missing in the `$PATH`
 # as it happens with the github actions pipeline associated to this project.

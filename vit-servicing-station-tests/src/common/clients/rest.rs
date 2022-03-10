@@ -236,6 +236,7 @@ impl RestClient {
         self.logger.log_request(path);
         let client = reqwest::blocking::Client::builder()
             .danger_accept_invalid_certs(true)
+            .danger_accept_invalid_hostnames(true)
             .build()?;
         let mut res = client.get(path);
 
