@@ -192,6 +192,10 @@ impl ServiceSettings {
 
         return_settings.enable_api_tokens = other_settings.enable_api_tokens;
 
+        if other_settings.snapshot != SNAPSHOT_PATH_DEFAULT {
+            return_settings.snapshot = other_settings.snapshot.clone();
+        }
+
         return_settings
     }
 }
