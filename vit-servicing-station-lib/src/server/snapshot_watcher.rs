@@ -88,26 +88,23 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<(), Er
                     trace!(?event);
 
                     match event.kind {
-                        EventKind::Modify(ModifyKind::Metadata(MetadataKind::WriteTime)) => (),
-                        EventKind::Modify(ModifyKind::Metadata(MetadataKind::Any)) => (),
-                        EventKind::Create(CreateKind::File) => (),
-                        EventKind::Remove(RemoveKind::File) => (),
-                        EventKind::Access(AccessKind::Close(AccessMode::Write)) => (),
-                        EventKind::Modify(ModifyKind::Name(RenameMode::To)) => (),
+                        EventKind::Modify(ModifyKind::Metadata(MetadataKind::WriteTime)) => {}
+                        EventKind::Modify(ModifyKind::Metadata(MetadataKind::Any)) => {}
+                        EventKind::Create(CreateKind::File) => {}
+                        EventKind::Remove(RemoveKind::File) => {}
+                        EventKind::Access(AccessKind::Close(AccessMode::Write)) => {}
+                        EventKind::Modify(ModifyKind::Name(RenameMode::To)) => {}
                         EventKind::Modify(ModifyKind::Name(RenameMode::Both))
                             if event
                                 .paths
                                 .get(1)
                                 .and_then(|p| p.file_name())
                                 .map(|fname| fname == file_name)
-                                .unwrap_or(false) =>
-                        {
-                            ()
-                        }
+                                .unwrap_or(false) => {}
                         _ => return,
                     }
 
-                    if let Err(_) = tx.send(()) {
+                    if tx.send(()).is_err() {
                         warn!(
                             "failed to propagate snapshot file update event, this shouldn't happen"
                         );
