@@ -16,6 +16,7 @@ impl Default for ServiceSettings {
             enable_api_tokens: false,
             log: Log::default(),
             service_version: "".to_string(),
+            snapshot: "./snapshot/snapshot.json".to_string(),
         }
     }
 }

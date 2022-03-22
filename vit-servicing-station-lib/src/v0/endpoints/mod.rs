@@ -5,6 +5,7 @@ mod genesis;
 mod health;
 pub mod proposals;
 pub mod service_version;
+mod snapshot;
 
 use crate::v0::context::SharedContext;
 
@@ -40,6 +41,9 @@ pub async fn filter(
     let reviews_root = warp::path!("reviews" / ..);
     let reviews_filter = advisor_reviews::filter(reviews_root.boxed(), context.clone()).await;
 
+    let snapshot_root = warp::path!("snapshot" / ..);
+    let snapshot_filter = snapshot::filter(snapshot_root.boxed(), context.clone());
+
     let api_token_filter = if enable_api_tokens {
         api_token::api_token_filter(context).await.boxed()
     } else {
@@ -53,7 +57,8 @@ pub async fn filter(
                 .or(chain_data_filter)
                 .or(funds_filter)
                 .or(challenges_filter)
-                .or(reviews_filter),
+                .or(reviews_filter)
+                .or(snapshot_filter),
         ),
     )
     .boxed()

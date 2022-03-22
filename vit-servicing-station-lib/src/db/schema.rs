@@ -91,6 +91,13 @@ table! {
 }
 
 table! {
+    snapshot (voting_key) {
+        voting_key -> Text,
+        voting_power -> BigInt,
+    }
+}
+
+table! {
     voteplans (id) {
         id -> Integer,
         chain_voteplan_id -> Text,
@@ -111,5 +118,6 @@ allow_tables_to_appear_in_same_query!(
     proposal_community_choice_challenge,
     proposal_simple_challenge,
     proposals,
+    snapshot,
     voteplans,
 );

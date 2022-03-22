@@ -179,6 +179,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdvisorReviews"
 
+  /api/v0/snapshot/{voting_key}:
+    get:
+      operationId: getVotingPower
+      summary: Get voting power by voting key
+      tags: [snapshot]
+      description: |
+        Get voting power by voting key
+      parameters:
+        - in: path
+          name: voting_key
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Not found
+
 components:
   schemas:
     Fund:

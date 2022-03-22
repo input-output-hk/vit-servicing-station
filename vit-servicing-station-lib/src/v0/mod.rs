@@ -3,6 +3,7 @@ pub mod context;
 pub mod endpoints;
 pub mod errors;
 pub mod result;
+
 use warp::{Filter, Rejection, Reply};
 
 const V0_REQUEST_TRACE_NAME: &str = "v0_request";

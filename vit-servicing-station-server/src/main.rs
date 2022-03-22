@@ -117,6 +117,11 @@ async fn main() {
     let context =
         v0::context::new_shared_context(db_pool, &settings.block0_path, &settings.service_version);
 
+    if let Err(e) = server::async_watch(settings.snapshot.clone().into(), context.clone()).await {
+        error!("Couldn't start snapshot watcher service: {}", e);
+        std::process::exit(ApplicationExitCode::SnapshotWatcherError.into());
+    }
+
     let app = v0::filter(context, settings.enable_api_tokens).await;
 
     info!(
