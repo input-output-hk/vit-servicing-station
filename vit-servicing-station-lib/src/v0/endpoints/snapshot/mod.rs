@@ -48,7 +48,7 @@ mod test {
 
         let content = serde_json::to_string(&[("1", u64::MAX.to_string())]).unwrap();
 
-        let file_path = tmp_dir.path().join("snapshot.txt");
+        let file_path = tmp_dir.path().join("snapshot.json");
         tokio::fs::write(&file_path, content).await.unwrap();
 
         let _guard = async_watch(file_path.clone(), shared_context.clone())
@@ -58,18 +58,20 @@ mod test {
         let snapshot_root = warp::path!("snapshot" / ..).boxed();
         let filter = routes::filter(snapshot_root, shared_context.clone());
 
-        assert_eq!(u64::MAX, get_voting_power("1".to_string(), &filter).await);
+        assert_eq!(get_voting_power("1".to_string(), &filter).await, u64::MAX);
 
         let content = serde_json::to_string(&[("1", "2"), ("3", "3")]).unwrap();
         let mut tmp_file_path = file_path.clone();
         tmp_file_path.set_file_name("snapshot.json.tmp");
 
         tokio::fs::write(&tmp_file_path, content).await.unwrap();
-        tokio::fs::rename(&tmp_file_path, file_path).await.unwrap();
+        tokio::fs::rename(dbg!(&tmp_file_path), dbg!(file_path))
+            .await
+            .unwrap();
 
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
 
-        assert_eq!(2u64, get_voting_power("1".to_string(), &filter).await);
-        assert_eq!(3u64, get_voting_power("3".to_string(), &filter).await);
+        assert_eq!(get_voting_power("1".to_string(), &filter).await, 2);
+        assert_eq!(get_voting_power("3".to_string(), &filter).await, 3);
     }
 }
