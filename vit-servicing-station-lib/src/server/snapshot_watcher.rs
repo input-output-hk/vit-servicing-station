@@ -4,9 +4,7 @@ use crate::{
 };
 use diesel::{Connection, RunQueryDsl};
 use notify::{
-    event::{
-        self, AccessKind, AccessMode, CreateKind, MetadataKind, ModifyKind, RemoveKind, RenameMode,
-    },
+    event::{self, AccessKind, AccessMode, CreateKind, MetadataKind, ModifyKind, RemoveKind},
     EventKind, RecursiveMode, Watcher,
 };
 use std::{
