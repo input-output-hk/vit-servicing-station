@@ -1,5 +1,5 @@
 use crate::{
-    db::{models::snapshot::NewSnapshotEntry, schema, DbConnectionPool},
+    db::{models::snapshot::SnapshotEntry, schema, DbConnectionPool},
     v0::context::SharedContext,
 };
 use diesel::{Connection, RunQueryDsl};
@@ -181,7 +181,7 @@ async fn load_snapshot_table_from_file(path: PathBuf, pool: DbConnectionPool) ->
                 .values(
                     snapshot
                         .iter()
-                        .map(|(vk, vp)| NewSnapshotEntry {
+                        .map(|(vk, vp)| SnapshotEntry {
                             voting_key: vk.clone(),
                             voting_power: vp.parse::<u64>().unwrap() as i64,
                         })

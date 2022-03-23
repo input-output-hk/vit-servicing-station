@@ -1,5 +1,5 @@
 use crate::{
-    db::{models::snapshot::Snapshot, schema::snapshot},
+    db::{models::snapshot::SnapshotEntry, schema::snapshot},
     v0::{context::SharedContext, errors::HandleError, result::HandlerResult},
 };
 use diesel::prelude::*;
@@ -16,7 +16,7 @@ pub async fn get_voting_power(
         let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
         crate::db::schema::snapshot::table
             .filter(snapshot::voting_key.eq(&voting_key))
-            .first::<Snapshot>(&db_conn)
+            .first::<SnapshotEntry>(&db_conn)
             .map_err(|_e| HandleError::NotFound(voting_key))
     })
     .await
