@@ -13,7 +13,7 @@ use std::{
     path::PathBuf,
     time::{Duration, Instant},
 };
-use tracing::{debug, error, span, trace, warn, Instrument, Level};
+use tracing::{debug, error, field, span, trace, warn, Instrument, Level};
 
 type RawSnapshot = Vec<(String, String)>;
 
@@ -61,7 +61,7 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<(), Er
     let (tx, mut rx) = tokio::sync::watch::channel(());
 
     let watcher = {
-        let watcher_callback_span = span!(Level::DEBUG, "filesystem event");
+        let watcher_callback_span = span!(Level::DEBUG, "filesystem event", event = field::Empty);
 
         tokio::task::spawn_blocking(move || {
             let mut watcher =
@@ -85,29 +85,30 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<(), Er
                         return;
                     }
 
-                    trace!(?event);
-
                     match event.kind {
-                        EventKind::Modify(ModifyKind::Metadata(MetadataKind::WriteTime)) => {}
-                        EventKind::Modify(ModifyKind::Metadata(MetadataKind::Any)) => {}
-                        EventKind::Create(CreateKind::File) => {}
-                        EventKind::Remove(RemoveKind::File) => {}
-                        EventKind::Access(AccessKind::Close(AccessMode::Write)) => {}
-                        EventKind::Modify(ModifyKind::Name(RenameMode::To)) => {}
-                        EventKind::Modify(ModifyKind::Name(RenameMode::Both))
+                        EventKind::Modify(ModifyKind::Metadata(MetadataKind::WriteTime))
+                        | EventKind::Modify(ModifyKind::Metadata(MetadataKind::Any))
+                        | EventKind::Create(CreateKind::File)
+                        | EventKind::Remove(RemoveKind::File)
+                        | EventKind::Access(AccessKind::Close(AccessMode::Write))
+                        | EventKind::Modify(ModifyKind::Name(RenameMode::To))
+                        | EventKind::Modify(ModifyKind::Name(RenameMode::Both))
                             if event
                                 .paths
                                 .get(1)
                                 .and_then(|p| p.file_name())
                                 .map(|fname| fname == file_name)
-                                .unwrap_or(false) => {}
-                        _ => return,
-                    }
-
-                    if tx.send(()).is_err() {
-                        warn!(
+                                .unwrap_or(false) =>
+                        {
+                            if tx.send(()).is_err() {
+                                warn!(
                             "failed to propagate snapshot file update event, this shouldn't happen"
                         );
+                            }
+                        }
+                        _ => {
+                            trace!(context = "filesystem event ignored", ?event);
+                        }
                     }
                 })?;
 
