@@ -58,7 +58,7 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<(), Er
 
     load_snapshot_table_from_file(path.clone(), pool.clone()).await?;
 
-    let (tx, rx) = tokio::sync::watch::channel(());
+    let (tx, mut rx) = tokio::sync::watch::channel(());
 
     let watcher = {
         let watcher_callback_span = span!(Level::DEBUG, "filesystem event");
@@ -122,40 +122,36 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<(), Er
         .unwrap()
     }?;
 
-    {
-        let mut rx = rx.clone();
-        tokio::task::spawn(
-            async move {
-                let debounce_time = Duration::from_millis(50);
-                let mut last_update = Instant::now() - debounce_time;
+    tokio::task::spawn(
+        async move {
+            let debounce_time = Duration::from_millis(50);
+            let mut last_update = Instant::now() - debounce_time;
 
-                while rx.changed().await.is_ok() {
-                    // a simple debounce to avoid useless reloads, since a single write can trigger
-                    // many events
-                    let now = Instant::now();
+            while rx.changed().await.is_ok() {
+                // a simple debounce to avoid useless reloads, since a single write can trigger
+                // many events
+                let now = Instant::now();
 
-                    if now.duration_since(last_update) < debounce_time {
-                        continue;
-                    }
-
-                    last_update = now;
-
-                    if let Err(error) =
-                        load_snapshot_table_from_file(path.clone(), pool.clone()).await
-                    {
-                        error!(
-                            context = "failed to refresh snapshot data from file",
-                            %error
-                        );
-                    }
+                if now.duration_since(last_update) < debounce_time {
+                    continue;
                 }
 
-                // just to move the watcher into this future so it never drops
-                let _watcher = watcher;
+                last_update = now;
+
+                if let Err(error) = load_snapshot_table_from_file(path.clone(), pool.clone()).await
+                {
+                    error!(
+                        context = "failed to refresh snapshot data from file",
+                        %error
+                    );
+                }
             }
-            .instrument(tracing::info_span!("snapshot reload")),
-        );
-    }
+
+            // just to move the watcher into this future so it never drops
+            let _watcher = watcher;
+        }
+        .instrument(tracing::info_span!("snapshot reload")),
+    );
 
     Ok(())
 }
