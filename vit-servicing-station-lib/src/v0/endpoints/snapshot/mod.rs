@@ -9,6 +9,7 @@ mod test {
     use crate::db::migrations;
     use crate::server::async_watch;
     use crate::v0::context::test::new_in_memmory_db_test_shared_context;
+    use tracing::Level;
     use warp::hyper::StatusCode;
     use warp::{Filter, Reply};
 
@@ -33,6 +34,11 @@ mod test {
     // do
     #[tokio::test]
     async fn test_snapshot_reloads_on_rename() {
+        tracing_subscriber::fmt()
+            .with_max_level(Level::TRACE)
+            .with_writer(tracing_subscriber::fmt::TestWriter::new())
+            .init();
+
         let shared_context = new_in_memmory_db_test_shared_context();
 
         let pool = &shared_context.read().await.db_connection_pool;
