@@ -45,7 +45,7 @@ mod test {
         let file_path = tmp_dir.path().join("snapshot.txt");
         tokio::fs::write(&file_path, content).await.unwrap();
 
-        async_watch(file_path.clone(), shared_context.clone())
+        let _guard = async_watch(file_path.clone(), shared_context.clone())
             .await
             .unwrap();
 

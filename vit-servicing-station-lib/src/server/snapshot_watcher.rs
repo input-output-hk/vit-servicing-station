@@ -38,8 +38,11 @@ pub enum Error {
     Io(#[from] std::io::Error),
 }
 
+#[must_use]
+pub struct WatcherGuard(notify::RecommendedWatcher);
+
 #[tracing::instrument(skip(context))]
-pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<(), Error> {
+pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<WatcherGuard, Error> {
     if path.is_dir() {
         return Err(Error::InvalidPath);
     }
@@ -84,6 +87,8 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<(), Er
                     {
                         return;
                     }
+
+                    trace!(?event);
 
                     match event.kind {
                         EventKind::Modify(ModifyKind::Metadata(MetadataKind::WriteTime))
@@ -147,14 +152,11 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<(), Er
                     );
                 }
             }
-
-            // just to move the watcher into this future so it never drops
-            let _watcher = watcher;
         }
         .instrument(tracing::info_span!("snapshot reload")),
     );
 
-    Ok(())
+    Ok(WatcherGuard(watcher))
 }
 
 #[tracing::instrument(skip(pool))]
