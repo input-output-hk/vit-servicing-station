@@ -14,6 +14,7 @@ use fake::{
     Fake,
 };
 use vit_servicing_station_lib::db::models::challenges::ChallengeHighlights;
+use vit_servicing_station_lib::db::models::community_advisors_reviews::ReviewRanking;
 use vit_servicing_station_lib::db::models::proposals::community_choice::ChallengeInfo as CommunityChoiceChallengeInfo;
 use vit_servicing_station_lib::db::models::proposals::simple::ChallengeInfo as SimpleChallengeInfo;
 use vit_servicing_station_lib::db::models::proposals::Category;
@@ -24,14 +25,14 @@ use vit_servicing_station_lib::db::models::vote_options::VoteOptions;
 
 #[derive(Clone)]
 pub struct ArbitraryValidVotingTemplateGenerator {
-    generator: ArbitraryGenerator,
-    funds: Vec<FundTemplate>,
-    challenges: Vec<ChallengeTemplate>,
-    proposals: Vec<ProposalTemplate>,
-    reviews: Vec<ReviewTemplate>,
-    next_proposal_id: i32,
-    next_challenge_id: i32,
-    next_review_id: i32,
+    pub(crate) generator: ArbitraryGenerator,
+    pub(crate) funds: Vec<FundTemplate>,
+    pub(crate) challenges: Vec<ChallengeTemplate>,
+    pub(crate) proposals: Vec<ProposalTemplate>,
+    pub(crate) reviews: Vec<ReviewTemplate>,
+    pub(crate) next_proposal_id: i32,
+    pub(crate) next_challenge_id: i32,
+    pub(crate) next_review_id: i32,
 }
 
 impl Default for ArbitraryValidVotingTemplateGenerator {
@@ -78,7 +79,7 @@ impl ArbitraryValidVotingTemplateGenerator {
             CompanyName()
                 .fake::<String>()
                 .to_lowercase()
-                .replace(" ", "-"),
+                .replace(' ', "-"),
             DomainSuffix().fake::<String>()
         )
     }
@@ -143,38 +144,44 @@ impl ArbitraryValidVotingTemplateGenerator {
             }
         }
     }
-}
 
-impl ValidVotingTemplateGenerator for ArbitraryValidVotingTemplateGenerator {
-    fn next_proposal(&mut self) -> ProposalTemplate {
+    pub fn proposal(&mut self, challenge: ChallengeTemplate, funds: i64) -> ProposalTemplate {
         let proposal_url = self.gen_http_address();
-        let challenge = self
-            .challenges
-            .get(self.generator.random_index(self.challenges.len()))
-            .unwrap()
-            .clone();
         let challenge_type = challenge.challenge_type.clone();
         let proposal_challenge_info = self.proposals_challenge_info(&challenge_type);
-        let proposal_template = ProposalTemplate {
+        ProposalTemplate {
             proposal_id: self.next_proposal_id().to_string(),
             internal_id: self.generator.id().to_string(),
             category_name: Industry().fake::<String>(),
             proposal_title: CatchPhase().fake::<String>(),
             proposal_summary: CatchPhase().fake::<String>(),
 
-            proposal_funds: self.proposal_fund().to_string(),
+            proposal_funds: funds.to_string(),
             proposal_url: proposal_url.to_string(),
             proposal_impact_score: self.impact_score().to_string(),
             files_url: format!("{}/files", proposal_url),
             proposer_relevant_experience: self.proposer().proposer_relevant_experience,
-            chain_vote_options: VoteOptions::parse_coma_separated_value("blank,yes,no"),
+            chain_vote_options: VoteOptions::parse_coma_separated_value("yes,no"),
             proposer_name: Name().fake::<String>(),
             proposer_url: self.gen_http_address(),
             chain_vote_type: "public".to_string(),
             challenge_id: Some(challenge.id),
             challenge_type,
             proposal_challenge_info,
-        };
+        }
+    }
+}
+
+impl ValidVotingTemplateGenerator for ArbitraryValidVotingTemplateGenerator {
+    fn next_proposal(&mut self) -> ProposalTemplate {
+        let challenge = self
+            .challenges
+            .get(self.generator.random_index(self.challenges.len()))
+            .unwrap()
+            .clone();
+
+        let funds = self.proposal_fund();
+        let proposal_template = self.proposal(challenge, funds);
         self.proposals.push(proposal_template.clone());
         proposal_template
     }
@@ -212,6 +219,11 @@ impl ValidVotingTemplateGenerator for ArbitraryValidVotingTemplateGenerator {
             .get(self.generator.random_index(self.proposals.len()))
             .map(|proposal| proposal.proposal_id.clone())
             .unwrap();
+        let ranking = match self.generator.next_u32() % 2 {
+            0 => ReviewRanking::Excellent,
+            1 => ReviewRanking::Good,
+            _ => unreachable!("do not generate other review types for now"),
+        };
 
         let review = ReviewTemplate {
             id: Some(self.next_review_id().to_string()),
@@ -223,6 +235,7 @@ impl ValidVotingTemplateGenerator for ArbitraryValidVotingTemplateGenerator {
             feasibility_note: fake::faker::lorem::en::Sentence(0..100).fake::<String>(),
             auditability_rating_given: (self.generator.next_u32() % 5) as i32,
             auditability_note: fake::faker::lorem::en::Sentence(0..100).fake::<String>(),
+            ranking,
         };
         self.reviews.push(review.clone());
         review

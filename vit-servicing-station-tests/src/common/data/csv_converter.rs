@@ -1,6 +1,7 @@
 use jortestkit::csv::CsvFileBuilder;
 use std::path::Path;
 use thiserror::Error;
+use time::format_description::well_known::Rfc3339;
 use vit_servicing_station_lib::db::models::community_advisors_reviews::AdvisorReview;
 use vit_servicing_station_lib::db::models::proposals::{FullProposalInfo, ProposalChallengeInfo};
 use vit_servicing_station_lib::{
@@ -129,6 +130,8 @@ impl CsvConverter {
             "feasibility_note",
             "auditability_rating_given",
             "auditability_note",
+            "excellent",
+            "good",
         ];
 
         let content: Vec<Vec<String>> = challenges.iter().map(convert_advisor_review).collect();
@@ -193,9 +196,9 @@ fn convert_proposal(proposal: &FullProposalInfo) -> Vec<String> {
         "off_chain".to_string(),
         proposal.proposal_id.to_string(),
         proposal.chain_voteplan_id.to_string(),
-        unix_timestamp_to_datetime(proposal.chain_vote_start_time).to_rfc3339(),
-        unix_timestamp_to_datetime(proposal.chain_vote_end_time).to_rfc3339(),
-        unix_timestamp_to_datetime(proposal.chain_committee_end_time).to_rfc3339(),
+        unix_timestamp_to_rfc3339(proposal.chain_vote_start_time),
+        unix_timestamp_to_rfc3339(proposal.chain_vote_end_time),
+        unix_timestamp_to_rfc3339(proposal.chain_committee_end_time),
         proposal.challenge_id.to_string(),
         solution,
         brief,
@@ -211,11 +214,11 @@ fn convert_fund(fund: &Fund) -> Vec<String> {
         fund.fund_name.to_string(),
         fund.voting_power_threshold.to_string(),
         fund.fund_goal.to_string(),
-        unix_timestamp_to_datetime(fund.fund_start_time).to_rfc3339(),
-        unix_timestamp_to_datetime(fund.fund_end_time).to_rfc3339(),
-        unix_timestamp_to_datetime(fund.next_fund_start_time).to_rfc3339(),
-        unix_timestamp_to_datetime(fund.registration_snapshot_time).to_rfc3339(),
-        unix_timestamp_to_datetime(fund.next_registration_snapshot_time).to_rfc3339(),
+        unix_timestamp_to_rfc3339(fund.fund_start_time),
+        unix_timestamp_to_rfc3339(fund.fund_end_time),
+        unix_timestamp_to_rfc3339(fund.next_fund_start_time),
+        unix_timestamp_to_rfc3339(fund.registration_snapshot_time),
+        unix_timestamp_to_rfc3339(fund.next_registration_snapshot_time),
     ]
 }
 
@@ -223,9 +226,9 @@ fn convert_voteplan(voteplan: &Voteplan) -> Vec<String> {
     vec![
         voteplan.id.to_string(),
         voteplan.chain_voteplan_id.to_string(),
-        unix_timestamp_to_datetime(voteplan.chain_vote_start_time).to_rfc3339(),
-        unix_timestamp_to_datetime(voteplan.chain_vote_end_time).to_rfc3339(),
-        unix_timestamp_to_datetime(voteplan.chain_committee_end_time).to_rfc3339(),
+        unix_timestamp_to_rfc3339(voteplan.chain_vote_start_time),
+        unix_timestamp_to_rfc3339(voteplan.chain_vote_end_time),
+        unix_timestamp_to_rfc3339(voteplan.chain_committee_end_time),
         voteplan.chain_voteplan_payload.to_string(),
         voteplan.chain_vote_encryption_key.to_string(),
         voteplan.fund_id.to_string(),
@@ -256,5 +259,13 @@ fn convert_advisor_review(review: &AdvisorReview) -> Vec<String> {
         review.feasibility_note.to_string(),
         review.auditability_rating_given.to_string(),
         review.auditability_note.to_string(),
+        (review.ranking as u8 == 0).to_string(),
+        (review.ranking as u8 == 1).to_string(),
     ]
+}
+
+fn unix_timestamp_to_rfc3339(timestamp: i64) -> String {
+    unix_timestamp_to_datetime(timestamp)
+        .format(&Rfc3339)
+        .unwrap()
 }
