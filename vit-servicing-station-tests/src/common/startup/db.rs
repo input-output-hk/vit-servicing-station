@@ -145,11 +145,12 @@ impl DbBuilder {
     }
 
     pub fn build(&self, temp_dir: &TempDir) -> Result<PathBuf, DbBuilderError> {
-        let db = temp_dir.child("vit_station.db");
-        let db_path = db
-            .path()
-            .to_str()
-            .ok_or(DbBuilderError::CannotExtractTempPath)?;
+        self.build_into_path(temp_dir.child("vit_station.db").path())
+    }
+
+    pub fn build_into_path<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, DbBuilderError> {
+        let path = path.as_ref();
+        let db_path = path.to_str().ok_or(DbBuilderError::CannotExtractTempPath)?;
         println!("Building db in {:?}...", db_path);
 
         let connection = SqliteConnection::establish(db_path)?;
@@ -159,7 +160,7 @@ impl DbBuilder {
         self.try_insert_proposals(&connection)?;
         self.try_insert_challenges(&connection)?;
         self.try_insert_reviews(&connection)?;
-        Ok(PathBuf::from(db.path()))
+        Ok(path.to_path_buf())
     }
 }
 
