@@ -8,12 +8,14 @@ mod test {
     use super::*;
     use crate::db::migrations;
     use crate::server::async_watch;
+    use crate::server::snapshot_watcher::VotingHIR;
     use crate::v0::context::test::new_in_memmory_db_test_shared_context;
+    use jormungandr_lib::crypto::account::Identifier;
     use tracing::Level;
     use warp::hyper::StatusCode;
     use warp::{Filter, Reply};
 
-    async fn get_voting_power<F>(voting_key: String, filter: &F) -> u64
+    async fn get_voting_power<F>(voting_key: &str, filter: &F) -> u64
     where
         F: Filter + 'static,
         F::Extract: Reply + Send,
@@ -39,6 +41,11 @@ mod test {
             .with_writer(tracing_subscriber::fmt::TestWriter::new())
             .init();
 
+        let keys = [
+            "0000000000000000000000000000000000000000000000000000000000000000",
+            "1111111111111111111111111111111111111111111111111111111111111111",
+        ];
+
         let shared_context = new_in_memmory_db_test_shared_context();
 
         let pool = &shared_context.read().await.db_connection_pool;
@@ -46,7 +53,13 @@ mod test {
 
         let tmp_dir = tempfile::tempdir().unwrap();
 
-        let content = serde_json::to_string(&[("1", u64::MAX.to_string())]).unwrap();
+        // let content = serde_json::to_string(&[("1", u64::MAX.to_string())]).unwrap();
+        let content = serde_json::to_string(&[VotingHIR {
+            voting_key: Identifier::from_hex(keys[0]).unwrap(),
+            voting_group: "group".to_string(),
+            voting_power: u64::MAX.into(),
+        }])
+        .unwrap();
 
         let file_path = tmp_dir.path().join("snapshot.json");
         tokio::fs::write(&file_path, content).await.unwrap();
@@ -58,20 +71,33 @@ mod test {
         let snapshot_root = warp::path!("snapshot" / ..).boxed();
         let filter = routes::filter(snapshot_root, shared_context.clone());
 
-        assert_eq!(get_voting_power("1".to_string(), &filter).await, u64::MAX);
+        assert_eq!(get_voting_power(keys[0], &filter).await, u64::MAX);
 
-        let content = serde_json::to_string(&[("1", "2"), ("3", "3")]).unwrap();
+        // let content = serde_json::to_string(&[("1", "2"), ("3", "3")]).unwrap();
+
+        let content = serde_json::to_string(&[
+            VotingHIR {
+                voting_key: Identifier::from_hex(keys[0]).unwrap(),
+                voting_group: "group".to_string(),
+                voting_power: 2.into(),
+            },
+            VotingHIR {
+                voting_key: Identifier::from_hex(keys[1]).unwrap(),
+                voting_group: "group".to_string(),
+                voting_power: 3.into(),
+            },
+        ])
+        .unwrap();
+
         let mut tmp_file_path = file_path.clone();
         tmp_file_path.set_file_name("snapshot.json.tmp");
 
         tokio::fs::write(&tmp_file_path, content).await.unwrap();
-        tokio::fs::rename(dbg!(&tmp_file_path), dbg!(file_path))
-            .await
-            .unwrap();
+        tokio::fs::rename(&tmp_file_path, file_path).await.unwrap();
 
         tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
 
-        assert_eq!(get_voting_power("1".to_string(), &filter).await, 2);
-        assert_eq!(get_voting_power("3".to_string(), &filter).await, 3);
+        assert_eq!(get_voting_power(keys[0], &filter).await, 2);
+        assert_eq!(get_voting_power(keys[1], &filter).await, 3);
     }
 }
