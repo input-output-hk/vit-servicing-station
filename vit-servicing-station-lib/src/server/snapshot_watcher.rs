@@ -3,17 +3,41 @@ use crate::{
     v0::context::SharedContext,
 };
 use diesel::{Connection, RunQueryDsl};
+use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
 use notify::{
     event::{self, AccessKind, AccessMode, CreateKind, MetadataKind, ModifyKind, RemoveKind},
     EventKind, RecursiveMode, Watcher,
 };
+use serde::{Deserialize, Serialize};
 use std::{
     path::PathBuf,
     time::{Duration, Instant},
 };
 use tracing::{debug, error, field, span, trace, warn, Instrument, Level};
 
-type RawSnapshot = Vec<(String, String)>;
+pub type VotingGroup = String;
+
+/// Define High Level Intermediate Representation (HIR) for voting
+/// entities in the Catalyst ecosystem.
+///
+/// This is intended as a high level description of the setup, which is not
+/// enough on its own to spin a blockchain, but it's slimmer, easier to understand
+/// and free from implementation constraints.
+///
+/// You can roughly read this as
+/// "voting_key will participate in this voting round with role voting_group and will have voting_power influence"
+#[derive(Serialize, Deserialize)]
+pub struct VotingHIR {
+    pub voting_key: Identifier,
+    /// Voting group this key belongs to.
+    /// If this key belong to multiple voting groups, multiple records for the same
+    /// key will be used.
+    pub voting_group: VotingGroup,
+    /// Voting power as processed by the snapshot
+    pub voting_power: Value,
+}
+
+type RawSnapshot = Vec<VotingHIR>;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -171,10 +195,16 @@ async fn load_snapshot_table_from_file(path: PathBuf, pool: DbConnectionPool) ->
                 .values(
                     snapshot
                         .iter()
-                        .map(|(vk, vp)| SnapshotEntry {
-                            voting_key: vk.clone(),
-                            voting_power: vp.parse::<u64>().unwrap() as i64,
-                        })
+                        .map(
+                            |VotingHIR {
+                                 voting_key,
+                                 voting_power,
+                                 ..
+                             }| SnapshotEntry {
+                                voting_key: voting_key.to_hex(),
+                                voting_power: u64::from(*voting_power) as i64,
+                            },
+                        )
                         .collect::<Vec<_>>(),
                 )
                 .execute(&*conn)?;
