@@ -6,4 +6,5 @@ use diesel::Queryable;
 pub struct SnapshotEntry {
     pub voting_key: String,
     pub voting_power: i64,
+    pub tag: String,
 }

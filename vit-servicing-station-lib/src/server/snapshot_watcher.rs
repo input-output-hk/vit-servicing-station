@@ -2,7 +2,7 @@ use crate::{
     db::{models::snapshot::SnapshotEntry, schema, DbConnectionPool},
     v0::context::SharedContext,
 };
-use diesel::{Connection, RunQueryDsl};
+use diesel::{Connection, ExpressionMethods, RunQueryDsl};
 use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
 use notify::{
     event::{self, AccessKind, AccessMode, CreateKind, MetadataKind, ModifyKind, RemoveKind},
@@ -65,25 +65,40 @@ pub struct WatcherGuard(notify::RecommendedWatcher);
 
 #[tracing::instrument(skip(context))]
 pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<WatcherGuard, Error> {
-    if path.is_dir() {
+    let _ = tokio::fs::create_dir_all(path.as_path()).await;
+
+    if !dbg!(&path).is_dir() {
         return Err(Error::InvalidPath);
     }
 
-    let file_name = path.file_name().ok_or(Error::InvalidPath)?.to_owned();
-
-    let parent = match path.parent() {
-        Some(parent) => {
-            tokio::fs::create_dir_all(parent).await?;
-            parent.to_path_buf()
-        }
-        None => return Err(Error::InvalidPath),
-    };
-
     let pool = context.read().await.db_connection_pool.clone();
 
-    load_snapshot_table_from_file(path.clone(), pool.clone()).await?;
+    {
+        let path = path.clone();
+        let files = tokio::task::spawn_blocking(move || {
+            std::fs::read_dir(&path).unwrap().filter_map(|dir_entry| {
+                let dir_entry = dir_entry.unwrap();
+                let is_snapshot = dir_entry
+                    .file_name()
+                    .to_string_lossy()
+                    .ends_with("-snapshot.json");
 
-    let (tx, mut rx) = tokio::sync::watch::channel(());
+                if is_snapshot {
+                    Some(dir_entry.path())
+                } else {
+                    None
+                }
+            })
+        })
+        .await
+        .unwrap();
+
+        for file in files {
+            load_snapshot_table_from_file(file, pool.clone()).await?;
+        }
+    }
+
+    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
 
     let watcher = {
         let watcher_callback_span = span!(Level::DEBUG, "filesystem event", event = field::Empty);
@@ -103,14 +118,15 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<Watche
 
                     trace!(?event);
 
-                    if !event
-                        .paths
-                        .iter()
-                        .filter_map(|p| p.file_name())
-                        .any(|p| p == file_name)
-                    {
+                    let file_path = if let Some(file) = event.paths.iter().find(|p| {
+                        p.file_name()
+                            .map(|p| p.to_string_lossy().ends_with("-snapshot.json"))
+                            .unwrap_or(false)
+                    }) {
+                        file
+                    } else {
                         return;
-                    }
+                    };
 
                     match event.kind {
                         EventKind::Modify(ModifyKind::Metadata(MetadataKind::WriteTime))
@@ -119,7 +135,7 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<Watche
                         | EventKind::Remove(RemoveKind::File)
                         | EventKind::Access(AccessKind::Close(AccessMode::Write))
                         | EventKind::Modify(ModifyKind::Name(_)) => {
-                            if tx.send(()).is_err() {
+                            if tx.blocking_send(file_path.to_owned()).is_err() {
                                 warn!(
                             "failed to propagate snapshot file update event, this shouldn't happen"
                         );
@@ -131,7 +147,7 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<Watche
                     }
                 })?;
 
-            watcher.watch(&parent, RecursiveMode::NonRecursive)?;
+            watcher.watch(&path, RecursiveMode::NonRecursive)?;
 
             debug!("watching snapshot directory");
 
@@ -147,7 +163,7 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<Watche
             let debounce_time = Duration::from_millis(50);
             let mut last_update = Instant::now() - debounce_time;
 
-            while rx.changed().await.is_ok() {
+            while let Some(path) = rx.recv().await {
                 // a simple debounce to avoid useless reloads, since a single write can trigger
                 // many events
                 let now = Instant::now();
@@ -158,8 +174,7 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<Watche
 
                 last_update = now;
 
-                if let Err(error) = load_snapshot_table_from_file(path.clone(), pool.clone()).await
-                {
+                if let Err(error) = load_snapshot_table_from_file(path, pool.clone()).await {
                     error!(
                         context = "failed to refresh snapshot data from file",
                         %error
@@ -186,8 +201,18 @@ async fn load_snapshot_table_from_file(path: PathBuf, pool: DbConnectionPool) ->
     tokio::task::spawn_blocking(move || {
         let conn = pool.get()?;
 
+        let tag = path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .chars()
+            .take_while(|c| *c != '-')
+            .collect::<String>();
+
         conn.transaction::<_, diesel::result::Error, _>(|| {
-            let deleted = diesel::delete(schema::snapshot::table).execute(&conn)?;
+            let deleted = diesel::delete(schema::snapshot::table)
+                .filter(schema::snapshot::tag.eq(dbg!(tag.clone())))
+                .execute(&conn)?;
 
             trace!("deleted {} snapshot entries", deleted);
 
@@ -203,6 +228,7 @@ async fn load_snapshot_table_from_file(path: PathBuf, pool: DbConnectionPool) ->
                              }| SnapshotEntry {
                                 voting_key: voting_key.to_hex(),
                                 voting_power: u64::from(*voting_power) as i64,
+                                tag: tag.clone(),
                             },
                         )
                         .collect::<Vec<_>>(),

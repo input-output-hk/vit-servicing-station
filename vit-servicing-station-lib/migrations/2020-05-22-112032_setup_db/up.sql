@@ -129,6 +129,8 @@ FROM
 
 create table snapshot
 (
-    voting_key TEXT NOT NULL UNIQUE PRIMARY KEY,
-    voting_power BIGINT NOT NULL
+    voting_key TEXT NOT NULL,
+    voting_power BIGINT NOT NULL,
+    tag TEXT NOT NULL,
+    PRIMARY KEY (voting_key, tag)
 )

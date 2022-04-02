@@ -91,9 +91,10 @@ table! {
 }
 
 table! {
-    snapshot (voting_key) {
+    snapshot (voting_key, tag) {
         voting_key -> Text,
         voting_power -> BigInt,
+        tag -> Text,
     }
 }
 
