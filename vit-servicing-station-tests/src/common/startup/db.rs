@@ -17,6 +17,8 @@ use crate::common::{
 use vit_servicing_station_lib::db::models::community_advisors_reviews::AdvisorReview;
 use vit_servicing_station_lib::db::models::proposals::FullProposalInfo;
 
+const VIT_STATION_DB: &str = "vit_station.db";
+
 pub struct DbBuilder {
     migrations_folder: Option<PathBuf>,
     tokens: Option<Vec<ApiTokenData>>,
@@ -145,7 +147,7 @@ impl DbBuilder {
     }
 
     pub fn build(&self, temp_dir: &TempDir) -> Result<PathBuf, DbBuilderError> {
-        self.build_into_path(temp_dir.child("vit_station.db").path())
+        self.build_into_path(temp_dir.child(VIT_STATION_DB).path())
     }
 
     pub fn build_into_path<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, DbBuilderError> {
