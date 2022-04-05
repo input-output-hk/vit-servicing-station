@@ -10,30 +10,23 @@ use notify::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashMap,
+    ffi::OsStr,
     path::PathBuf,
     time::{Duration, Instant},
 };
 use tracing::{debug, error, field, span, trace, warn, Instrument, Level};
 
+const DEBOUNCE_TIME: Duration = Duration::from_millis(100);
+const PAT: &str = "-snapshot.json";
+
+// TODO: this is meant to be removed later (or rather, replaced with a dependency)
 pub type VotingGroup = String;
 
-/// Define High Level Intermediate Representation (HIR) for voting
-/// entities in the Catalyst ecosystem.
-///
-/// This is intended as a high level description of the setup, which is not
-/// enough on its own to spin a blockchain, but it's slimmer, easier to understand
-/// and free from implementation constraints.
-///
-/// You can roughly read this as
-/// "voting_key will participate in this voting round with role voting_group and will have voting_power influence"
 #[derive(Serialize, Deserialize)]
 pub struct VotingHIR {
     pub voting_key: Identifier,
-    /// Voting group this key belongs to.
-    /// If this key belong to multiple voting groups, multiple records for the same
-    /// key will be used.
     pub voting_group: VotingGroup,
-    /// Voting power as processed by the snapshot
     pub voting_power: Value,
 }
 
@@ -63,11 +56,80 @@ pub enum Error {
 #[must_use]
 pub struct WatcherGuard(notify::RecommendedWatcher);
 
+type Tag = String;
+
+fn extract_tag_from_filename(path: impl AsRef<OsStr>) -> Option<Tag> {
+    let path = path.as_ref().to_string_lossy();
+
+    path.find(&PAT)
+        // check that the pattern is at the end, that means, that there is nothing trailing, just
+        // in case
+        .filter(|start| start + PAT.as_bytes().len() == path.as_bytes().len())
+        .map(|start| path[..start].to_string())
+}
+
+async fn load_from_paths(
+    mut debouncer: Option<&mut HashMap<Tag, Instant>>,
+    paths: impl Iterator<Item = PathBuf>,
+    pool: &DbConnectionPool,
+) {
+    for path in paths {
+        let tag = match path.file_name().and_then(extract_tag_from_filename) {
+            Some(tag) => tag,
+            None => {
+                trace!("skipping {:?}", path);
+                continue;
+            }
+        };
+
+        if let Some(ref mut debouncer) = debouncer {
+            // A simple debounce to avoid useless reloads, since a single write can trigger many
+            // events. We could do something more complex by coalescing events in timeframe
+            // 'buckets', but since we do the same thing regardless of the event I don't see much
+            // point.
+            let now = Instant::now();
+
+            let last_update = debouncer
+                .get(&tag)
+                .copied()
+                // set the last update in the past if the entry doesn't exist, so the we don't
+                // reach the `continue` the first time.
+                .unwrap_or_else(|| now - DEBOUNCE_TIME);
+
+            if now.duration_since(last_update) < DEBOUNCE_TIME {
+                continue;
+            }
+
+            debouncer.insert(tag.clone(), now);
+        }
+
+        match load_snapshot_table_from_file(path, tag.clone(), pool.clone()).await {
+            Ok(inserted) => {
+                // Maybe this logic can be simplified, I'm not sure. This is mostly to not have a
+                // "memory leak", but it is a minor concern since there shouldn't ever be that many
+                // values for that to cause a problem. As an alternative, we could periodically
+                // remove entries that are too old.
+                if inserted == 0 {
+                    if let Some(ref mut debouncer) = debouncer {
+                        let _ = debouncer.remove(&tag);
+                    }
+                }
+            }
+            Err(error) => {
+                error!(
+                    context = "failed to fill snapshot table from file",
+                    %error
+                );
+            }
+        }
+    }
+}
+
 #[tracing::instrument(skip(context))]
 pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<WatcherGuard, Error> {
     let _ = tokio::fs::create_dir_all(path.as_path()).await;
 
-    if !dbg!(&path).is_dir() {
+    if !&path.is_dir() {
         return Err(Error::InvalidPath);
     }
 
@@ -75,27 +137,13 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<Watche
 
     {
         let path = path.clone();
-        let files = tokio::task::spawn_blocking(move || {
-            std::fs::read_dir(&path).unwrap().filter_map(|dir_entry| {
-                let dir_entry = dir_entry.unwrap();
-                let is_snapshot = dir_entry
-                    .file_name()
-                    .to_string_lossy()
-                    .ends_with("-snapshot.json");
-
-                if is_snapshot {
-                    Some(dir_entry.path())
-                } else {
-                    None
-                }
-            })
+        let dir_entries = tokio::task::spawn_blocking(move || {
+            std::fs::read_dir(&path).map(|entries| entries.filter_map(|entry| entry.ok()))
         })
         .await
-        .unwrap();
+        .unwrap()?;
 
-        for file in files {
-            load_snapshot_table_from_file(file, pool.clone()).await?;
-        }
+        load_from_paths(None, dir_entries.map(|de| de.path()), &pool).await;
     }
 
     let (tx, mut rx) = tokio::sync::mpsc::channel(1);
@@ -118,16 +166,6 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<Watche
 
                     trace!(?event);
 
-                    let file_path = if let Some(file) = event.paths.iter().find(|p| {
-                        p.file_name()
-                            .map(|p| p.to_string_lossy().ends_with("-snapshot.json"))
-                            .unwrap_or(false)
-                    }) {
-                        file
-                    } else {
-                        return;
-                    };
-
                     match event.kind {
                         EventKind::Modify(ModifyKind::Metadata(MetadataKind::WriteTime))
                         | EventKind::Modify(ModifyKind::Metadata(MetadataKind::Any))
@@ -135,7 +173,7 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<Watche
                         | EventKind::Remove(RemoveKind::File)
                         | EventKind::Access(AccessKind::Close(AccessMode::Write))
                         | EventKind::Modify(ModifyKind::Name(_)) => {
-                            if tx.blocking_send(file_path.to_owned()).is_err() {
+                            if tx.blocking_send(event.paths).is_err() {
                                 warn!(
                             "failed to propagate snapshot file update event, this shouldn't happen"
                         );
@@ -160,26 +198,10 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<Watche
 
     tokio::task::spawn(
         async move {
-            let debounce_time = Duration::from_millis(50);
-            let mut last_update = Instant::now() - debounce_time;
+            let mut debouncer: HashMap<Tag, Instant> = HashMap::new();
 
-            while let Some(path) = rx.recv().await {
-                // a simple debounce to avoid useless reloads, since a single write can trigger
-                // many events
-                let now = Instant::now();
-
-                if now.duration_since(last_update) < debounce_time {
-                    continue;
-                }
-
-                last_update = now;
-
-                if let Err(error) = load_snapshot_table_from_file(path, pool.clone()).await {
-                    error!(
-                        context = "failed to refresh snapshot data from file",
-                        %error
-                    );
-                }
+            while let Some(paths) = rx.recv().await {
+                load_from_paths(Some(&mut debouncer), paths.into_iter(), &pool).await;
             }
         }
         .instrument(tracing::info_span!("snapshot reload")),
@@ -189,7 +211,11 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<Watche
 }
 
 #[tracing::instrument(skip(pool))]
-async fn load_snapshot_table_from_file(path: PathBuf, pool: DbConnectionPool) -> Result<(), Error> {
+async fn load_snapshot_table_from_file(
+    path: PathBuf,
+    tag: Tag,
+    pool: DbConnectionPool,
+) -> Result<usize, Error> {
     let snapshot: RawSnapshot = match tokio::fs::read(path.as_path()).await {
         Ok(raw) => serde_json::from_slice(&raw)?,
         Err(_) => {
@@ -200,14 +226,6 @@ async fn load_snapshot_table_from_file(path: PathBuf, pool: DbConnectionPool) ->
 
     tokio::task::spawn_blocking(move || {
         let conn = pool.get()?;
-
-        let tag = path
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .chars()
-            .take_while(|c| *c != '-')
-            .collect::<String>();
 
         conn.transaction::<_, diesel::result::Error, _>(|| {
             let deleted = diesel::delete(schema::snapshot::table)
@@ -237,13 +255,37 @@ async fn load_snapshot_table_from_file(path: PathBuf, pool: DbConnectionPool) ->
 
             trace!("inserted {} new entries into the snapshot table", inserted);
 
-            Ok(())
+            Ok(inserted)
         })
         .map_err(Error::from)
     })
-    .instrument(span!(Level::INFO, "rebuild snapshot table"))
+    .instrument(span!(Level::INFO, "build snapshot table"))
     .await
-    .unwrap()?;
+    .unwrap()
+}
 
-    Ok(())
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_snapshot_extract_tag() {
+        assert_eq!(
+            extract_tag_from_filename("test-snapshot.json"),
+            Some("test".to_string())
+        );
+
+        assert_eq!(
+            extract_tag_from_filename("tést-snapshot.json"),
+            Some("tést".to_string())
+        );
+
+        assert_eq!(extract_tag_from_filename("test-snapshot.json.tmp"), None);
+
+        assert_eq!(extract_tag_from_filename("test-snapshot"), None);
+
+        assert_eq!(extract_tag_from_filename("snapshot"), None);
+
+        assert_eq!(extract_tag_from_filename(""), None);
+    }
 }
