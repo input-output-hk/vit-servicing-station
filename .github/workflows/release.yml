@@ -123,9 +123,6 @@ jobs:
         cross: [false]
         include:
           # Windows
-          - config: {os: windows-latest, target: x86_64-pc-windows-gnu}
-            toolchain: stable-x86_64-pc-windows-gnu
-            cross: false
           - config: {os: windows-latest, target: x86_64-pc-windows-msvc}
             toolchain: stable-x86_64-pc-windows-msvc
             cross: false
@@ -166,7 +163,9 @@ jobs:
           mkdir .cargo
           cat > .cargo/config.toml <<EOF
           [target.${{ matrix.config.target }}]
-          rustflags = ["-Ctarget-cpu=generic", "-Clto", "-Cembed-bitcode=yes"]
+          rustflags = ["-C", "target-cpu=generic"]
+          [profile.release]
+          lto = "thin"
           EOF
 
       - if: ${{ matrix.cross }}
