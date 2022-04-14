@@ -195,6 +195,10 @@ paths:
       responses:
         "200":
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VotingPowers"
         "400":
           description: Not found
 
@@ -598,3 +602,23 @@ components:
           items:
               type: integer
               format: i64
+
+    VotingPowers:
+      type: array
+      items:
+        $ref: "#/components/schemas/VotingPower"
+      example:
+        [
+          {
+            "voting_power": 1000,
+            "voting_group": "representative",
+          },
+        ]
+
+    VotingPower:
+      properties:
+        voting_power:
+          type: integer
+          format: u64
+        voting_group:
+          type: String
