@@ -3,6 +3,7 @@ use crate::{
     v0::{context::SharedContext, errors::HandleError, result::HandlerResult},
 };
 use diesel::prelude::*;
+use serde_json::json;
 use warp::{Rejection, Reply};
 
 #[tracing::instrument(skip(context))]
@@ -18,13 +19,30 @@ pub async fn get_voting_power(
         crate::db::schema::snapshot::table
             .filter(snapshot::voting_key.eq(&voting_key))
             .filter(snapshot::tag.eq(&tag))
-            .first::<SnapshotEntry>(&db_conn)
-            .map_err(|_e| HandleError::NotFound(voting_key))
+            .load::<SnapshotEntry>(&db_conn)
+            .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))
     })
     .await
-    .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))?;
+    .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))??;
 
-    Ok(HandlerResult(result.map(|v| v.voting_power as u64)))
+    if result.is_empty() {
+        return Err(warp::reject::custom(HandleError::NotFound(
+            "voting key not found".to_string(),
+        )));
+    }
+
+    let selected = result
+        .into_iter()
+        .map(
+            |SnapshotEntry {
+                 voting_power,
+                 voting_group,
+                 ..
+             }| json!({"voting_power": voting_power as u64, "voting_group": voting_group}),
+        )
+        .collect::<Vec<_>>();
+
+    Ok(warp::reply::json(&selected))
 }
 
 #[tracing::instrument(skip(context))]

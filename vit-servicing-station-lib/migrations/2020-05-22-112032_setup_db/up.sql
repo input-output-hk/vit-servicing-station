@@ -132,5 +132,6 @@ create table snapshot
     voting_key TEXT NOT NULL,
     voting_power BIGINT NOT NULL,
     tag TEXT NOT NULL,
-    PRIMARY KEY (voting_key, tag)
+    voting_group TEXT NOT NULL,
+    PRIMARY KEY (voting_key, tag, voting_group)
 )

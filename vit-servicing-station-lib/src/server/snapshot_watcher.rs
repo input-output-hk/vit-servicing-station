@@ -237,16 +237,17 @@ async fn load_snapshot_table_from_file(
             let inserted = diesel::insert_into(schema::snapshot::table)
                 .values(
                     snapshot
-                        .iter()
+                        .into_iter()
                         .map(
                             |VotingHIR {
                                  voting_key,
                                  voting_power,
-                                 ..
+                                 voting_group,
                              }| SnapshotEntry {
                                 voting_key: voting_key.to_hex(),
-                                voting_power: u64::from(*voting_power) as i64,
+                                voting_power: u64::from(voting_power) as i64,
                                 tag: tag.clone(),
+                                voting_group: dbg!(voting_group),
                             },
                         )
                         .collect::<Vec<_>>(),
