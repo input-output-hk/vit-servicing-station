@@ -3,12 +3,10 @@ use crate::{
     v0::context::SharedContext,
 };
 use diesel::{Connection, ExpressionMethods, RunQueryDsl};
-use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
 use notify::{
     event::{self, AccessKind, AccessMode, CreateKind, MetadataKind, ModifyKind, RemoveKind},
     EventKind, RecursiveMode, Watcher,
 };
-use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     ffi::OsStr,
@@ -16,21 +14,12 @@ use std::{
     time::{Duration, Instant},
 };
 use tracing::{debug, error, field, span, trace, warn, Instrument, Level};
+pub(crate) use voting_hir::VoterHIR;
 
 const DEBOUNCE_TIME: Duration = Duration::from_millis(100);
 const PAT: &str = "-snapshot.json";
 
-// TODO: this is meant to be removed later (or rather, replaced with a dependency)
-pub type VotingGroup = String;
-
-#[derive(Serialize, Deserialize)]
-pub struct VotingHIR {
-    pub voting_key: Identifier,
-    pub voting_group: VotingGroup,
-    pub voting_power: Value,
-}
-
-type RawSnapshot = Vec<VotingHIR>;
+type Snapshot = Vec<VoterHIR>;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -216,7 +205,7 @@ async fn load_snapshot_table_from_file(
     tag: Tag,
     pool: DbConnectionPool,
 ) -> Result<usize, Error> {
-    let snapshot: RawSnapshot = match tokio::fs::read(path.as_path()).await {
+    let snapshot: Snapshot = match tokio::fs::read(path.as_path()).await {
         Ok(raw) => serde_json::from_slice(&raw)?,
         Err(_) => {
             warn!("snapshot file not found, asumming empty data set");
@@ -239,7 +228,7 @@ async fn load_snapshot_table_from_file(
                     snapshot
                         .into_iter()
                         .map(
-                            |VotingHIR {
+                            |VoterHIR {
                                  voting_key,
                                  voting_power,
                                  voting_group,

@@ -8,7 +8,7 @@ mod test {
     use super::*;
     use crate::db::migrations;
     use crate::server::async_watch;
-    use crate::server::snapshot_watcher::VotingHIR;
+    use crate::server::snapshot_watcher::VoterHIR;
     use crate::v0::context::test::new_in_memmory_db_test_shared_context;
     use jormungandr_lib::crypto::account::Identifier;
     use tracing::Level;
@@ -73,7 +73,7 @@ mod test {
 
         let tmp_dir = tempfile::tempdir().unwrap();
 
-        let content = serde_json::to_string(&[VotingHIR {
+        let content = serde_json::to_string(&[VoterHIR {
             voting_key: Identifier::from_hex(keys[0]).unwrap(),
             voting_group: GROUP.to_string(),
             voting_power: u64::MAX.into(),
@@ -96,12 +96,12 @@ mod test {
         );
 
         let content = serde_json::to_string(&[
-            VotingHIR {
+            VoterHIR {
                 voting_key: Identifier::from_hex(keys[0]).unwrap(),
                 voting_group: "group".to_string(),
                 voting_power: 2.into(),
             },
-            VotingHIR {
+            VoterHIR {
                 voting_key: Identifier::from_hex(keys[1]).unwrap(),
                 voting_group: "group".to_string(),
                 voting_power: 3.into(),
@@ -150,12 +150,12 @@ mod test {
         let tmp_dir = tempfile::tempdir().unwrap();
 
         let content_a = serde_json::to_string(&[
-            VotingHIR {
+            VoterHIR {
                 voting_key: Identifier::from_hex(keys[0]).unwrap(),
                 voting_group: GROUP1.to_string(),
                 voting_power: 1.into(),
             },
-            VotingHIR {
+            VoterHIR {
                 voting_key: Identifier::from_hex(keys[0]).unwrap(),
                 voting_group: GROUP2.to_string(),
                 voting_power: 2.into(),
@@ -163,7 +163,7 @@ mod test {
         ])
         .unwrap();
 
-        let content_b = serde_json::to_string(&[VotingHIR {
+        let content_b = serde_json::to_string(&[VoterHIR {
             voting_key: Identifier::from_hex(keys[0]).unwrap(),
             voting_group: GROUP1.to_string(),
             voting_power: 2.into(),
