@@ -99,9 +99,9 @@ paths:
         "404":
           description: The requested fund was not found
 
-  /api/v0/proposals/{voter_group_id}:
+  /api/v0/proposals:
     post:
-      summary: Get proposal by id
+      summary: Get proposals by chain id
       tags: [ proposal ]
       description: |
         Retrieves queried proposals.
@@ -118,8 +118,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProposalWithChallengeInfo"
+                allOf:
+                  - $ref: "#/components/schemas/ProposalWithChallengeInfo"
 
+  /api/v0/proposals/{voter_group_id}:
     get:
       operationId: getAllProposals
       summary: Get all available proposals
@@ -131,8 +133,8 @@ paths:
           name: voter_group_id
           description: Get proposals only for the specified vote group.
           schema:
-            type: integer
-          required: false
+            type: string
+          required: true
       responses:
         "200":
           description: Valid response
@@ -140,18 +142,25 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: "#/components/schemas/ProposalWithChallengeInfo"
+                  allOf:
+                    - $ref: "#/components/schemas/ProposalWithChallengeInfo"
+                    - $ref: "#/components/schemas/ProposalChainInfo"
 
-  /api/v0/proposals/{id}:
+  /api/v0/proposal/{id}/{voter_group_id}:
     get:
       operationId: getProposal
-      summary: Get proposal by id
+      summary: Get proposal by id filtered by group
       tags: [proposal]
       description: |
-        Retrieves information on the identified proposal.
+        Retrieves information on the identified proposal if it belongs to the provided group.
       parameters:
         - in: path
           name: id
+          schema:
+            type: integer
+          required: true
+        - in: path
+          name: voter_group_id
           schema:
             type: integer
           required: true
@@ -161,7 +170,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProposalWithChallengeInfo"
+                allOf:
+                  - $ref: "#/components/schemas/ProposalWithChallengeInfo"
+                  - $ref: "#/components/schemas/ProposalChainInfo"
         "404":
           description: The requested proposal was not found
 
@@ -405,7 +416,7 @@ components:
           description: The fund ID this vote plan belongs to.
         voting_token:
           type: string
-          format: [0-9a-f]{56}(\.[0-9a-f]{1,64})?
+          pattern: '[0-9a-f]{56}(\.[0-9a-f]{1,64})?'
           description: |
             The identifier of voting power token used withing this plan.
 
@@ -439,8 +450,6 @@ components:
         proposal_funds:
           type: integer
           format: int64
-          description: The amount of funds requested by this proposal.
-        proposal_url:
           type: string
           description: URL to a web page with details on this proposal.
         proposal_files:
@@ -460,16 +469,9 @@ components:
         chain_proposal_id:
           type: string
           description: Identifier of the proposal on the blockchain.
-        chain_proposal_index:
-          type: integer
-          format: int64
-          description: Index of the proposal in the vote plan.
         chain_vote_options:
           description: Map of named vote options to choice indices.
           type: object
-        chain_voteplan_id:
-          type: string
-          description: Identifier of the vote plan this proposal belongs to.
         chain_vote_start_time:
           type: string
           format: date-time
@@ -486,6 +488,16 @@ components:
           type: string
           description: |
             Whether the voting is done using the public or the privacy-preserving protocol.
+
+    ProposalChainInfo:
+      properties:
+        chain_voteplan_id:
+          type: string
+          description: Identifier of the vote plan a proposal belongs to.
+        chain_proposal_index:
+          type: integer
+          format: int64
+          description: Index of a proposal in the vote plan.
 
     ChallengeType:
       type: string
@@ -543,9 +555,7 @@ components:
               "proposer_relevant_experience": "Cryptography student, website development, blockchain technologist.",
             },
           "chain_proposal_id": "4af0e6b3452cd4ee822b2ec1859fd57b5512f85c14875f408081aa9b796dfc6e",
-          "chain_proposal_index": 0,
           "chain_vote_options": { "blank": 0, "yes": 1, "no": 2 },
-          "chain_voteplan_id": "b1eeb620baf1445672f6c9422481aff0f6babaf775760d187a7703027e098166",
           "chain_vote_start_time": "2021-02-10T14:40:27+00:00",
           "chain_vote_end_time": "2021-02-11T10:10:27+00:00",
           "chain_committee_end_time": "2021-02-11T11:40:27+00:00",
@@ -703,7 +713,8 @@ components:
 
     ProposalVoteplanIdAndIndex:
       properties:
-        voteplan_id: String
+        voteplan_id: 
+          type: string
         indexes:
           type: array
           items:
@@ -785,13 +796,12 @@ components:
 
     VoterGroup:
       properties:
-        id: integer
+        id: 
+          type: string
           description: Unique identifier of this voter group
-        name: string
-          description: Voter group name
         voting_token:
           type: string
-          format: [0-9a-f]{56}(\.[0-9a-f]{1,64})?
+          pattern: '[0-9a-f]{56}(\.[0-9a-f]{1,64})?'
           description: |
             The identifier of voting power token used withing this group. All vote plans within a
             group are guaranteed to use the same token.
