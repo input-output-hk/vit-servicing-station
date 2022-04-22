@@ -70,6 +70,13 @@ table! {
 }
 
 table! {
+    groups (group_id, token_identifier) {
+        group_id -> Text,
+        token_identifier -> Text,
+    }
+}
+
+table! {
     proposal_community_choice_challenge (proposal_id) {
         proposal_id -> Text,
         proposal_brief -> Nullable<Text>,
@@ -103,10 +110,16 @@ table! {
         proposer_url -> Text,
         proposer_relevant_experience -> Text,
         chain_proposal_id -> Binary,
-        chain_proposal_index -> BigInt,
         chain_vote_options -> Text,
-        chain_voteplan_id -> Text,
         challenge_id -> Integer,
+    }
+}
+
+table! {
+    proposals_voteplans (proposal_id) {
+        proposal_id -> Text,
+        chain_voteplan_id -> Text,
+        chain_proposal_index -> BigInt,
     }
 }
 
@@ -120,6 +133,7 @@ table! {
         chain_voteplan_payload -> Text,
         chain_vote_encryption_key -> Text,
         fund_id -> Integer,
+        token_identifier -> Text,
     }
 }
 
@@ -131,8 +145,10 @@ allow_tables_to_appear_in_same_query!(
     community_advisors_reviews,
     funds,
     goals,
+    groups,
     proposal_community_choice_challenge,
     proposal_simple_challenge,
     proposals,
+    proposals_voteplans,
     voteplans,
 );
