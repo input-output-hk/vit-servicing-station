@@ -10,7 +10,7 @@ use structopt::StructOpt;
 use thiserror::Error;
 use vit_servicing_station_lib::db::models::goals::InsertGoal;
 use vit_servicing_station_lib::db::models::proposals::{
-    community_choice, simple, ProposalChallengeInfo,
+    community_choice, simple, ProposalChallengeInfo, ProposalVotePlan,
 };
 use vit_servicing_station_lib::db::{
     load_db_connection_pool,
@@ -61,6 +61,10 @@ pub enum CsvDataCmd {
         /// Path to the csv containing goals information
         #[structopt(long = "goals")]
         goals: PathBuf,
+
+        /// Path to the csv assigning proposal information to chain proposals
+        #[structopt(long = "proposals_voteplans")]
+        proposals_voteplans: PathBuf,
     },
 }
 
@@ -102,6 +106,7 @@ impl CsvDataCmd {
         challenges_path: &Path,
         reviews_path: &Path,
         goals_path: &Path,
+        proposals_voteplans: &Path,
     ) -> Result<(), Error> {
         db_file_exists(db_url)?;
         let funds = CsvDataCmd::load_from_csv::<Fund>(funds_path)?;
@@ -118,7 +123,8 @@ impl CsvDataCmd {
             .map(TryInto::try_into)
             .collect::<Result<Vec<_>, _>>()?;
         let mut goals: Vec<InsertGoal> = CsvDataCmd::load_from_csv::<InsertGoal>(goals_path)?;
-
+        let proposals_voteplans =
+            CsvDataCmd::load_from_csv::<ProposalVotePlan>(proposals_voteplans)?;
         let mut proposals: Vec<Proposal> = Vec::new();
         let mut simple_proposals_data: Vec<simple::ChallengeSqlValues> = Vec::new();
         let mut community_proposals_data: Vec<community_choice::ChallengeSqlValues> = Vec::new();
@@ -136,13 +142,15 @@ impl CsvDataCmd {
                 .clone();
             let (proposal, challenge_info) =
                 proposal.into_db_proposal_and_challenge_info(challenge_type)?;
+            let proposal_id = proposal.proposal_id.clone();
+            proposals.push(proposal);
             match challenge_info {
-                ProposalChallengeInfo::Simple(simple) => simple_proposals_data
-                    .push(simple.to_sql_values_with_proposal_id(&proposal.proposal_id)),
+                ProposalChallengeInfo::Simple(simple) => {
+                    simple_proposals_data.push(simple.to_sql_values_with_proposal_id(&proposal_id))
+                }
                 ProposalChallengeInfo::CommunityChoice(community_choice) => {
-                    community_proposals_data.push(
-                        community_choice.to_sql_values_with_proposal_id(&proposal.proposal_id),
-                    )
+                    community_proposals_data
+                        .push(community_choice.to_sql_values_with_proposal_id(&proposal_id))
                 }
             };
         }
@@ -199,6 +207,12 @@ impl CsvDataCmd {
         )
         .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
 
+        vit_servicing_station_lib::db::queries::proposals::batch_insert_proposals_voteplans(
+            proposals_voteplans.into_iter(),
+            &db_conn,
+        )
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+
         vit_servicing_station_lib::db::queries::proposals::batch_insert_simple_challenge_data(
             &simple_proposals_data,
             &db_conn,
@@ -234,6 +248,7 @@ impl CsvDataCmd {
         challenges_path: &Path,
         reviews: &Path,
         goals: &Path,
+        proposals_voteplans: &Path,
     ) -> Result<(), Error> {
         let backup_file = backup_db_file(db_url)?;
         if let Err(e) = Self::handle_load(
@@ -244,6 +259,7 @@ impl CsvDataCmd {
             challenges_path,
             reviews,
             goals,
+            proposals_voteplans,
         ) {
             restore_db_file(backup_file, db_url)?;
             Err(e)
@@ -266,8 +282,16 @@ impl ExecTask for CsvDataCmd {
                 challenges,
                 reviews,
                 goals,
+                proposals_voteplans,
             } => Self::handle_load_with_db_backup(
-                db_url, funds, voteplans, proposals, challenges, reviews, goals,
+                db_url,
+                funds,
+                voteplans,
+                proposals,
+                challenges,
+                reviews,
+                goals,
+                proposals_voteplans,
             ),
         }
     }

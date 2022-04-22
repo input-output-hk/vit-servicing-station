@@ -15,7 +15,7 @@ pub async fn filter(
         .and_then(get_proposal)
         .boxed();
 
-    let proposals = warp::path::end()
+    let proposals = warp::path!(String)
         .and(warp::get())
         .and(with_context.clone())
         .and_then(get_all_proposals)

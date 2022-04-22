@@ -3,10 +3,11 @@ use crate::v0::endpoints::proposals::requests::ProposalsByVoteplanIdAndIndex;
 use crate::v0::{context::SharedContext, errors::HandleError};
 
 pub async fn get_all_proposals(
+    voting_group: String,
     context: SharedContext,
 ) -> Result<Vec<FullProposalInfo>, HandleError> {
     let pool = &context.read().await.db_connection_pool;
-    proposals_queries::query_all_proposals(pool).await
+    proposals_queries::query_all_proposals(pool, voting_group).await
 }
 
 pub async fn get_proposal(

@@ -3,8 +3,12 @@ use crate::common::data::ArbitraryValidVotingTemplateGenerator;
 use crate::common::data::{Snapshot, ValidVotingTemplateGenerator};
 use std::iter;
 use time::{Duration, OffsetDateTime};
+<<<<<<< HEAD
 use vit_servicing_station_lib::db::models::funds::FundStageDates;
 use vit_servicing_station_lib::db::models::goals::Goal;
+=======
+use vit_servicing_station_lib::db::models::proposals::ProposalVotePlanCommon;
+>>>>>>> 3d12129... update models and csv
 use vit_servicing_station_lib::db::models::{
     api_tokens::ApiTokenData,
     challenges::Challenge,
@@ -125,14 +129,7 @@ impl ArbitrarySnapshotGenerator {
             proposal_files_url: proposal.files_url,
             proposer: self.template_generator.proposer(),
             chain_proposal_id: self.id_generator.hash().as_bytes().to_vec(),
-            chain_proposal_index: self.id_generator.next_u32() as i64,
             chain_vote_options: proposal.chain_vote_options,
-            chain_voteplan_id: fund
-                .chain_vote_plans
-                .get(0)
-                .unwrap()
-                .chain_voteplan_id
-                .clone(),
             chain_vote_start_time: voteplan.chain_vote_start_time,
             chain_vote_end_time: voteplan.chain_vote_end_time,
             chain_committee_end_time: voteplan.chain_committee_end_time,
@@ -146,6 +143,16 @@ impl ArbitrarySnapshotGenerator {
             proposal,
             challenge_info,
             challenge_type: challenge.challenge_type.clone(),
+            voteplan: ProposalVotePlanCommon {
+                chain_proposal_index: self.id_generator.next_u32() as i64,
+                chain_voteplan_id: fund
+                    .chain_vote_plans
+                    .get(0)
+                    .unwrap()
+                    .chain_voteplan_id
+                    .clone(),
+            },
+            group_id: todo!(),
         }
     }
 
@@ -254,6 +261,7 @@ impl ArbitrarySnapshotGenerator {
             chain_voteplan_payload: "public".to_string(),
             chain_vote_encryption_key: "".to_string(),
             fund_id,
+            token_identifier: "group".to_string(),
         }
     }
 

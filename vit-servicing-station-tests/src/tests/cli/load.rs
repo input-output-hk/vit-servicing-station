@@ -26,6 +26,14 @@ pub fn load_data_test() {
         )
         .unwrap();
 
+    let proposals_voteplans = temp_dir.child("proposals_voteplans.csv");
+    csv_converter
+        .proposals_voteplans(
+            snapshot.proposals().iter().cloned().take(1).collect(),
+            proposals_voteplans.path(),
+        )
+        .unwrap();
+
     let voteplans = temp_dir.child("voteplans.csv");
     csv_converter
         .voteplans(
@@ -75,6 +83,7 @@ pub fn load_data_test() {
         .challenges(challenges.path())
         .advisor_reviews(reviews.path())
         .goals(goals.path())
+        .proposals_voteplans(proposals_voteplans.path())
         .build()
         .assert()
         .success();

@@ -7,8 +7,13 @@ pub async fn get_proposal(id: i32, context: SharedContext) -> Result<impl Reply,
     Ok(HandlerResult(logic::get_proposal(id, context).await))
 }
 
-pub async fn get_all_proposals(context: SharedContext) -> Result<impl Reply, Rejection> {
-    Ok(HandlerResult(logic::get_all_proposals(context).await))
+pub async fn get_all_proposals(
+    voting_group: String,
+    context: SharedContext,
+) -> Result<impl Reply, Rejection> {
+    Ok(HandlerResult(
+        logic::get_all_proposals(voting_group, context).await,
+    ))
 }
 
 pub async fn get_proposals_by_voteplan_id_and_index(
@@ -91,11 +96,16 @@ pub mod test {
         challenges_testing::populate_db_with_challenge(&challenge, pool);
         // build filter
         let filter = warp::any()
+            .and(warp::path!(String))
             .and(warp::get())
             .and(with_context)
             .and_then(get_all_proposals);
 
-        let result = warp::test::request().method("GET").reply(&filter).await;
+        let result = warp::test::request()
+            .method("GET")
+            .path("/group")
+            .reply(&filter)
+            .await;
         assert_eq!(result.status(), warp::http::StatusCode::OK);
         let result_proposals: Vec<FullProposalInfo> =
             serde_json::from_str(&String::from_utf8(result.body().to_vec()).unwrap()).unwrap();
@@ -125,8 +135,8 @@ pub mod test {
             .and_then(get_proposals_by_voteplan_id_and_index);
 
         let request = ProposalVoteplanIdAndIndexes {
-            vote_plan_id: proposal.proposal.chain_voteplan_id.clone(),
-            indexes: vec![proposal.proposal.chain_proposal_index],
+            vote_plan_id: proposal.voteplan.chain_voteplan_id.clone(),
+            indexes: vec![proposal.voteplan.chain_proposal_index],
         };
 
         let result = warp::test::request()

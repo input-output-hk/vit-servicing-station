@@ -4,6 +4,7 @@ use crate::common::data::ValidVotePlanParameters;
 use chain_impl_mockchain::certificate::VotePlan;
 use vit_servicing_station_lib::db::models::community_advisors_reviews::AdvisorReview;
 use vit_servicing_station_lib::db::models::proposals::FullProposalInfo;
+use vit_servicing_station_lib::db::models::proposals::ProposalVotePlanCommon;
 use vit_servicing_station_lib::db::models::{
     challenges::Challenge,
     funds::Fund,
@@ -59,6 +60,7 @@ impl ValidVotePlanGenerator {
                         .vote_encryption_key()
                         .unwrap_or_else(|| "".to_string()),
                     fund_id: self.parameters.current_fund.info.fund_id,
+                    token_identifier: vote_plan.voting_token().to_string(),
                 }
             })
             .collect();
@@ -115,8 +117,10 @@ impl ValidVotePlanGenerator {
                     challenge.rewards_total += proposal_funds;
                 }
 
+                let proposal_internal_id = proposal_template.internal_id.parse().unwrap();
+
                 let proposal = Proposal {
-                    internal_id: proposal_template.internal_id.parse().unwrap(),
+                    internal_id: proposal_internal_id,
                     proposal_id: proposal_template.proposal_id.to_string(),
                     proposal_category: Category {
                         category_id: "".to_string(),
@@ -139,9 +143,7 @@ impl ValidVotePlanGenerator {
                             .proposer_relevant_experience,
                     },
                     chain_proposal_id: proposal.id().to_string().as_bytes().to_vec(),
-                    chain_proposal_index: index as i64,
                     chain_vote_options: self.parameters.current_fund.vote_options.clone(),
-                    chain_voteplan_id: vote_plan.chain_voteplan_id.clone(),
                     chain_vote_start_time: vote_plan.chain_vote_start_time,
                     chain_vote_end_time: vote_plan.chain_vote_end_time,
                     chain_committee_end_time: vote_plan.chain_committee_end_time,
@@ -155,6 +157,11 @@ impl ValidVotePlanGenerator {
                     proposal,
                     challenge_info: proposal_template.proposal_challenge_info,
                     challenge_type: challenge.challenge_type.clone(),
+                    voteplan: ProposalVotePlanCommon {
+                        chain_voteplan_id: vote_plan.chain_voteplan_id.clone(),
+                        chain_proposal_index: index as i64,
+                    },
+                    group_id: todo!(),
                 });
             }
         }

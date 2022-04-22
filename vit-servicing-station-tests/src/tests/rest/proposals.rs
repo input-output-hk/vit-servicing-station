@@ -34,6 +34,8 @@ pub fn get_proposal_by_id() -> Result<(), Box<dyn std::error::Error>> {
         .with_challenges(vec![expected_challenge])
         .build(&temp_dir)?;
 
+    // let db_path = DbBuilder::new().with_token(token).build(&temp_dir)?;
+
     let server = ServerBootstrapper::new()
         .with_db_path(db_path.to_str().unwrap())
         .start(&temp_dir)

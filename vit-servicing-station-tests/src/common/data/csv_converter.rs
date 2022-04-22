@@ -61,6 +61,7 @@ impl CsvConverter {
             "chain_voteplan_payload",
             "chain_vote_encryption_key",
             "fund_id",
+            "token_identifier",
         ];
         let content: Vec<Vec<String>> = voteplans.iter().map(convert_voteplan).collect();
         self.build_file(headers, content, path)
@@ -87,12 +88,10 @@ impl CsvConverter {
             "proposer_url",
             "proposer_relevant_experience",
             "chain_proposal_id",
-            "chain_proposal_index",
             "chain_vote_options",
             "chain_vote_type",
             "chain_vote_action",
             "id",
-            "chain_voteplan_id",
             "chain_vote_start_time",
             "chain_vote_end_time",
             "chain_committe",
@@ -105,6 +104,21 @@ impl CsvConverter {
         ];
 
         let content: Vec<Vec<String>> = proposals.iter().map(convert_proposal).collect();
+        self.build_file(headers, content, path)
+    }
+
+    pub fn proposals_voteplans<P: AsRef<Path>>(
+        &self,
+        proposals: Vec<FullProposalInfo>,
+        path: P,
+    ) -> Result<(), Error> {
+        let headers = vec!["proposal_id", "chain_proposal_index", "chain_voteplan_id"];
+
+        let content: Vec<Vec<String>> = proposals
+            .iter()
+            .map(convert_proposal_to_voteplan_proposal)
+            .collect();
+
         self.build_file(headers, content, path)
     }
 
@@ -210,12 +224,10 @@ fn convert_proposal(proposal: &FullProposalInfo) -> Vec<String> {
         std::str::from_utf8(&proposal.chain_proposal_id)
             .unwrap()
             .to_string(),
-        proposal.chain_proposal_index.to_string(),
         proposal.chain_vote_options.as_csv_string(),
         proposal.chain_voteplan_payload.to_string(),
         "off_chain".to_string(),
         proposal.proposal_id.to_string(),
-        proposal.chain_voteplan_id.to_string(),
         unix_timestamp_to_rfc3339(proposal.chain_vote_start_time),
         unix_timestamp_to_rfc3339(proposal.chain_vote_end_time),
         unix_timestamp_to_rfc3339(proposal.chain_committee_end_time),
@@ -225,6 +237,14 @@ fn convert_proposal(proposal: &FullProposalInfo) -> Vec<String> {
         importance,
         goal,
         metrics,
+    ]
+}
+
+fn convert_proposal_to_voteplan_proposal(pinfo: &FullProposalInfo) -> Vec<String> {
+    vec![
+        pinfo.proposal.internal_id.to_string(),
+        pinfo.voteplan.chain_proposal_index.to_string(),
+        pinfo.voteplan.chain_voteplan_id.to_string(),
     ]
 }
 
@@ -285,6 +305,7 @@ fn convert_voteplan(voteplan: &Voteplan) -> Vec<String> {
         voteplan.chain_voteplan_payload.to_string(),
         voteplan.chain_vote_encryption_key.to_string(),
         voteplan.fund_id.to_string(),
+        voteplan.token_identifier.to_string(),
     ]
 }
 

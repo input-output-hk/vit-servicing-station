@@ -1,5 +1,6 @@
 use super::vote_options;
 use crate::db::models::vote_options::VoteOptions;
+use crate::db::schema::proposals_voteplans;
 use crate::db::{schema::proposals, views_schema::full_proposals_info, Db};
 use diesel::{ExpressionMethods, Insertable, Queryable};
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
@@ -87,12 +88,8 @@ pub struct Proposal {
     #[serde(serialize_with = "crate::utils::serde::serialize_bin_as_str")]
     #[serde(deserialize_with = "crate::utils::serde::deserialize_string_as_bytes")]
     pub chain_proposal_id: Vec<u8>,
-    #[serde(alias = "chainProposalIndex")]
-    pub chain_proposal_index: i64,
     #[serde(alias = "chainVoteOptions")]
     pub chain_vote_options: VoteOptions,
-    #[serde(alias = "chainVoteplanId")]
-    pub chain_voteplan_id: String,
     #[serde(alias = "chainVoteStartTime", default = "Default::default")]
     #[serde(serialize_with = "crate::utils::serde::serialize_unix_timestamp_as_rfc3339")]
     #[serde(deserialize_with = "crate::utils::serde::deserialize_unix_timestamp_from_rfc3339")]
@@ -139,6 +136,26 @@ pub struct FullProposalInfo {
     pub challenge_info: ProposalChallengeInfo,
     #[serde(alias = "challengeType")]
     pub challenge_type: ChallengeType,
+    #[serde(flatten)]
+    pub voteplan: ProposalVotePlanCommon,
+    #[serde(alias = "groupId")]
+    pub group_id: String,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct ProposalVotePlanCommon {
+    #[serde(alias = "chainVoteplanId")]
+    pub chain_voteplan_id: String,
+    #[serde(alias = "chainProposalIndex")]
+    pub chain_proposal_index: i64,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct ProposalVotePlan {
+    #[serde(alias = "proposalId")]
+    pub proposal_id: String,
+    #[serde(flatten)]
+    common: ProposalVotePlanCommon,
 }
 
 impl Serialize for ProposalChallengeInfo {
@@ -164,6 +181,7 @@ impl<'de> Deserialize<'de> for ProposalChallengeInfo {
     }
 }
 
+// TODO: fix the order of these
 type FullProposalsInfoRow = (
     // 0 ->id
     i32,
@@ -229,6 +247,8 @@ type FullProposalsInfoRow = (
     Option<String>,
     // 31 -> proposal_metrics
     Option<String>,
+    // 32 -> group_id
+    // String,
 );
 
 impl Queryable<full_proposals_info::SqlType, Db> for Proposal {
@@ -257,9 +277,7 @@ impl Queryable<full_proposals_info::SqlType, Db> for Proposal {
                 proposer_relevant_experience: row.13,
             },
             chain_proposal_id: row.14,
-            chain_proposal_index: row.15,
             chain_vote_options: vote_options::VoteOptions::parse_coma_separated_value(&row.16),
-            chain_voteplan_id: row.17,
             chain_vote_start_time: row.18,
             chain_vote_end_time: row.19,
             chain_committee_end_time: row.20,
@@ -268,6 +286,20 @@ impl Queryable<full_proposals_info::SqlType, Db> for Proposal {
             fund_id: row.23,
             challenge_id: row.24,
             reviews_count: row.25,
+        }
+    }
+}
+
+impl Queryable<full_proposals_info::SqlType, Db> for ProposalVotePlan {
+    type Row = FullProposalsInfoRow;
+
+    fn build(row: Self::Row) -> Self {
+        ProposalVotePlan {
+            proposal_id: row.1,
+            common: ProposalVotePlanCommon {
+                chain_proposal_index: row.15,
+                chain_voteplan_id: row.17,
+            },
         }
     }
 }
@@ -292,10 +324,21 @@ impl Queryable<full_proposals_info::SqlType, Db> for FullProposalInfo {
                 })
             }
         };
+
+        let voteplan = ProposalVotePlanCommon {
+            chain_proposal_index: row.15.clone(),
+            chain_voteplan_id: row.17.clone(),
+        };
+
+        // let group_id = row.32.clone();
+        let group_id = todo!();
+
         FullProposalInfo {
             proposal: Proposal::build(row),
             challenge_info,
             challenge_type,
+            voteplan,
+            group_id,
         }
     }
 }
@@ -319,9 +362,7 @@ impl Insertable<proposals::table> for Proposal {
         diesel::dsl::Eq<proposals::proposer_url, String>,
         diesel::dsl::Eq<proposals::proposer_relevant_experience, String>,
         diesel::dsl::Eq<proposals::chain_proposal_id, Vec<u8>>,
-        diesel::dsl::Eq<proposals::chain_proposal_index, i64>,
         diesel::dsl::Eq<proposals::chain_vote_options, String>,
-        diesel::dsl::Eq<proposals::chain_voteplan_id, String>,
         diesel::dsl::Eq<proposals::challenge_id, i32>,
     );
 
@@ -341,10 +382,24 @@ impl Insertable<proposals::table> for Proposal {
             proposals::proposer_url.eq(self.proposer.proposer_url),
             proposals::proposer_relevant_experience.eq(self.proposer.proposer_relevant_experience),
             proposals::chain_proposal_id.eq(self.chain_proposal_id),
-            proposals::chain_proposal_index.eq(self.chain_proposal_index),
             proposals::chain_vote_options.eq(self.chain_vote_options.as_csv_string()),
-            proposals::chain_voteplan_id.eq(self.chain_voteplan_id),
             proposals::challenge_id.eq(self.challenge_id),
+        )
+    }
+}
+
+impl Insertable<proposals_voteplans::table> for ProposalVotePlan {
+    type Values = (
+        diesel::dsl::Eq<proposals_voteplans::proposal_id, String>,
+        diesel::dsl::Eq<proposals_voteplans::chain_proposal_index, i64>,
+        diesel::dsl::Eq<proposals_voteplans::chain_voteplan_id, String>,
+    );
+
+    fn values(self) -> Self::Values {
+        (
+            proposals_voteplans::proposal_id.eq(self.proposal_id),
+            proposals_voteplans::chain_proposal_index.eq(self.common.chain_proposal_index),
+            proposals_voteplans::chain_voteplan_id.eq(self.common.chain_voteplan_id),
         )
     }
 }
@@ -387,7 +442,8 @@ pub mod test {
     use crate::db::{
         models::vote_options::VoteOptions,
         schema::{
-            proposal_community_choice_challenge, proposal_simple_challenge, proposals, voteplans,
+            proposal_community_choice_challenge, proposal_simple_challenge, proposals,
+            proposals_voteplans, voteplans,
         },
         DbConnectionPool,
     };
@@ -397,9 +453,10 @@ pub mod test {
     pub fn get_test_proposal() -> FullProposalInfo {
         const CHALLENGE_ID: i32 = 9001;
 
+        let internal_id = 1;
         FullProposalInfo {
             proposal: Proposal {
-                internal_id: 1,
+                internal_id,
                 proposal_id: "1".to_string(),
                 proposal_category: Category {
                     category_id: "".to_string(),
@@ -421,9 +478,7 @@ pub mod test {
                     proposer_relevant_experience: "ilumination".to_string(),
                 },
                 chain_proposal_id: b"foobar".to_vec(),
-                chain_proposal_index: 0,
                 chain_vote_options: VoteOptions::parse_coma_separated_value("b,a,r"),
-                chain_voteplan_id: "voteplain_id".to_string(),
                 chain_vote_start_time: OffsetDateTime::now_utc().unix_timestamp(),
                 chain_vote_end_time: OffsetDateTime::now_utc().unix_timestamp(),
                 chain_committee_end_time: OffsetDateTime::now_utc().unix_timestamp(),
@@ -443,12 +498,18 @@ pub mod test {
                 },
             ),
             challenge_type: ChallengeType::CommunityChoice,
+            voteplan: ProposalVotePlanCommon {
+                chain_proposal_index: 0,
+                chain_voteplan_id: "voteplain_id".to_string(),
+            },
+            group_id: "group_id".to_string(),
         }
     }
 
     pub fn populate_db_with_proposal(full_proposal: &FullProposalInfo, pool: &DbConnectionPool) {
         let connection = pool.get().unwrap();
         let proposal = &full_proposal.proposal;
+        let proposal_id = proposal.proposal_id.clone();
         // insert the proposal information
         let values = (
             proposals::proposal_id.eq(proposal.proposal_id.clone()),
@@ -466,10 +527,8 @@ pub mod test {
             proposals::proposer_relevant_experience
                 .eq(proposal.proposer.proposer_relevant_experience.clone()),
             proposals::chain_proposal_id.eq(proposal.chain_proposal_id.clone()),
-            proposals::chain_proposal_index.eq(proposal.chain_proposal_index),
             proposals::chain_vote_options.eq(proposal.chain_vote_options.as_csv_string()),
-            proposals::chain_voteplan_id.eq(proposal.chain_voteplan_id.clone()),
-            proposals::challenge_id.eq(proposal.challenge_id),
+            proposals::challenge_id.eq(proposal.challenge_id.clone()),
         );
 
         diesel::insert_into(proposals::table)
@@ -479,17 +538,31 @@ pub mod test {
 
         // insert the related fund voteplan information
         let voteplan_values = (
-            voteplans::chain_voteplan_id.eq(proposal.chain_voteplan_id.clone()),
+            voteplans::chain_voteplan_id.eq(full_proposal.voteplan.chain_voteplan_id.clone()),
             voteplans::chain_vote_start_time.eq(proposal.chain_vote_start_time),
             voteplans::chain_vote_end_time.eq(proposal.chain_vote_end_time),
             voteplans::chain_committee_end_time.eq(proposal.chain_committee_end_time),
             voteplans::chain_voteplan_payload.eq(proposal.chain_voteplan_payload.clone()),
             voteplans::chain_vote_encryption_key.eq(proposal.chain_vote_encryption_key.clone()),
             voteplans::fund_id.eq(proposal.fund_id),
+            voteplans::token_identifier.eq("token"),
         );
 
         diesel::insert_into(voteplans::table)
             .values(voteplan_values)
+            .execute(&connection)
+            .unwrap();
+
+        let proposal_voteplan_values = (
+            proposals_voteplans::proposal_id.eq(proposal_id),
+            proposals_voteplans::chain_voteplan_id
+                .eq(full_proposal.voteplan.chain_voteplan_id.clone()),
+            proposals_voteplans::chain_proposal_index
+                .eq(full_proposal.voteplan.chain_proposal_index.clone()),
+        );
+
+        diesel::insert_into(proposals_voteplans::table)
+            .values(proposal_voteplan_values)
             .execute(&connection)
             .unwrap();
 

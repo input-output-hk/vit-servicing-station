@@ -1,5 +1,7 @@
-use crate::db::models::proposals::{community_choice, simple, FullProposalInfo, Proposal};
-use crate::db::schema::proposals;
+use crate::db::models::proposals::{
+    community_choice, simple, FullProposalInfo, Proposal, ProposalVotePlan,
+};
+use crate::db::schema::{proposals, proposals_voteplans};
 use crate::db::{
     schema::{
         proposal_community_choice_challenge as community_choice_proposal_dsl,
@@ -15,6 +17,7 @@ use diesel::{ExpressionMethods, Insertable, QueryResult, RunQueryDsl};
 
 pub async fn query_all_proposals(
     pool: &DbConnectionPool,
+    voting_group: String,
 ) -> Result<Vec<FullProposalInfo>, HandleError> {
     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
     tokio::task::spawn_blocking(move || {
@@ -81,6 +84,15 @@ pub fn batch_insert_proposals(
                 .map(|proposal| proposal.values())
                 .collect::<Vec<_>>(),
         )
+        .execute(db_conn)
+}
+
+pub fn batch_insert_proposals_voteplans(
+    pvs: impl Iterator<Item = ProposalVotePlan>,
+    db_conn: &DbConnection,
+) -> QueryResult<usize> {
+    diesel::insert_into(proposals_voteplans::table)
+        .values(pvs.map(|pv| pv.values()).collect::<Vec<_>>())
         .execute(db_conn)
 }
 
