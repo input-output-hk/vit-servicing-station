@@ -182,9 +182,9 @@ impl<'de> Deserialize<'de> for ProposalChallengeInfo {
 }
 
 type FullProposalsInfoRow = (
-    // 0 -> id,
+    // 0 -> id
     i32,
-    // 1 -> proposal_id,
+    // 1 -> proposal_id
     String,
     // 2 -> proposal_category
     String,
