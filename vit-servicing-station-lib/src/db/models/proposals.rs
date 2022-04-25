@@ -182,71 +182,71 @@ impl<'de> Deserialize<'de> for ProposalChallengeInfo {
 }
 
 type FullProposalsInfoRow = (
-    // 0 - id,
+    // 0 -> id,
     i32,
-    // 1 - proposal_id,
+    // 1 -> proposal_id,
     String,
-    // 2 - proposal_category
+    // 2 -> proposal_category
     String,
-    // 3 - proposal_title
+    // 3 -> proposal_title
     String,
-    // 4 - proposal_summary
+    // 4 -> proposal_summary
     String,
-    // 5 - proposal_public_key
+    // 5 -> proposal_public_key
     String,
-    // 6 - proposal_funds
+    // 6 -> proposal_funds
     i64,
-    // 7 - proposal_url
+    // 7 -> proposal_url
     String,
-    // 8 - proposal_files_url
+    // 8 -> proposal_files_url
     String,
-    // 9 - proposal_impact_score
+    // 9 -> proposal_impact_score
     i64,
-    // 10 - proposer_name
+    // 10 -> proposer_name
     String,
-    // 11 - proposer_contact
+    // 11 -> proposer_contact
     String,
-    // 12 - proposer_url
+    // 12 -> proposer_url
     String,
-    // 13 - proposer_relevant_experience
+    // 13 -> proposer_relevant_experience
     String,
-    // 14 - chain_proposal_id
+    // 14 -> chain_proposal_id
     Vec<u8>,
-    // 15 - chain_vote_options
+    // 15 -> chain_vote_options
     String,
-    // 16 - challenge_id
+    // 16 -> challenge_id
     i32,
-    // 17 - reviews_count
+    // 17 -> reviews_count
     i32,
-    // 18 - chain_vote_start_time
+    // 18 -> chain_vote_start_time
     i64,
-    // 19 - chain_vote_end_time
+    // 19 -> chain_vote_end_time
     i64,
-    // 20 - chain_committee_end_time
+    // 20 -> chain_committee_end_time
     i64,
-    // 21 - chain_voteplan_payload
+    // 21 -> chain_voteplan_payload
     String,
-    // 22 - chain_vote_encryption_key
+    // 22 -> chain_vote_encryption_key
     String,
-    // 23 - fund_id
+    // 23 -> fund_id
     i32,
-    // 24 - challenge_type
+    // 24 -> challenge_type
     String,
-    // 25 - proposal_solution
+    // 25 -> proposal_solution
     Option<String>,
-    // 26 - proposal_brief
+    // 26 -> proposal_brief
     Option<String>,
-    // 27 - proposal_importance
+    // 27 -> proposal_importance
     Option<String>,
-    // 28 - proposal_goal
+    // 28 -> proposal_goal
     Option<String>,
-    // 29 - proposal_metrics
+    // 29 -> proposal_metrics
     Option<String>,
-    // 30 - chain_proposal_index
+    // 30 -> chain_proposal_index
     i64,
-    // 31 - chain_voteplan_id
+    // 31 -> chain_voteplan_id
     String,
-    // 32 - group_id
+    // 32 -> group_id
     String,
 );
 
