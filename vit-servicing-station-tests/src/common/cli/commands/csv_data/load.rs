@@ -49,6 +49,11 @@ impl LoadCsvCommand {
         self
     }
 
+    pub fn groups<P: AsRef<Path>>(mut self, path: P) -> Self {
+        self.command.arg("--groups").arg(path.as_ref());
+        self
+    }
+
     pub fn build(self) -> Command {
         self.command
     }
