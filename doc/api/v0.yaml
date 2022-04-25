@@ -118,8 +118,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: "#/components/schemas/ProposalWithChallengeInfo"
+                - $ref: "#/components/schemas/ProposalWithChallengeInfo"
 
   /api/v0/proposals/{voter_group_id}:
     get:
