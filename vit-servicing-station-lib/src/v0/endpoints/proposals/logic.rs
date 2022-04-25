@@ -12,10 +12,11 @@ pub async fn get_all_proposals(
 
 pub async fn get_proposal(
     id: i32,
+    voting_group: String,
     context: SharedContext,
 ) -> Result<FullProposalInfo, HandleError> {
     let pool = &context.read().await.db_connection_pool;
-    proposals_queries::query_proposal_by_id(id, pool).await
+    proposals_queries::query_proposal_by_id(id, voting_group, pool).await
 }
 
 pub async fn get_proposals_by_voteplan_id_and_index(

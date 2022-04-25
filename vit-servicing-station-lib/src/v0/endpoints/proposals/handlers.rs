@@ -3,8 +3,14 @@ use crate::v0::endpoints::proposals::requests::ProposalsByVoteplanIdAndIndex;
 use crate::v0::{context::SharedContext, result::HandlerResult};
 use warp::{Rejection, Reply};
 
-pub async fn get_proposal(id: i32, context: SharedContext) -> Result<impl Reply, Rejection> {
-    Ok(HandlerResult(logic::get_proposal(id, context).await))
+pub async fn get_proposal(
+    id: i32,
+    voting_group: String,
+    context: SharedContext,
+) -> Result<impl Reply, Rejection> {
+    Ok(HandlerResult(
+        logic::get_proposal(id, voting_group, context).await,
+    ))
 }
 
 pub async fn get_all_proposals(
@@ -62,14 +68,14 @@ pub mod test {
         reviews_testing::populate_db_with_advisor_review(&review, pool);
         proposal.proposal.reviews_count = 1;
         // build filter
-        let filter = warp::path!(i32)
+        let filter = warp::path!(i32 / String)
             .and(warp::get())
             .and(with_context)
             .and_then(get_proposal);
 
         let result = warp::test::request()
             .method("GET")
-            .path("/1")
+            .path("/1/group")
             .reply(&filter)
             .await;
         assert_eq!(result.status(), warp::http::StatusCode::OK);
