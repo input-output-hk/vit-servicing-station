@@ -18,6 +18,10 @@ impl RestPathBuilder {
         self.path("proposals")
     }
 
+    pub fn proposals_with_group(&self, group: &str) -> String {
+        self.path(&format!("proposals/{}", group))
+    }
+
     pub fn funds(&self) -> String {
         self.path("fund")
     }
@@ -38,8 +42,8 @@ impl RestPathBuilder {
         self.path(&format!("snapshot/{}/{}", tag, key))
     }
 
-    pub fn proposal(&self, id: &str) -> String {
-        self.path(&format!("proposals/{}", id))
+    pub fn proposal(&self, id: &str, group: &str) -> String {
+        self.path(&format!("proposal/{}/{}", id, group))
     }
 
     pub fn fund(&self, id: &str) -> String {

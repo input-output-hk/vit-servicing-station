@@ -84,8 +84,8 @@ impl RestClient {
         self.verify_status_code(&self.raw.put_snapshot(&snapshot.tag, content)?)
     }
 
-    pub fn proposal(&self, id: &str) -> Result<Proposal, Error> {
-        let response = self.raw.proposal(id)?;
+    pub fn proposal(&self, id: &str, group: &str) -> Result<Proposal, Error> {
+        let response = self.raw.proposal(id, group)?;
         self.verify_status_code(&response)?;
         let content = response.text()?;
         self.raw.log_text(&content);
@@ -95,8 +95,8 @@ impl RestClient {
         })
     }
 
-    pub fn proposals(&self) -> Result<Vec<Proposal>, Error> {
-        let response = self.raw.proposals()?;
+    pub fn proposals(&self, group: &str) -> Result<Vec<Proposal>, Error> {
+        let response = self.raw.proposals(group)?;
         self.verify_status_code(&response)?;
         let content = response.text()?;
         self.raw.log_text(&content);

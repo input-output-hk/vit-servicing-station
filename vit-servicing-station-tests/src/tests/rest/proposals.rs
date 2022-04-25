@@ -22,8 +22,6 @@ pub fn get_proposals_list_is_not_empty() {
 pub fn get_proposal_by_id() -> Result<(), Box<dyn std::error::Error>> {
     let temp_dir = TempDir::new().unwrap().into_persistent();
 
-    dbg!("{}", temp_dir.path());
-
     let mut gen = data::ArbitrarySnapshotGenerator::default();
 
     let funds = gen.funds();
@@ -31,8 +29,6 @@ pub fn get_proposal_by_id() -> Result<(), Box<dyn std::error::Error>> {
     let groups = gen.groups(&funds);
     let challenges = gen.challenges(&funds);
 
-    // let mut expected_proposal = data::proposals().first().unwrap().clone();
-    // let mut expected_challenge = data::challenges().first().unwrap().clone();
     let mut expected_proposal = proposals.into_iter().next().unwrap();
     let mut expected_challenge = challenges.into_iter().next().unwrap();
 
@@ -47,8 +43,6 @@ pub fn get_proposal_by_id() -> Result<(), Box<dyn std::error::Error>> {
         .with_challenges(vec![expected_challenge.clone()])
         .with_groups(groups)
         .build(&temp_dir)?;
-
-    // let db_path = DbBuilder::new().with_token(token).build(&temp_dir)?;
 
     let server = ServerBootstrapper::new()
         .with_db_path(db_path.to_str().unwrap())
