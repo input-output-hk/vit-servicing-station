@@ -70,9 +70,9 @@ table! {
 }
 
 table! {
-    groups (group_id, token_identifier) {
-        group_id -> Text,
+    groups (token_identifier) {
         token_identifier -> Text,
+        group_id -> Text,
     }
 }
 

@@ -126,9 +126,10 @@ create table goals
 );
 
 create table groups (
-    group_id VARCHAR NOT NULL,
+    /* TODO: make this unique? */
     token_identifier VARCHAR NOT NULL,
-    PRIMARY KEY(group_id, token_identifier)
+    group_id VARCHAR NOT NULL,
+    PRIMARY KEY(token_identifier)
 );
 
 CREATE VIEW full_proposals_info
