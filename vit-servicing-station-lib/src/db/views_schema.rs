@@ -18,7 +18,7 @@ table! {
         proposer_relevant_experience -> Text,
         chain_proposal_id -> Binary,
         chain_vote_options -> Text,
-        challenge_id -> Binary,
+        challenge_id -> Integer,
 
         reviews_count -> Integer,
 
