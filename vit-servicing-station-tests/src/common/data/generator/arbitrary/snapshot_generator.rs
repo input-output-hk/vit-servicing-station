@@ -1,10 +1,12 @@
 use crate::common::data::ArbitraryGenerator;
 use crate::common::data::ArbitraryValidVotingTemplateGenerator;
 use crate::common::data::{Snapshot, ValidVotingTemplateGenerator};
+use std::collections::HashMap;
 use std::iter;
 use time::{Duration, OffsetDateTime};
 use vit_servicing_station_lib::db::models::funds::FundStageDates;
 use vit_servicing_station_lib::db::models::goals::Goal;
+use vit_servicing_station_lib::db::models::groups::Group;
 use vit_servicing_station_lib::db::models::proposals::ProposalVotePlanCommon;
 use vit_servicing_station_lib::db::models::{
     api_tokens::ApiTokenData,
@@ -149,7 +151,7 @@ impl ArbitrarySnapshotGenerator {
                     .chain_voteplan_id
                     .clone(),
             },
-            group_id: todo!(),
+            group_id: "group".to_string(),
         }
     }
 
@@ -245,6 +247,25 @@ impl ArbitrarySnapshotGenerator {
             .collect()
     }
 
+    pub fn groups(&mut self, funds: &[Fund]) -> Vec<Group> {
+        funds
+            .iter()
+            .fold(HashMap::new(), |mut m, fund| {
+                for vp in &fund.chain_vote_plans {
+                    m.entry(vp.token_identifier.clone())
+                        .or_insert("group".to_string());
+                }
+
+                m
+            })
+            .into_iter()
+            .map(|(token_identifier, group_id)| Group {
+                group_id,
+                token_identifier,
+            })
+            .collect()
+    }
+
     pub fn voteplan_with_fund_id(&mut self, fund_id: i32) -> Voteplan {
         let id = self.id_generator.next_u32() as i32;
         let dates = self.voteplan_date_times();
@@ -258,7 +279,7 @@ impl ArbitrarySnapshotGenerator {
             chain_voteplan_payload: "public".to_string(),
             chain_vote_encryption_key: "".to_string(),
             fund_id,
-            token_identifier: "group".to_string(),
+            token_identifier: "token".to_string(),
         }
     }
 
@@ -354,9 +375,10 @@ impl ArbitrarySnapshotGenerator {
         let reviews = self.advisor_reviews(&proposals);
         let goals = self.goals(&funds);
         let tokens = self.id_generator.tokens();
+        let groups = self.groups(&funds);
 
         Snapshot::new(
-            funds, proposals, challenges, tokens, voteplans, reviews, goals,
+            funds, proposals, challenges, tokens, voteplans, reviews, goals, groups,
         )
     }
 }

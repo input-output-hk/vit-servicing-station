@@ -63,6 +63,11 @@ pub fn load_data_test() {
         )
         .unwrap();
 
+    let groups = temp_dir.child("groups.csv");
+    csv_converter
+        .groups(snapshot.groups(), groups.path())
+        .unwrap();
+
     let vit_cli: VitCliCommand = Default::default();
     vit_cli
         .db()
@@ -84,6 +89,7 @@ pub fn load_data_test() {
         .advisor_reviews(reviews.path())
         .goals(goals.path())
         .proposals_voteplans(proposals_voteplans.path())
+        .groups(groups.path())
         .build()
         .assert()
         .success();

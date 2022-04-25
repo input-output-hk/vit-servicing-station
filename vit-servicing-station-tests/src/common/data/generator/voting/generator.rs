@@ -3,6 +3,7 @@ use crate::common::data::generator::{ArbitraryGenerator, Snapshot, ValidVotingTe
 use crate::common::data::ValidVotePlanParameters;
 use chain_impl_mockchain::certificate::VotePlan;
 use vit_servicing_station_lib::db::models::community_advisors_reviews::AdvisorReview;
+use vit_servicing_station_lib::db::models::groups::Group;
 use vit_servicing_station_lib::db::models::proposals::FullProposalInfo;
 use vit_servicing_station_lib::db::models::proposals::ProposalVotePlanCommon;
 use vit_servicing_station_lib::db::models::{
@@ -161,7 +162,7 @@ impl ValidVotePlanGenerator {
                         chain_voteplan_id: vote_plan.chain_voteplan_id.clone(),
                         chain_proposal_index: index as i64,
                     },
-                    group_id: todo!(),
+                    group_id: "group".to_string(),
                 });
             }
         }
@@ -202,6 +203,14 @@ impl ValidVotePlanGenerator {
             .collect();
         funds.extend(next_funds);
 
+        let groups = vote_plans
+            .iter()
+            .map(|vp| Group {
+                group_id: "group".into(),
+                token_identifier: vp.token_identifier.clone(),
+            })
+            .collect();
+
         Snapshot::new(
             funds,
             proposals,
@@ -210,6 +219,7 @@ impl ValidVotePlanGenerator {
             vote_plans,
             reviews,
             goals,
+            groups,
         )
     }
 }

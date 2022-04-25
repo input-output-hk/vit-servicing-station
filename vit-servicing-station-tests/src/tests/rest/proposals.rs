@@ -13,7 +13,7 @@ pub fn get_proposals_list_is_not_empty() {
     let (server, snapshot) = quick_start(&temp_dir).unwrap();
     let proposals = server
         .rest_client_with_token(&snapshot.token_hash())
-        .proposals()
+        .proposals("group")
         .expect("cannot get proposals");
     assert!(!proposals.is_empty());
 }
@@ -21,8 +21,21 @@ pub fn get_proposals_list_is_not_empty() {
 #[test]
 pub fn get_proposal_by_id() -> Result<(), Box<dyn std::error::Error>> {
     let temp_dir = TempDir::new().unwrap().into_persistent();
-    let mut expected_proposal = data::proposals().first().unwrap().clone();
-    let mut expected_challenge = data::challenges().first().unwrap().clone();
+
+    dbg!("{}", temp_dir.path());
+
+    let mut gen = data::ArbitrarySnapshotGenerator::default();
+
+    let funds = gen.funds();
+    let proposals = gen.proposals(&funds);
+    let groups = gen.groups(&funds);
+    let challenges = gen.challenges(&funds);
+
+    // let mut expected_proposal = data::proposals().first().unwrap().clone();
+    // let mut expected_challenge = data::challenges().first().unwrap().clone();
+    let mut expected_proposal = proposals.into_iter().next().unwrap();
+    let mut expected_challenge = challenges.into_iter().next().unwrap();
+
     expected_proposal.proposal.challenge_id = expected_challenge.id;
     expected_challenge.challenge_type = expected_proposal.challenge_type.clone();
 
@@ -31,7 +44,8 @@ pub fn get_proposal_by_id() -> Result<(), Box<dyn std::error::Error>> {
     let db_path = DbBuilder::new()
         .with_token(token)
         .with_proposals(vec![expected_proposal.clone()])
-        .with_challenges(vec![expected_challenge])
+        .with_challenges(vec![expected_challenge.clone()])
+        .with_groups(groups)
         .build(&temp_dir)?;
 
     // let db_path = DbBuilder::new().with_token(token).build(&temp_dir)?;
@@ -44,16 +58,22 @@ pub fn get_proposal_by_id() -> Result<(), Box<dyn std::error::Error>> {
     let rest_client = server.rest_client_with_token(&hash);
 
     let actual_proposal =
-        rest_client.proposal(&expected_proposal.proposal.internal_id.to_string())?;
+        rest_client.proposal(&expected_proposal.proposal.internal_id.to_string(), "group")?;
     assert_eq!(actual_proposal, expected_proposal.proposal);
-    let rest_client: RawRestClient = rest_client.into();
+
     // non existing
-    assert_eq!(rest_client.proposal("2")?.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        rest_client.proposal("2", "group")?.status(),
+        StatusCode::NOT_FOUND
+    );
     // malformed index
-    assert_eq!(rest_client.proposal("a")?.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        rest_client.proposal("a", "group")?.status(),
+        StatusCode::NOT_FOUND
+    );
     // overflow index
     assert_eq!(
-        rest_client.proposal("3147483647")?.status(),
+        rest_client.proposal("3147483647", "group")?.status(),
         StatusCode::NOT_FOUND
     );
 

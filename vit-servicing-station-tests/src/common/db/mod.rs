@@ -4,8 +4,9 @@ use diesel::{Insertable, SqliteConnection};
 use thiserror::Error;
 use vit_servicing_station_lib::db::models::community_advisors_reviews::AdvisorReview;
 use vit_servicing_station_lib::db::models::goals::InsertGoal;
+use vit_servicing_station_lib::db::models::groups::Group;
 use vit_servicing_station_lib::db::schema::goals;
-use vit_servicing_station_lib::db::schema::proposals_voteplans;
+use vit_servicing_station_lib::db::schema::{groups, proposals_voteplans};
 use vit_servicing_station_lib::db::{
     models::{
         api_tokens::ApiTokenData,
@@ -221,6 +222,16 @@ impl<'a> DbInserter<'a> {
         for review in reviews {
             diesel::insert_or_ignore_into(community_advisors_reviews::table)
                 .values(review.clone().values())
+                .execute(self.connection)
+                .map_err(DbInserterError::DieselError)?;
+        }
+        Ok(())
+    }
+
+    pub fn insert_groups(&self, groups: &[Group]) -> Result<(), DbInserterError> {
+        for group in groups {
+            diesel::insert_or_ignore_into(groups::table)
+                .values(group.clone().values())
                 .execute(self.connection)
                 .map_err(DbInserterError::DieselError)?;
         }

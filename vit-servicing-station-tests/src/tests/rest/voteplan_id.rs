@@ -19,7 +19,7 @@ pub fn get_proposals_by_voteplan_id_and_index() {
         .unwrap();
 
     let rest_client = server.rest_client_with_token(&snapshot.token_hash());
-    let mut expected_proposals = rest_client.proposals().unwrap();
+    let mut expected_proposals = rest_client.proposals("group").unwrap();
 
     let vote_plan_id: String = snapshot.voteplans()[0].chain_voteplan_id.clone();
 

@@ -4,6 +4,7 @@ use thiserror::Error;
 use time::format_description::well_known::Rfc3339;
 use vit_servicing_station_lib::db::models::community_advisors_reviews::AdvisorReview;
 use vit_servicing_station_lib::db::models::goals::InsertGoal;
+use vit_servicing_station_lib::db::models::groups::Group;
 use vit_servicing_station_lib::db::models::proposals::{FullProposalInfo, ProposalChallengeInfo};
 use vit_servicing_station_lib::{
     db::models::{challenges::Challenge, funds::Fund, voteplans::Voteplan},
@@ -169,6 +170,12 @@ impl CsvConverter {
         let headers = vec!["goal_name", "fund_id"];
 
         let content: Vec<Vec<String>> = goals.iter().map(convert_goals).collect();
+        self.build_file(headers, content, path)
+    }
+    pub fn groups<P: AsRef<Path>>(&self, groups: Vec<Group>, path: P) -> Result<(), Error> {
+        let headers = vec!["group_id", "token_identifier"];
+
+        let content: Vec<Vec<String>> = groups.iter().map(convert_group).collect();
         self.build_file(headers, content, path)
     }
 
@@ -347,4 +354,11 @@ fn unix_timestamp_to_rfc3339(timestamp: i64) -> String {
     unix_timestamp_to_datetime(timestamp)
         .format(&Rfc3339)
         .unwrap()
+}
+
+fn convert_group(group: &Group) -> Vec<String> {
+    vec![
+        group.group_id.to_string(),
+        group.token_identifier.to_string(),
+    ]
 }
