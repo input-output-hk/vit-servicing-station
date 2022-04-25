@@ -181,74 +181,73 @@ impl<'de> Deserialize<'de> for ProposalChallengeInfo {
     }
 }
 
-// TODO: fix the order of these
 type FullProposalsInfoRow = (
-    // 0 ->id
+    // 0 - id,
     i32,
-    // 1 -> proposal_id
+    // 1 - proposal_id,
     String,
-    // 2-> category_name
+    // 2 - proposal_category
     String,
-    // 3 -> proposal_title
+    // 3 - proposal_title
     String,
-    // 4 -> proposal_summary
+    // 4 - proposal_summary
     String,
-    // 5 -> proposal_public_key
+    // 5 - proposal_public_key
     String,
-    // 6 -> proposal_funds
+    // 6 - proposal_funds
     i64,
-    // 7 -> proposal_url
+    // 7 - proposal_url
     String,
-    // 8 -> proposal_files_url,
+    // 8 - proposal_files_url
     String,
-    // 9 -> proposal_impact_score
+    // 9 - proposal_impact_score
     i64,
-    // 10 -> proposer_name
+    // 10 - proposer_name
     String,
-    // 11 -> proposer_contact
+    // 11 - proposer_contact
     String,
-    // 12 -> proposer_url
+    // 12 - proposer_url
     String,
-    // 13 -> proposer_relevant_experience
+    // 13 - proposer_relevant_experience
     String,
-    // 14 -> chain_proposal_id
+    // 14 - chain_proposal_id
     Vec<u8>,
-    // 15 -> chain_proposal_index
-    i64,
-    // 16 -> chain_vote_options
+    // 15 - chain_vote_options
     String,
-    // 17 -> chain_voteplan_id
-    String,
-    // 18 -> chain_vote_starttime
-    i64,
-    // 19 -> chain_vote_endtime
-    i64,
-    // 20 -> chain_committee_end_time
-    i64,
-    // 21 -> chain_voteplan_payload
-    String,
-    // 22 -> chain_vote_encryption_key
-    String,
-    // 23 -> fund_id
+    // 16 - challenge_id
     i32,
-    // 24 -> challenge_id
+    // 17 - reviews_count
     i32,
-    // 25 -> reviews_count
-    i32,
-    // 26 -> challenge_type
+    // 18 - chain_vote_start_time
+    i64,
+    // 19 - chain_vote_end_time
+    i64,
+    // 20 - chain_committee_end_time
+    i64,
+    // 21 - chain_voteplan_payload
     String,
-    // 27 -> proposal_solution
+    // 22 - chain_vote_encryption_key
+    String,
+    // 23 - fund_id
+    i32,
+    // 24 - challenge_type
+    String,
+    // 25 - proposal_solution
     Option<String>,
-    // 28 -> proposal_brief
+    // 26 - proposal_brief
     Option<String>,
-    // 29 -> proposal_importance
+    // 27 - proposal_importance
     Option<String>,
-    // 30 -> proposal_goal
+    // 28 - proposal_goal
     Option<String>,
-    // 31 -> proposal_metrics
+    // 29 - proposal_metrics
     Option<String>,
-    // 32 -> group_id
-    // String,
+    // 30 - chain_proposal_index
+    i64,
+    // 31 - chain_voteplan_id
+    String,
+    // 32 - group_id
+    String,
 );
 
 impl Queryable<full_proposals_info::SqlType, Db> for Proposal {
@@ -277,15 +276,15 @@ impl Queryable<full_proposals_info::SqlType, Db> for Proposal {
                 proposer_relevant_experience: row.13,
             },
             chain_proposal_id: row.14,
-            chain_vote_options: vote_options::VoteOptions::parse_coma_separated_value(&row.16),
+            chain_vote_options: vote_options::VoteOptions::parse_coma_separated_value(&row.15),
             chain_vote_start_time: row.18,
             chain_vote_end_time: row.19,
             chain_committee_end_time: row.20,
             chain_voteplan_payload: row.21,
             chain_vote_encryption_key: row.22,
             fund_id: row.23,
-            challenge_id: row.24,
-            reviews_count: row.25,
+            challenge_id: row.16,
+            reviews_count: row.17,
         }
     }
 }
@@ -297,8 +296,8 @@ impl Queryable<full_proposals_info::SqlType, Db> for ProposalVotePlan {
         ProposalVotePlan {
             proposal_id: row.1,
             common: ProposalVotePlanCommon {
-                chain_proposal_index: row.15,
-                chain_voteplan_id: row.17,
+                chain_proposal_index: row.30,
+                chain_voteplan_id: row.31,
             },
         }
     }
@@ -308,30 +307,29 @@ impl Queryable<full_proposals_info::SqlType, Db> for FullProposalInfo {
     type Row = FullProposalsInfoRow;
 
     fn build(row: Self::Row) -> Self {
-        let challenge_type = row.26.parse().unwrap();
+        let challenge_type = row.24.parse().unwrap();
         // It should be safe to unwrap this values here if DB is sanitized and hence tables have data
         // relative to the challenge type.
         let challenge_info = match challenge_type {
             ChallengeType::Simple => ProposalChallengeInfo::Simple(simple::ChallengeInfo {
-                proposal_solution: row.27.clone().unwrap(),
+                proposal_solution: row.25.clone().unwrap(),
             }),
             ChallengeType::CommunityChoice => {
                 ProposalChallengeInfo::CommunityChoice(community_choice::ChallengeInfo {
-                    proposal_brief: row.28.clone().unwrap(),
-                    proposal_importance: row.29.clone().unwrap(),
-                    proposal_goal: row.30.clone().unwrap(),
-                    proposal_metrics: row.31.clone().unwrap(),
+                    proposal_brief: row.26.clone().unwrap(),
+                    proposal_importance: row.27.clone().unwrap(),
+                    proposal_goal: row.28.clone().unwrap(),
+                    proposal_metrics: row.29.clone().unwrap(),
                 })
             }
         };
 
         let voteplan = ProposalVotePlanCommon {
-            chain_proposal_index: row.15.clone(),
-            chain_voteplan_id: row.17.clone(),
+            chain_proposal_index: row.30.clone(),
+            chain_voteplan_id: row.31.clone(),
         };
 
-        // let group_id = row.32.clone();
-        let group_id = todo!();
+        let group_id = row.32.clone();
 
         FullProposalInfo {
             proposal: Proposal::build(row),
@@ -440,9 +438,9 @@ impl From<ProposalChallengeInfo> for SerdeProposalChallengeInfo {
 pub mod test {
     use super::*;
     use crate::db::{
-        models::vote_options::VoteOptions,
+        models::{groups::Group, vote_options::VoteOptions},
         schema::{
-            proposal_community_choice_challenge, proposal_simple_challenge, proposals,
+            groups, proposal_community_choice_challenge, proposal_simple_challenge, proposals,
             proposals_voteplans, voteplans,
         },
         DbConnectionPool,
@@ -502,7 +500,7 @@ pub mod test {
                 chain_proposal_index: 0,
                 chain_voteplan_id: "voteplain_id".to_string(),
             },
-            group_id: "group_id".to_string(),
+            group_id: "group".to_string(),
         }
     }
 
@@ -550,6 +548,17 @@ pub mod test {
 
         diesel::insert_into(voteplans::table)
             .values(voteplan_values)
+            .execute(&connection)
+            .unwrap();
+
+        diesel::insert_into(groups::table)
+            .values(
+                Group {
+                    group_id: full_proposal.group_id.clone(),
+                    token_identifier: "token".into(),
+                }
+                .values(),
+            )
             .execute(&connection)
             .unwrap();
 
