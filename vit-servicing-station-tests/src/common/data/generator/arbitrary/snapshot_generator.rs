@@ -3,12 +3,9 @@ use crate::common::data::ArbitraryValidVotingTemplateGenerator;
 use crate::common::data::{Snapshot, ValidVotingTemplateGenerator};
 use std::iter;
 use time::{Duration, OffsetDateTime};
-<<<<<<< HEAD
 use vit_servicing_station_lib::db::models::funds::FundStageDates;
 use vit_servicing_station_lib::db::models::goals::Goal;
-=======
 use vit_servicing_station_lib::db::models::proposals::ProposalVotePlanCommon;
->>>>>>> 3d12129... update models and csv
 use vit_servicing_station_lib::db::models::{
     api_tokens::ApiTokenData,
     challenges::Challenge,

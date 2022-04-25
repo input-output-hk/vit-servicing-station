@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use thiserror::Error;
 use vit_servicing_station_lib::db::models::goals::InsertGoal;
+use vit_servicing_station_lib::db::models::groups::Group;
 use vit_servicing_station_lib::db::models::proposals::{
     community_choice, simple, ProposalChallengeInfo, ProposalVotePlan,
 };
@@ -65,6 +66,10 @@ pub enum CsvDataCmd {
         /// Path to the csv assigning proposal information to chain proposals
         #[structopt(long = "proposals_voteplans")]
         proposals_voteplans: PathBuf,
+
+        /// Path to the csv assigning proposal information to chain proposals
+        #[structopt(long = "groups")]
+        groups: PathBuf,
     },
 }
 
@@ -107,6 +112,7 @@ impl CsvDataCmd {
         reviews_path: &Path,
         goals_path: &Path,
         proposals_voteplans: &Path,
+        groups: &Path,
     ) -> Result<(), Error> {
         db_file_exists(db_url)?;
         let funds = CsvDataCmd::load_from_csv::<Fund>(funds_path)?;
@@ -125,6 +131,7 @@ impl CsvDataCmd {
         let mut goals: Vec<InsertGoal> = CsvDataCmd::load_from_csv::<InsertGoal>(goals_path)?;
         let proposals_voteplans =
             CsvDataCmd::load_from_csv::<ProposalVotePlan>(proposals_voteplans)?;
+        let groups = CsvDataCmd::load_from_csv::<Group>(groups)?;
         let mut proposals: Vec<Proposal> = Vec::new();
         let mut simple_proposals_data: Vec<simple::ChallengeSqlValues> = Vec::new();
         let mut community_proposals_data: Vec<community_choice::ChallengeSqlValues> = Vec::new();
@@ -213,6 +220,12 @@ impl CsvDataCmd {
         )
         .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
 
+        vit_servicing_station_lib::db::queries::proposals::batch_insert_groups(
+            groups.into_iter(),
+            &db_conn,
+        )
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+
         vit_servicing_station_lib::db::queries::proposals::batch_insert_simple_challenge_data(
             &simple_proposals_data,
             &db_conn,
@@ -249,6 +262,7 @@ impl CsvDataCmd {
         reviews: &Path,
         goals: &Path,
         proposals_voteplans: &Path,
+        groups: &Path,
     ) -> Result<(), Error> {
         let backup_file = backup_db_file(db_url)?;
         if let Err(e) = Self::handle_load(
@@ -260,6 +274,7 @@ impl CsvDataCmd {
             reviews,
             goals,
             proposals_voteplans,
+            groups,
         ) {
             restore_db_file(backup_file, db_url)?;
             Err(e)
@@ -283,6 +298,7 @@ impl ExecTask for CsvDataCmd {
                 reviews,
                 goals,
                 proposals_voteplans,
+                groups,
             } => Self::handle_load_with_db_backup(
                 db_url,
                 funds,
@@ -292,6 +308,7 @@ impl ExecTask for CsvDataCmd {
                 reviews,
                 goals,
                 proposals_voteplans,
+                groups,
             ),
         }
     }
