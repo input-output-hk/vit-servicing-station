@@ -70,7 +70,8 @@ table! {
 }
 
 table! {
-    groups (token_identifier) {
+    groups (fund_id, token_identifier) {
+        fund_id -> Integer,
         token_identifier -> Text,
         group_id -> Text,
     }

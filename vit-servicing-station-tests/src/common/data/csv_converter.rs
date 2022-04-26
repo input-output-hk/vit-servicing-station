@@ -173,7 +173,7 @@ impl CsvConverter {
         self.build_file(headers, content, path)
     }
     pub fn groups<P: AsRef<Path>>(&self, groups: Vec<Group>, path: P) -> Result<(), Error> {
-        let headers = vec!["group_id", "token_identifier"];
+        let headers = vec!["fund_id", "group_id", "token_identifier"];
 
         let content: Vec<Vec<String>> = groups.iter().map(convert_group).collect();
         self.build_file(headers, content, path)
@@ -274,6 +274,7 @@ fn convert_fund(fund: &Fund) -> Vec<String> {
         goals: _,
         results_url,
         survey_url,
+        groups: _,
     } = fund;
 
     // TODO: can we leverage serde to build these vectors?
@@ -358,6 +359,7 @@ fn unix_timestamp_to_rfc3339(timestamp: i64) -> String {
 
 fn convert_group(group: &Group) -> Vec<String> {
     vec![
+        group.fund_id.to_string(),
         group.group_id.to_string(),
         group.token_identifier.to_string(),
     ]

@@ -3,6 +3,7 @@ use crate::common::data::SingleVotePlanParameters;
 use chain_impl_mockchain::testing::scenario::template::VotePlanDef;
 use vit_servicing_station_lib::db::models::challenges::Challenge;
 use vit_servicing_station_lib::db::models::funds::Fund;
+use vit_servicing_station_lib::db::models::groups::Group;
 use vit_servicing_station_lib::db::models::vote_options::VoteOptions;
 
 use vit_servicing_station_lib::db::models::voteplans::Voteplan;
@@ -58,6 +59,11 @@ impl CurrentFund {
             goals: self.info.goals.clone(),
             results_url: self.info.results_url.clone(),
             survey_url: self.info.survey_url.clone(),
+            groups: vec![Group {
+                fund_id: self.info.fund_id,
+                token_identifier: "token".into(),
+                group_id: "groups".into(),
+            }],
         }
     }
 }

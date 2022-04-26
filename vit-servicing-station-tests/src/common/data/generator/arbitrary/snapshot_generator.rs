@@ -102,6 +102,11 @@ impl ArbitrarySnapshotGenerator {
             }],
             results_url: format!("http://localhost/fund/{id}/results/"),
             survey_url: format!("http://localhost/fund/{id}/survey/"),
+            groups: vec![Group {
+                fund_id: id.abs(),
+                token_identifier: "token".into(),
+                group_id: "group".into(),
+            }],
         }
     }
 
@@ -250,16 +255,18 @@ impl ArbitrarySnapshotGenerator {
     pub fn groups(&mut self, funds: &[Fund]) -> Vec<Group> {
         funds
             .iter()
-            .fold(HashMap::new(), |mut m, fund| {
+            .fold(HashMap::new(), |mut map, fund| {
                 for vp in &fund.chain_vote_plans {
-                    m.entry(vp.token_identifier.clone())
+                    map.entry(vp.token_identifier.clone())
                         .or_insert("group".to_string());
                 }
 
-                m
+                map
             })
             .into_iter()
-            .map(|(token_identifier, group_id)| Group {
+            .zip(funds.iter().map(|f| f.id))
+            .map(|((token_identifier, group_id), fund_id)| Group {
+                fund_id,
                 group_id,
                 token_identifier,
             })

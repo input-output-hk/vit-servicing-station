@@ -1,3 +1,4 @@
+use super::groups::Group;
 use crate::db::{
     models::{challenges::Challenge, goals::Goal, voteplans::Voteplan},
     schema::funds,
@@ -47,6 +48,8 @@ pub struct Fund {
     pub results_url: String,
     #[serde(alias = "surveyUrl")]
     pub survey_url: String,
+    #[serde(default = "Vec::new")]
+    pub groups: Vec<Group>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -101,6 +104,7 @@ struct FundWithLegacyFields {
     next_registration_snapshot_time: i64,
     chain_vote_plans: Vec<Voteplan>,
     challenges: Vec<Challenge>,
+    groups: Vec<Group>,
 }
 
 impl From<Fund> for FundWithLegacyFields {
@@ -117,6 +121,7 @@ impl From<Fund> for FundWithLegacyFields {
             next_registration_snapshot_time: fund.next_registration_snapshot_time,
             chain_vote_plans: fund.chain_vote_plans,
             challenges: fund.challenges,
+            groups: fund.groups,
         }
     }
 }
@@ -195,6 +200,7 @@ impl Queryable<funds::SqlType, Db> for Fund {
             goals: vec![],
             results_url: row.19,
             survey_url: row.20,
+            groups: vec![],
         }
     }
 }
@@ -268,7 +274,7 @@ pub mod test {
             goals::{Goal, InsertGoal},
             voteplans::test as voteplans_testing,
         },
-        schema::{funds, goals},
+        schema::{funds, goals, groups},
         DbConnectionPool,
     };
 
@@ -292,7 +298,6 @@ pub mod test {
             fund_end_time: OffsetDateTime::now_utc().unix_timestamp(),
             next_fund_start_time: OffsetDateTime::now_utc().unix_timestamp(),
             chain_vote_plans: vec![voteplans_testing::get_test_voteplan_with_fund_id(fund_id)],
-            challenges: vec![challenges_testing::get_test_challenge_with_fund_id(fund_id)],
             stage_dates: FundStageDates {
                 insight_sharing_start: OffsetDateTime::now_utc().unix_timestamp(),
                 proposal_submission_start: OffsetDateTime::now_utc().unix_timestamp(),
@@ -312,19 +317,22 @@ pub mod test {
             }],
             results_url: format!("http://localhost/fund/{FUND_ID}/results/"),
             survey_url: format!("http://localhost/fund/{FUND_ID}/survey/"),
+            groups: vec![Group {
+                fund_id: FUND_ID,
+                token_identifier: "token".into(),
+                group_id: "group".into(),
+            }],
         }
     }
 
     pub fn populate_db_with_fund(fund: &Fund, pool: &DbConnectionPool) {
-        let values = fund.clone().values();
-
         // Warning! mind this scope: r2d2 pooled connection behaviour depend of the scope. Looks like
         // if the connection is not out of scope, when giving the reference to the next function
         // call below it creates a wrong connection (where there are not tables even if they were loaded).
         {
             let connection = pool.get().unwrap();
             diesel::insert_into(funds::table)
-                .values(values)
+                .values(fund.clone().values())
                 .execute(&connection)
                 .unwrap();
         }
@@ -345,6 +353,20 @@ pub mod test {
                     .execute(&connection)
                     .unwrap();
             }
+
+            // TODO: call batch_insert_groups?
+            let i = diesel::insert_into(groups::table)
+                .values(
+                    fund.groups
+                        .clone()
+                        .into_iter()
+                        .map(|g| g.values())
+                        .collect::<Vec<_>>(),
+                )
+                .execute(&*connection)
+                .unwrap();
+
+            dbg!("inserted {} groups", i);
         }
     }
 }

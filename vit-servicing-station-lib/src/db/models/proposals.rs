@@ -554,6 +554,7 @@ pub mod test {
         diesel::insert_into(groups::table)
             .values(
                 Group {
+                    fund_id: proposal.fund_id,
                     group_id: full_proposal.group_id.clone(),
                     token_identifier: "token".into(),
                 }

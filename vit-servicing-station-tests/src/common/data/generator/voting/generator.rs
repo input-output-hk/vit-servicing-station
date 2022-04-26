@@ -193,6 +193,15 @@ impl ValidVotePlanGenerator {
 
         let goals = fund.goals.clone();
 
+        let groups = vote_plans
+            .iter()
+            .map(|vp| Group {
+                fund_id: fund.id,
+                group_id: "group".into(),
+                token_identifier: vp.token_identifier.clone(),
+            })
+            .collect();
+
         let mut funds = vec![fund];
         let next_funds: Vec<Fund> = self
             .parameters
@@ -202,14 +211,6 @@ impl ValidVotePlanGenerator {
             .map(Into::into)
             .collect();
         funds.extend(next_funds);
-
-        let groups = vote_plans
-            .iter()
-            .map(|vp| Group {
-                group_id: "group".into(),
-                token_identifier: vp.token_identifier.clone(),
-            })
-            .collect();
 
         Snapshot::new(
             funds,
