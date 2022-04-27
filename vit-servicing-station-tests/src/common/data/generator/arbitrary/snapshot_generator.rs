@@ -81,7 +81,10 @@ impl ArbitrarySnapshotGenerator {
             next_fund_start_time: dates.next.unix_timestamp(),
             registration_snapshot_time: dates.snapshot.unix_timestamp(),
             next_registration_snapshot_time: dates.next_snapshot.unix_timestamp(),
-            chain_vote_plans: vec![self.voteplan_with_fund_id(id.abs())],
+            chain_vote_plans: vec![
+                self.voteplan_with_fund_id(id.abs(), "token".into()),
+                self.voteplan_with_fund_id(id.abs(), "token2".into()),
+            ],
             challenges: self.challenges_with_fund_id(id.abs()),
             stage_dates: FundStageDates {
                 insight_sharing_start: dates.insight_sharing_start.unix_timestamp(),
@@ -102,11 +105,19 @@ impl ArbitrarySnapshotGenerator {
             }],
             results_url: format!("http://localhost/fund/{id}/results/"),
             survey_url: format!("http://localhost/fund/{id}/survey/"),
-            groups: vec![Group {
-                fund_id: id.abs(),
-                token_identifier: "token".into(),
-                group_id: "group".into(),
-            }],
+            groups: IntoIterator::into_iter([
+                Group {
+                    fund_id: id.abs(),
+                    token_identifier: "token".into(),
+                    group_id: "group".into(),
+                },
+                Group {
+                    fund_id: id.abs(),
+                    token_identifier: "token2".into(),
+                    group_id: "group2".into(),
+                },
+            ])
+            .collect(),
         }
     }
 
@@ -156,7 +167,7 @@ impl ArbitrarySnapshotGenerator {
                     .chain_voteplan_id
                     .clone(),
             },
-            group_id: "group".to_string(),
+            group_id: fund.groups.iter().next().unwrap().group_id.clone(),
         }
     }
 
@@ -213,7 +224,7 @@ impl ArbitrarySnapshotGenerator {
     pub fn voteplans(&mut self, funds: &[Fund]) -> Vec<Voteplan> {
         funds
             .iter()
-            .map(|x| self.voteplan_with_fund_id(x.id))
+            .map(|x| self.voteplan_with_fund_id(x.id, "token".into()))
             .collect()
     }
 
@@ -273,7 +284,7 @@ impl ArbitrarySnapshotGenerator {
             .collect()
     }
 
-    pub fn voteplan_with_fund_id(&mut self, fund_id: i32) -> Voteplan {
+    pub fn voteplan_with_fund_id(&mut self, fund_id: i32, token: String) -> Voteplan {
         let id = self.id_generator.next_u32() as i32;
         let dates = self.voteplan_date_times();
 
@@ -286,7 +297,8 @@ impl ArbitrarySnapshotGenerator {
             chain_voteplan_payload: "public".to_string(),
             chain_vote_encryption_key: "".to_string(),
             fund_id,
-            token_identifier: "token".to_string(),
+            // token_identifier: "token".to_string(),
+            token_identifier: token,
         }
     }
 

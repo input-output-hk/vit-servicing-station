@@ -2,7 +2,7 @@ use crate::db::schema::groups;
 use diesel::{ExpressionMethods, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Queryable)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Queryable, PartialOrd, Ord)]
 pub struct Group {
     #[serde(alias = "tokenId")]
     pub fund_id: i32,

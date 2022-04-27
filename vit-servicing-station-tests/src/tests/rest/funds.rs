@@ -28,7 +28,7 @@ pub fn get_funds_by_id() -> Result<(), Box<dyn std::error::Error>> {
         .with_token(token)
         .with_funds(vec![expected_fund.clone()])
         .with_challenges(expected_fund.challenges.clone())
-        .with_groups(expected_fund.groups.clone())
+        .with_groups(expected_fund.groups.iter().cloned().collect())
         .build(&temp_dir)?;
 
     let server = ServerBootstrapper::new()

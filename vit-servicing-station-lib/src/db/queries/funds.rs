@@ -43,7 +43,9 @@ fn join_fund(
     fund.groups = groups_dsl::groups
         .filter(groups_dsl::fund_id.eq(id))
         .load::<Group>(db_conn)
-        .map_err(|_e| HandleError::NotFound("Error loading groups".to_string()))?;
+        .map_err(|_e| HandleError::NotFound("Error loading groups".to_string()))?
+        .into_iter()
+        .collect();
 
     Ok(fund)
 }

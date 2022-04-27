@@ -41,7 +41,7 @@ impl Into<Fund> for FundInfo {
             goals: self.goals,
             results_url: self.results_url,
             survey_url: self.survey_url,
-            groups: vec![],
+            groups: Default::default(),
         }
     }
 }
