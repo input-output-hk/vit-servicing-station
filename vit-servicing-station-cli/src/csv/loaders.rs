@@ -103,32 +103,42 @@ impl CsvDataCmd {
         Ok(results)
     }
 
-    fn handle_load(
-        db_url: &str,
-        funds_path: &Path,
-        voteplans_path: &Path,
-        proposals_path: &Path,
-        challenges_path: &Path,
-        reviews_path: &Path,
-        goals_path: &Path,
-        proposals_voteplans: &Path,
-        groups: &Path,
-    ) -> Result<(), Error> {
-        db_file_exists(db_url)?;
-        let funds = CsvDataCmd::load_from_csv::<Fund>(funds_path)?;
+    fn handle_load(db_url: &str, csvs: CsvPaths) -> Result<(), Error> {
+        let CsvPaths {
+            funds,
+            voteplans,
+            proposals,
+            challenges,
+            reviews,
+            proposals_voteplans,
+            groups,
+            goals,
+        } = csvs;
 
-        let mut voteplans = CsvDataCmd::load_from_csv::<Voteplan>(voteplans_path)?;
+        db_file_exists(db_url)?;
+
+        let funds_path = funds;
+        let funds = {
+            let funds = CsvDataCmd::load_from_csv::<Fund>(funds)?;
+            if funds.len() != 1 {
+                return Err(Error::InvalidFundData(
+                    funds_path.to_string_lossy().to_string(),
+                ));
+            }
+            funds
+        };
+        let mut voteplans = CsvDataCmd::load_from_csv::<Voteplan>(voteplans)?;
         let mut challenges: HashMap<i32, Challenge> =
-            CsvDataCmd::load_from_csv::<Challenge>(challenges_path)?
+            CsvDataCmd::load_from_csv::<Challenge>(challenges)?
                 .into_iter()
                 .map(|c| (c.id, c))
                 .collect();
-        let csv_proposals = CsvDataCmd::load_from_csv::<super::models::Proposal>(proposals_path)?;
-        let reviews = CsvDataCmd::load_from_csv::<super::models::AdvisorReview>(reviews_path)?
+        let csv_proposals = CsvDataCmd::load_from_csv::<super::models::Proposal>(proposals)?;
+        let reviews = CsvDataCmd::load_from_csv::<super::models::AdvisorReview>(reviews)?
             .into_iter()
             .map(TryInto::try_into)
             .collect::<Result<Vec<_>, _>>()?;
-        let mut goals: Vec<InsertGoal> = CsvDataCmd::load_from_csv::<InsertGoal>(goals_path)?;
+        let mut goals: Vec<InsertGoal> = CsvDataCmd::load_from_csv::<InsertGoal>(goals)?;
         let proposals_voteplans =
             CsvDataCmd::load_from_csv::<ProposalVotePlan>(proposals_voteplans)?;
         let groups = CsvDataCmd::load_from_csv::<Group>(groups)?;
@@ -252,30 +262,9 @@ impl CsvDataCmd {
 
         Ok(())
     }
-
-    fn handle_load_with_db_backup(
-        db_url: &str,
-        funds_path: &Path,
-        voteplans_path: &Path,
-        proposals_path: &Path,
-        challenges_path: &Path,
-        reviews: &Path,
-        goals: &Path,
-        proposals_voteplans: &Path,
-        groups: &Path,
-    ) -> Result<(), Error> {
+    fn handle_load_with_db_backup(db_url: &str, csvs: CsvPaths) -> Result<(), Error> {
         let backup_file = backup_db_file(db_url)?;
-        if let Err(e) = Self::handle_load(
-            db_url,
-            funds_path,
-            voteplans_path,
-            proposals_path,
-            challenges_path,
-            reviews,
-            goals,
-            proposals_voteplans,
-            groups,
-        ) {
+        if let Err(e) = Self::handle_load(db_url, csvs) {
             restore_db_file(backup_file, db_url)?;
             Err(e)
         } else {
@@ -301,17 +290,30 @@ impl ExecTask for CsvDataCmd {
                 groups,
             } => Self::handle_load_with_db_backup(
                 db_url,
-                funds,
-                voteplans,
-                proposals,
-                challenges,
-                reviews,
-                goals,
-                proposals_voteplans,
-                groups,
+                CsvPaths {
+                    funds,
+                    voteplans,
+                    proposals,
+                    challenges,
+                    reviews,
+                    goals,
+                    proposals_voteplans,
+                    groups,
+                },
             ),
         }
     }
+}
+
+struct CsvPaths<'a> {
+    funds: &'a Path,
+    voteplans: &'a Path,
+    proposals: &'a Path,
+    challenges: &'a Path,
+    reviews: &'a Path,
+    goals: &'a Path,
+    proposals_voteplans: &'a Path,
+    groups: &'a Path,
 }
 
 #[cfg(test)]

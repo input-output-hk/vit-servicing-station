@@ -11,7 +11,7 @@ pub async fn proposal_filter(
 
     let from_id = warp::path!(i32 / String)
         .and(warp::get())
-        .and(with_context.clone())
+        .and(with_context)
         .and_then(get_proposal)
         .boxed();
 

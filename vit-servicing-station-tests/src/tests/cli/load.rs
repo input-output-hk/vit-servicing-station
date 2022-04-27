@@ -29,7 +29,7 @@ pub fn load_data_test() {
     let proposals_voteplans = temp_dir.child("proposals_voteplans.csv");
     csv_converter
         .proposals_voteplans(
-            snapshot.proposals().iter().cloned().take(1).collect(),
+            snapshot.proposals().into_iter().take(1).collect(),
             proposals_voteplans.path(),
         )
         .unwrap();

@@ -325,7 +325,7 @@ impl Queryable<full_proposals_info::SqlType, Db> for FullProposalInfo {
         };
 
         let voteplan = ProposalVotePlanCommon {
-            chain_proposal_index: row.30.clone(),
+            chain_proposal_index: row.30,
             chain_voteplan_id: row.31.clone(),
         };
 
@@ -526,7 +526,7 @@ pub mod test {
                 .eq(proposal.proposer.proposer_relevant_experience.clone()),
             proposals::chain_proposal_id.eq(proposal.chain_proposal_id.clone()),
             proposals::chain_vote_options.eq(proposal.chain_vote_options.as_csv_string()),
-            proposals::challenge_id.eq(proposal.challenge_id.clone()),
+            proposals::challenge_id.eq(proposal.challenge_id),
         );
 
         diesel::insert_into(proposals::table)
@@ -568,7 +568,7 @@ pub mod test {
             proposals_voteplans::chain_voteplan_id
                 .eq(full_proposal.voteplan.chain_voteplan_id.clone()),
             proposals_voteplans::chain_proposal_index
-                .eq(full_proposal.voteplan.chain_proposal_index.clone()),
+                .eq(full_proposal.voteplan.chain_proposal_index),
         );
 
         diesel::insert_into(proposals_voteplans::table)

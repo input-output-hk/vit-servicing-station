@@ -40,7 +40,7 @@ pub fn get_proposal_by_id() -> Result<(), Box<dyn std::error::Error>> {
     let db_path = DbBuilder::new()
         .with_token(token)
         .with_proposals(vec![expected_proposal.clone()])
-        .with_challenges(vec![expected_challenge.clone()])
+        .with_challenges(vec![expected_challenge])
         .with_groups(groups)
         .build(&temp_dir)?;
 

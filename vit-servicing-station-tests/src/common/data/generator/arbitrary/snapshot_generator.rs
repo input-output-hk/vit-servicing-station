@@ -258,7 +258,7 @@ impl ArbitrarySnapshotGenerator {
             .fold(HashMap::new(), |mut map, fund| {
                 for vp in &fund.chain_vote_plans {
                     map.entry(vp.token_identifier.clone())
-                        .or_insert("group".to_string());
+                        .or_insert_with(|| "group".to_string());
                 }
 
                 map
