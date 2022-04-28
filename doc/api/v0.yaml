@@ -163,7 +163,7 @@ paths:
         - in: path
           name: voter_group_id
           schema:
-            type: integer
+            type: string
           required: true
       responses:
         "200":
