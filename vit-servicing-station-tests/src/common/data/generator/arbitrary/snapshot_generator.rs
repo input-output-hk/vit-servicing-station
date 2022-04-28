@@ -223,8 +223,7 @@ impl ArbitrarySnapshotGenerator {
     pub fn voteplans(&mut self, funds: &[Fund]) -> Vec<Voteplan> {
         funds
             .iter()
-            .map(|f| f.chain_vote_plans.iter())
-            .flatten()
+            .flat_map(|f| f.chain_vote_plans.iter())
             .cloned()
             .collect()
     }
@@ -268,8 +267,7 @@ impl ArbitrarySnapshotGenerator {
     pub fn groups(&mut self, funds: &[Fund]) -> Vec<Group> {
         funds
             .iter()
-            .map(|f| f.groups.iter())
-            .flatten()
+            .flat_map(|f| f.groups.iter())
             .cloned()
             .collect()
     }
