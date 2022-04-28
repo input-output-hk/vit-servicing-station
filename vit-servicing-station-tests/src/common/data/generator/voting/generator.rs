@@ -162,7 +162,7 @@ impl ValidVotePlanGenerator {
                         chain_voteplan_id: vote_plan.chain_voteplan_id.clone(),
                         chain_proposal_index: index as i64,
                     },
-                    group_id: "group".to_string(),
+                    group_id: "group1".to_string(),
                 });
             }
         }
@@ -197,7 +197,7 @@ impl ValidVotePlanGenerator {
             .iter()
             .map(|vp| Group {
                 fund_id: fund.id,
-                group_id: "group".into(),
+                group_id: "group1".into(),
                 token_identifier: vp.token_identifier.clone(),
             })
             .collect();

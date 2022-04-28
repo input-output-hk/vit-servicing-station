@@ -1,6 +1,6 @@
 use diesel::expression_methods::ExpressionMethods;
 use diesel::query_dsl::RunQueryDsl;
-use diesel::{Insertable, SqliteConnection};
+use diesel::{Insertable, QueryDsl, SqliteConnection};
 use thiserror::Error;
 use vit_servicing_station_lib::db::models::community_advisors_reviews::AdvisorReview;
 use vit_servicing_station_lib::db::models::goals::InsertGoal;
@@ -99,6 +99,13 @@ impl<'a> DbInserter<'a> {
                 .execute(self.connection)
                 .map_err(DbInserterError::DieselError)?;
 
+            let token_id = groups::table
+                .filter(groups::fund_id.eq(proposal.proposal.fund_id))
+                .filter(groups::group_id.eq(&proposal.group_id))
+                .select(groups::token_identifier)
+                .first::<String>(self.connection)
+                .map_err(DbInserterError::DieselError)?;
+
             let voteplan_values = (
                 voteplans::chain_voteplan_id.eq(proposal.voteplan.chain_voteplan_id.clone()),
                 voteplans::chain_vote_start_time.eq(proposal.proposal.chain_vote_start_time),
@@ -109,8 +116,7 @@ impl<'a> DbInserter<'a> {
                 voteplans::chain_vote_encryption_key
                     .eq(proposal.proposal.chain_vote_encryption_key.clone()),
                 voteplans::fund_id.eq(proposal.proposal.fund_id),
-                // TODO: hardcoded token, need to set this somewhere else.
-                voteplans::token_identifier.eq("token"),
+                voteplans::token_identifier.eq(token_id),
             );
 
             diesel::insert_or_ignore_into(voteplans::table)

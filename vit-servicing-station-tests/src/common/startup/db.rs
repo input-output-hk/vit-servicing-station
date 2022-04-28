@@ -64,12 +64,12 @@ impl DbBuilder {
     }
 
     pub fn with_snapshot(&mut self, snapshot: &Snapshot) -> &mut Self {
+        self.with_groups(snapshot.groups());
         self.with_proposals(snapshot.proposals());
         self.with_tokens(snapshot.tokens().values().cloned().collect());
         self.with_funds(snapshot.funds());
         self.with_challenges(snapshot.challenges());
         self.with_advisor_reviews(snapshot.advisor_reviews());
-        self.with_groups(snapshot.groups());
         self
     }
 
@@ -176,10 +176,10 @@ impl DbBuilder {
         self.try_do_migration(&connection)?;
         self.try_insert_tokens(&connection)?;
         self.try_insert_funds(&connection)?;
+        self.try_insert_groups(&connection)?;
         self.try_insert_proposals(&connection)?;
         self.try_insert_challenges(&connection)?;
         self.try_insert_reviews(&connection)?;
-        self.try_insert_groups(&connection)?;
         Ok(path.to_path_buf())
     }
 }

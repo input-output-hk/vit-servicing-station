@@ -448,7 +448,7 @@ pub mod test {
     use diesel::{ExpressionMethods, RunQueryDsl};
     use time::OffsetDateTime;
 
-    pub fn get_test_proposal() -> FullProposalInfo {
+    pub fn get_test_proposal(group_id: String) -> FullProposalInfo {
         const CHALLENGE_ID: i32 = 9001;
 
         let internal_id = 1;
@@ -500,7 +500,7 @@ pub mod test {
                 chain_proposal_index: 0,
                 chain_voteplan_id: "voteplain_id".to_string(),
             },
-            group_id: "group".to_string(),
+            group_id,
         }
     }
 
@@ -534,6 +534,8 @@ pub mod test {
             .execute(&connection)
             .unwrap();
 
+        let token_identifier = format!("{}-token", full_proposal.group_id);
+
         // insert the related fund voteplan information
         let voteplan_values = (
             voteplans::chain_voteplan_id.eq(full_proposal.voteplan.chain_voteplan_id.clone()),
@@ -543,7 +545,7 @@ pub mod test {
             voteplans::chain_voteplan_payload.eq(proposal.chain_voteplan_payload.clone()),
             voteplans::chain_vote_encryption_key.eq(proposal.chain_vote_encryption_key.clone()),
             voteplans::fund_id.eq(proposal.fund_id),
-            voteplans::token_identifier.eq("token"),
+            voteplans::token_identifier.eq(&token_identifier),
         );
 
         diesel::insert_into(voteplans::table)
@@ -556,7 +558,7 @@ pub mod test {
                 Group {
                     fund_id: proposal.fund_id,
                     group_id: full_proposal.group_id.clone(),
-                    token_identifier: "token".into(),
+                    token_identifier,
                 }
                 .values(),
             )
@@ -564,7 +566,7 @@ pub mod test {
             .unwrap();
 
         let proposal_voteplan_values = (
-            proposals_voteplans::proposal_id.eq(proposal_id),
+            proposals_voteplans::proposal_id.eq(proposal_id.clone()),
             proposals_voteplans::chain_voteplan_id
                 .eq(full_proposal.voteplan.chain_voteplan_id.clone()),
             proposals_voteplans::chain_proposal_index

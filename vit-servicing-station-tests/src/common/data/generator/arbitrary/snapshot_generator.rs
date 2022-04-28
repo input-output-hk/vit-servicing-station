@@ -1,7 +1,7 @@
 use crate::common::data::ArbitraryGenerator;
 use crate::common::data::ArbitraryValidVotingTemplateGenerator;
 use crate::common::data::{Snapshot, ValidVotingTemplateGenerator};
-use std::collections::HashMap;
+use std::collections::BTreeSet;
 use std::iter;
 use time::{Duration, OffsetDateTime};
 use vit_servicing_station_lib::db::models::funds::FundStageDates;
@@ -71,6 +71,20 @@ impl ArbitrarySnapshotGenerator {
         let dates = self.fund_date_times();
         let fund = ValidVotingTemplateGenerator::next_fund(&mut self.template_generator);
 
+        let groups: BTreeSet<Group> = std::iter::from_fn(|| Some(self.id_generator.next_u64()))
+            .take(2)
+            .map(|group_id| Group {
+                fund_id: id.abs(),
+                token_identifier: format!("group{group_id}-token"),
+                group_id: format!("group{group_id}"),
+            })
+            .collect();
+
+        let chain_vote_plans = groups
+            .iter()
+            .map(|g| self.voteplan_with_fund_id(id.abs(), g.token_identifier.clone()))
+            .collect();
+
         Fund {
             id,
             fund_name: format!("Fund{}", id),
@@ -81,10 +95,7 @@ impl ArbitrarySnapshotGenerator {
             next_fund_start_time: dates.next.unix_timestamp(),
             registration_snapshot_time: dates.snapshot.unix_timestamp(),
             next_registration_snapshot_time: dates.next_snapshot.unix_timestamp(),
-            chain_vote_plans: vec![
-                self.voteplan_with_fund_id(id.abs(), "token".into()),
-                self.voteplan_with_fund_id(id.abs(), "token2".into()),
-            ],
+            chain_vote_plans,
             challenges: self.challenges_with_fund_id(id.abs()),
             stage_dates: FundStageDates {
                 insight_sharing_start: dates.insight_sharing_start.unix_timestamp(),
@@ -105,19 +116,7 @@ impl ArbitrarySnapshotGenerator {
             }],
             results_url: format!("http://localhost/fund/{id}/results/"),
             survey_url: format!("http://localhost/fund/{id}/survey/"),
-            groups: IntoIterator::into_iter([
-                Group {
-                    fund_id: id.abs(),
-                    token_identifier: "token".into(),
-                    group_id: "group".into(),
-                },
-                Group {
-                    fund_id: id.abs(),
-                    token_identifier: "token2".into(),
-                    group_id: "group2".into(),
-                },
-            ])
-            .collect(),
+            groups,
         }
     }
 
@@ -224,7 +223,9 @@ impl ArbitrarySnapshotGenerator {
     pub fn voteplans(&mut self, funds: &[Fund]) -> Vec<Voteplan> {
         funds
             .iter()
-            .map(|x| self.voteplan_with_fund_id(x.id, "token".into()))
+            .map(|f| f.chain_vote_plans.iter())
+            .flatten()
+            .cloned()
             .collect()
     }
 
@@ -263,28 +264,17 @@ impl ArbitrarySnapshotGenerator {
             .collect()
     }
 
+    // TODO: this could be a static/associated method
     pub fn groups(&mut self, funds: &[Fund]) -> Vec<Group> {
         funds
             .iter()
-            .fold(HashMap::new(), |mut map, fund| {
-                for vp in &fund.chain_vote_plans {
-                    map.entry(vp.token_identifier.clone())
-                        .or_insert_with(|| "group".to_string());
-                }
-
-                map
-            })
-            .into_iter()
-            .zip(funds.iter().map(|f| f.id))
-            .map(|((token_identifier, group_id), fund_id)| Group {
-                fund_id,
-                group_id,
-                token_identifier,
-            })
+            .map(|f| f.groups.iter())
+            .flatten()
+            .cloned()
             .collect()
     }
 
-    pub fn voteplan_with_fund_id(&mut self, fund_id: i32, token: String) -> Voteplan {
+    pub fn voteplan_with_fund_id(&mut self, fund_id: i32, token_identifier: String) -> Voteplan {
         let id = self.id_generator.next_u32() as i32;
         let dates = self.voteplan_date_times();
 
@@ -297,8 +287,7 @@ impl ArbitrarySnapshotGenerator {
             chain_voteplan_payload: "public".to_string(),
             chain_vote_encryption_key: "".to_string(),
             fund_id,
-            // token_identifier: "token".to_string(),
-            token_identifier: token,
+            token_identifier,
         }
     }
 
@@ -309,7 +298,7 @@ impl ArbitrarySnapshotGenerator {
         let first_challenge = self.template_generator.next_challenge();
         let second_challenge = self.template_generator.next_challenge();
 
-        vec![
+        let mut challenges = vec![
             Challenge {
                 id: simple_id.abs(),
                 challenge_type: ChallengeType::Simple,
@@ -332,7 +321,11 @@ impl ArbitrarySnapshotGenerator {
                 challenge_url: self.template_generator.gen_http_address(),
                 highlights: self.template_generator.gen_highlights(),
             },
-        ]
+        ];
+
+        challenges.sort_by_key(|c| c.id);
+
+        challenges
     }
 
     pub fn challenge_with_fund_id(&mut self, fund_id: i32) -> Challenge {

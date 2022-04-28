@@ -323,8 +323,8 @@ pub mod test {
             groups: IntoIterator::into_iter([
                 Group {
                     fund_id: FUND_ID,
-                    token_identifier: "token".into(),
-                    group_id: "group".into(),
+                    token_identifier: "token1".into(),
+                    group_id: "group1".into(),
                 },
                 Group {
                     fund_id: FUND_ID,
