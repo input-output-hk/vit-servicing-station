@@ -218,7 +218,7 @@ async fn load_snapshot_table_from_file(
 
         conn.transaction::<_, diesel::result::Error, _>(|| {
             let deleted = diesel::delete(schema::snapshot::table)
-                .filter(schema::snapshot::tag.eq(dbg!(tag.clone())))
+                .filter(schema::snapshot::tag.eq(tag.clone()))
                 .execute(&conn)?;
 
             trace!("deleted {} snapshot entries", deleted);
@@ -236,7 +236,7 @@ async fn load_snapshot_table_from_file(
                                 voting_key: voting_key.to_hex(),
                                 voting_power: u64::from(voting_power) as i64,
                                 tag: tag.clone(),
-                                voting_group: dbg!(voting_group),
+                                voting_group,
                             },
                         )
                         .collect::<Vec<_>>(),
