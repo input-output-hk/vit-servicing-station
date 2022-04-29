@@ -117,8 +117,8 @@ async fn main() {
     let context =
         v0::context::new_shared_context(db_pool, &settings.block0_path, &settings.service_version);
 
-    let _guard = match server::async_watch(settings.snapshot.clone().into(), context.clone()).await
-    {
+    let (read_context, update_handler) = snapshot_service::new_context();
+    let _guard = match server::async_watch(settings.snapshot.clone().into(), update_handler).await {
         Ok(guard) => guard,
         Err(e) => {
             error!("Couldn't start snapshot watcher service: {}", e);
@@ -126,7 +126,7 @@ async fn main() {
         }
     };
 
-    let app = v0::filter(context, settings.enable_api_tokens).await;
+    let app = v0::filter(context, read_context, settings.enable_api_tokens).await;
 
     info!(
         "Running server at {}, database located at {}",

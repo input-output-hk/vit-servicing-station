@@ -1,11 +1,5 @@
-mod handlers;
-mod routes;
-
-pub use routes::filter;
-
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::db::migrations;
     use crate::server::async_watch;
     use crate::server::snapshot_watcher::VoterHIR;
@@ -83,12 +77,13 @@ mod test {
         let file_path = tmp_dir.path().join(format!("{}-snapshot.json", DAILY));
         tokio::fs::write(&file_path, content).await.unwrap();
 
-        let _guard = async_watch(tmp_dir.path().to_path_buf(), shared_context.clone())
+        let (shared_context, update_handler) = snapshot_service::new_context();
+        let _guard = async_watch(tmp_dir.path().to_path_buf(), update_handler)
             .await
             .unwrap();
 
         let snapshot_root = warp::path!("snapshot" / ..).boxed();
-        let filter = routes::filter(snapshot_root, shared_context.clone());
+        let filter = snapshot_service::filter(snapshot_root, shared_context.clone());
 
         assert_eq!(
             get_voting_power("daily", keys[0], &filter).await.unwrap(),
@@ -176,12 +171,13 @@ mod test {
         tokio::fs::write(&file_path_a, content_a).await.unwrap();
         tokio::fs::write(&file_path_b, content_b).await.unwrap();
 
-        let _guard = async_watch(tmp_dir.path().to_path_buf(), shared_context.clone())
+        let (shared_context, update_handler) = snapshot_service::new_context();
+        let _guard = async_watch(tmp_dir.path().to_path_buf(), update_handler)
             .await
             .unwrap();
 
         let snapshot_root = warp::path!("snapshot" / ..).boxed();
-        let filter = routes::filter(snapshot_root, shared_context.clone());
+        let filter = snapshot_service::filter(snapshot_root, shared_context.clone());
 
         assert_eq!(
             get_voting_power("tag_a", keys[0], &filter).await.unwrap(),

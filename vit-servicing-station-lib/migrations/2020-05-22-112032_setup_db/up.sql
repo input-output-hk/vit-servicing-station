@@ -126,12 +126,3 @@ FROM
             and challenges.challenge_type = 'community-choice'
         LEFT JOIN (SELECT proposal_id as review_proposal_id, COUNT (DISTINCT assessor) as reviews_count FROM community_advisors_reviews GROUP BY proposal_id)
             on proposals.proposal_id = review_proposal_id;
-
-create table snapshot
-(
-    voting_key TEXT NOT NULL,
-    voting_power BIGINT NOT NULL,
-    tag TEXT NOT NULL,
-    voting_group TEXT NOT NULL,
-    PRIMARY KEY (voting_key, tag, voting_group)
-)

@@ -10,6 +10,7 @@ const V0_REQUEST_TRACE_NAME: &str = "v0_request";
 
 pub async fn filter(
     ctx: context::SharedContext,
+    snapshot_ctx: snapshot_service::SharedContext,
     enable_api_tokens: bool,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     let api_root = warp::path!("api" / ..);
@@ -44,7 +45,13 @@ pub async fn filter(
         span
     });
 
-    let v0 = endpoints::filter(v0_root.boxed(), ctx.clone(), enable_api_tokens).await;
+    let v0 = endpoints::filter(
+        v0_root.boxed(),
+        ctx.clone(),
+        snapshot_ctx,
+        enable_api_tokens,
+    )
+    .await;
 
     let service_version =
         endpoints::service_version::filter(service_version_root.boxed(), ctx).await;

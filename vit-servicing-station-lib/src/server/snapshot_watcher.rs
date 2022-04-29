@@ -1,12 +1,8 @@
-use crate::{
-    db::{models::snapshot::SnapshotEntry, schema, DbConnectionPool},
-    v0::context::SharedContext,
-};
-use diesel::{Connection, ExpressionMethods, RunQueryDsl};
 use notify::{
     event::{self, AccessKind, AccessMode, CreateKind, MetadataKind, ModifyKind, RemoveKind},
     EventKind, RecursiveMode, Watcher,
 };
+use snapshot_service::UpdateHandler;
 use std::{
     collections::HashMap,
     ffi::OsStr,
@@ -25,12 +21,6 @@ type Snapshot = Vec<VoterHIR>;
 pub enum Error {
     #[error("invalid snapshot format")]
     Json(#[from] serde_json::Error),
-
-    #[error(transparent)]
-    PoolError(#[from] diesel::r2d2::PoolError),
-
-    #[error(transparent)]
-    DatabaseError(#[from] diesel::result::Error),
 
     #[error(transparent)]
     Notify(#[from] notify::Error),
@@ -60,7 +50,7 @@ fn extract_tag_from_filename(path: impl AsRef<OsStr>) -> Option<Tag> {
 async fn load_from_paths(
     mut debouncer: Option<&mut HashMap<Tag, Instant>>,
     paths: impl Iterator<Item = PathBuf>,
-    pool: &DbConnectionPool,
+    context: &UpdateHandler,
 ) {
     for path in paths {
         let tag = match path.file_name().and_then(extract_tag_from_filename) {
@@ -92,7 +82,7 @@ async fn load_from_paths(
             debouncer.insert(tag.clone(), now);
         }
 
-        match load_snapshot_table_from_file(path, tag.clone(), pool.clone()).await {
+        match load_snapshot_table_from_file(path, tag.clone(), context).await {
             Ok(inserted) => {
                 // Maybe this logic can be simplified, I'm not sure. This is mostly to not have a
                 // "memory leak", but it is a minor concern since there shouldn't ever be that many
@@ -115,14 +105,12 @@ async fn load_from_paths(
 }
 
 #[tracing::instrument(skip(context))]
-pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<WatcherGuard, Error> {
+pub async fn async_watch(path: PathBuf, context: UpdateHandler) -> Result<WatcherGuard, Error> {
     let _ = tokio::fs::create_dir_all(path.as_path()).await;
 
     if !&path.is_dir() {
         return Err(Error::InvalidPath);
     }
-
-    let pool = context.read().await.db_connection_pool.clone();
 
     {
         let path = path.clone();
@@ -132,7 +120,7 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<Watche
         .await
         .unwrap()?;
 
-        load_from_paths(None, dir_entries.map(|de| de.path()), &pool).await;
+        load_from_paths(None, dir_entries.map(|de| de.path()), &context).await;
     }
 
     let (tx, mut rx) = tokio::sync::mpsc::channel(1);
@@ -190,7 +178,7 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<Watche
             let mut debouncer: HashMap<Tag, Instant> = HashMap::new();
 
             while let Some(paths) = rx.recv().await {
-                load_from_paths(Some(&mut debouncer), paths.into_iter(), &pool).await;
+                load_from_paths(Some(&mut debouncer), paths.into_iter(), &context).await;
             }
         }
         .instrument(tracing::info_span!("snapshot reload")),
@@ -199,11 +187,11 @@ pub async fn async_watch(path: PathBuf, context: SharedContext) -> Result<Watche
     Ok(WatcherGuard(watcher))
 }
 
-#[tracing::instrument(skip(pool))]
+#[tracing::instrument(skip(db))]
 async fn load_snapshot_table_from_file(
     path: PathBuf,
     tag: Tag,
-    pool: DbConnectionPool,
+    db: &UpdateHandler,
 ) -> Result<usize, Error> {
     let snapshot: Snapshot = match tokio::fs::read(path.as_path()).await {
         Ok(raw) => serde_json::from_slice(&raw)?,
@@ -213,45 +201,11 @@ async fn load_snapshot_table_from_file(
         }
     };
 
-    tokio::task::spawn_blocking(move || {
-        let conn = pool.get()?;
+    let size = snapshot.len();
 
-        conn.transaction::<_, diesel::result::Error, _>(|| {
-            let deleted = diesel::delete(schema::snapshot::table)
-                .filter(schema::snapshot::tag.eq(tag.clone()))
-                .execute(&conn)?;
+    db.update(tag, snapshot).await;
 
-            trace!("deleted {} snapshot entries", deleted);
-
-            let inserted = diesel::insert_into(schema::snapshot::table)
-                .values(
-                    snapshot
-                        .into_iter()
-                        .map(
-                            |VoterHIR {
-                                 voting_key,
-                                 voting_power,
-                                 voting_group,
-                             }| SnapshotEntry {
-                                voting_key: voting_key.to_hex(),
-                                voting_power: u64::from(voting_power) as i64,
-                                tag: tag.clone(),
-                                voting_group,
-                            },
-                        )
-                        .collect::<Vec<_>>(),
-                )
-                .execute(&*conn)?;
-
-            trace!("inserted {} new entries into the snapshot table", inserted);
-
-            Ok(inserted)
-        })
-        .map_err(Error::from)
-    })
-    .instrument(span!(Level::INFO, "build snapshot table"))
-    .await
-    .unwrap()
+    Ok(size)
 }
 
 #[cfg(test)]
