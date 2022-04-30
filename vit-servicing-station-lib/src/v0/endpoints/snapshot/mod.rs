@@ -77,7 +77,7 @@ mod test {
         let file_path = tmp_dir.path().join(format!("{}-snapshot.json", DAILY));
         tokio::fs::write(&file_path, content).await.unwrap();
 
-        let (shared_context, update_handler) = snapshot_service::new_context();
+        let (shared_context, update_handler) = snapshot_service::new_context().unwrap();
         let _guard = async_watch(tmp_dir.path().to_path_buf(), update_handler)
             .await
             .unwrap();
@@ -171,7 +171,7 @@ mod test {
         tokio::fs::write(&file_path_a, content_a).await.unwrap();
         tokio::fs::write(&file_path_b, content_b).await.unwrap();
 
-        let (shared_context, update_handler) = snapshot_service::new_context();
+        let (shared_context, update_handler) = snapshot_service::new_context().unwrap();
         let _guard = async_watch(tmp_dir.path().to_path_buf(), update_handler)
             .await
             .unwrap();

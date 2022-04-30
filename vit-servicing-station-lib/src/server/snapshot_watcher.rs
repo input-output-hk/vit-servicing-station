@@ -2,7 +2,7 @@ use notify::{
     event::{self, AccessKind, AccessMode, CreateKind, MetadataKind, ModifyKind, RemoveKind},
     EventKind, RecursiveMode, Watcher,
 };
-use snapshot_service::UpdateHandler;
+use snapshot_service::UpdateHandle;
 use std::{
     collections::HashMap,
     ffi::OsStr,
@@ -30,6 +30,9 @@ pub enum Error {
 
     #[error(transparent)]
     Io(#[from] std::io::Error),
+
+    #[error(transparent)]
+    SnapshotService(#[from] snapshot_service::Error),
 }
 
 #[must_use]
@@ -50,7 +53,7 @@ fn extract_tag_from_filename(path: impl AsRef<OsStr>) -> Option<Tag> {
 async fn load_from_paths(
     mut debouncer: Option<&mut HashMap<Tag, Instant>>,
     paths: impl Iterator<Item = PathBuf>,
-    context: &UpdateHandler,
+    context: &mut UpdateHandle,
 ) {
     for path in paths {
         let tag = match path.file_name().and_then(extract_tag_from_filename) {
@@ -105,7 +108,7 @@ async fn load_from_paths(
 }
 
 #[tracing::instrument(skip(context))]
-pub async fn async_watch(path: PathBuf, context: UpdateHandler) -> Result<WatcherGuard, Error> {
+pub async fn async_watch(path: PathBuf, mut context: UpdateHandle) -> Result<WatcherGuard, Error> {
     let _ = tokio::fs::create_dir_all(path.as_path()).await;
 
     if !&path.is_dir() {
@@ -120,7 +123,7 @@ pub async fn async_watch(path: PathBuf, context: UpdateHandler) -> Result<Watche
         .await
         .unwrap()?;
 
-        load_from_paths(None, dir_entries.map(|de| de.path()), &context).await;
+        load_from_paths(None, dir_entries.map(|de| de.path()), &mut context).await;
     }
 
     let (tx, mut rx) = tokio::sync::mpsc::channel(1);
@@ -178,7 +181,7 @@ pub async fn async_watch(path: PathBuf, context: UpdateHandler) -> Result<Watche
             let mut debouncer: HashMap<Tag, Instant> = HashMap::new();
 
             while let Some(paths) = rx.recv().await {
-                load_from_paths(Some(&mut debouncer), paths.into_iter(), &context).await;
+                load_from_paths(Some(&mut debouncer), paths.into_iter(), &mut context).await;
             }
         }
         .instrument(tracing::info_span!("snapshot reload")),
@@ -191,7 +194,7 @@ pub async fn async_watch(path: PathBuf, context: UpdateHandler) -> Result<Watche
 async fn load_snapshot_table_from_file(
     path: PathBuf,
     tag: Tag,
-    db: &UpdateHandler,
+    db: &mut UpdateHandle,
 ) -> Result<usize, Error> {
     let snapshot: Snapshot = match tokio::fs::read(path.as_path()).await {
         Ok(raw) => serde_json::from_slice(&raw)?,
@@ -203,7 +206,7 @@ async fn load_snapshot_table_from_file(
 
     let size = snapshot.len();
 
-    db.update(tag, snapshot).await;
+    db.update(&tag, snapshot).await?;
 
     Ok(size)
 }
