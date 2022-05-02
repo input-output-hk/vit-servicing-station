@@ -1,6 +1,10 @@
-use crate::SharedContext;
+use std::sync::Arc;
+
+use crate::{SharedContext, UpdateHandle};
 use jormungandr_lib::crypto::account::Identifier;
 use serde_json::json;
+use tokio::sync::Mutex;
+use voting_hir::VoterHIR;
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
@@ -47,5 +51,27 @@ pub async fn get_tags(context: SharedContext) -> Result<impl Reply, Rejection> {
             StatusCode::INTERNAL_SERVER_ERROR,
         )
         .into_response()),
+    }
+}
+
+#[tracing::instrument(skip(context))]
+pub async fn put_tag(
+    tag: String,
+    snapshot: Vec<VoterHIR>,
+    context: Arc<Mutex<UpdateHandle>>,
+) -> Result<impl Reply, Rejection> {
+    let mut handle = context.lock().await;
+
+    match handle.update(&tag, snapshot).await {
+        Err(crate::Error::InternalError) => Ok(warp::reply::with_status(
+            "Consistency error",
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+        .into_response()),
+        Err(e) => Ok(
+            warp::reply::with_status(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR)
+                .into_response(),
+        ),
+        Ok(_) => Ok(warp::reply().into_response()),
     }
 }

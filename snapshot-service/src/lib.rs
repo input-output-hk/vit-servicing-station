@@ -1,11 +1,11 @@
 mod handlers;
 mod routes;
 
-use std::mem::size_of;
+pub use routes::{filter, update_filter};
 
 use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
-pub use routes::filter;
 use sled::{IVec, Transactional};
+use std::mem::size_of;
 use voting_hir::VoterHIR;
 
 #[derive(thiserror::Error, Debug)]
