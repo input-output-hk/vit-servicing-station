@@ -116,10 +116,7 @@ mod test {
 
         assert!(get_voting_power("tag_c", keys[0], &filter).await.is_err());
 
-        let result = warp::test::request()
-            .path(format!("/snapshot").as_ref())
-            .reply(&filter)
-            .await;
+        let result = warp::test::request().path("/snapshot").reply(&filter).await;
 
         let status = result.status();
         if !matches!(status, StatusCode::OK) {
