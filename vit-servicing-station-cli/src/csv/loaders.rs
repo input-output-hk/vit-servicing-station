@@ -95,11 +95,6 @@ impl CsvDataCmd {
     ) -> Result<(), Error> {
         db_file_exists(db_url)?;
         let funds = CsvDataCmd::load_from_csv::<Fund>(funds_path)?;
-        if funds.len() != 1 {
-            return Err(Error::InvalidFundData(
-                funds_path.to_string_lossy().to_string(),
-            ));
-        }
         let mut voteplans = CsvDataCmd::load_from_csv::<Voteplan>(voteplans_path)?;
         let mut challenges: HashMap<i32, Challenge> =
             CsvDataCmd::load_from_csv::<Challenge>(challenges_path)?
@@ -146,10 +141,21 @@ impl CsvDataCmd {
             .get()
             .map_err(|e| io::Error::new(io::ErrorKind::NotConnected, format!("{}", e)))?;
 
+        let mut funds_iter = funds.into_iter();
+
         // insert fund and retrieve fund with id
-        let fund =
-            vit_servicing_station_lib::db::queries::funds::insert_fund(funds[0].clone(), &db_conn)
+        let fund = vit_servicing_station_lib::db::queries::funds::insert_fund(
+            funds_iter.next().ok_or(Error::InvalidFundData(
+                funds_path.to_string_lossy().to_string(),
+            ))?,
+            &db_conn,
+        )
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+
+        for fund in funds_iter {
+            vit_servicing_station_lib::db::queries::funds::insert_fund(fund, &db_conn)
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+        }
 
         // apply fund id in voteplans
         for voteplan in voteplans.iter_mut() {
