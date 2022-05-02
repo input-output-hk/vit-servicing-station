@@ -214,6 +214,20 @@ paths:
         "200":
           description: Success
 
+  /api/v0/snapshot/{tag}:
+    put:
+      operationId: updateSnapshot
+      summary: Replace the snapshot data for the given tag
+      tags: [snapshot]
+      description: |
+        Replace the snapshot data for the given tag
+      requestBody:
+        description: list of VoterHIR entries in json format
+        required: true
+      responses:
+        "200":
+          description: Success
+
 components:
   schemas:
     Fund:
