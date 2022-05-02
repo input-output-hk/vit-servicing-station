@@ -120,7 +120,7 @@ paths:
           content:
             application/json:
               schema:
-                - $ref: "#/components/schemas/ProposalWithChallengeInfo"
+                $ref: "#/components/schemas/ProposalWithChallengeInfo"
 
   /api/v0/proposals/{voter_group_id}:
     get:
@@ -451,6 +451,8 @@ components:
         proposal_funds:
           type: integer
           format: int64
+          description: The amount of funds requested by this proposal.
+        proposal_url:
           type: string
           description: URL to a web page with details on this proposal.
         proposal_files:
