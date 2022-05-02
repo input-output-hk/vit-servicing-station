@@ -227,6 +227,15 @@ impl ValidVotePlanGenerator {
             next_registration_snapshot_time,
             chain_vote_plans: vote_plans.clone(),
             challenges,
+            insight_sharing_start: voting_start,
+            proposal_submission_start: voting_start,
+            refine_proposals_start: voting_start,
+            finalize_proposals_start: voting_start,
+            assessment_qa_start: voting_start,
+            snapshot_start: voting_start,
+            voting_start,
+            voting_end: voting_start,
+            tallying_end: voting_start,
         };
 
         let mut proposals = vec![];

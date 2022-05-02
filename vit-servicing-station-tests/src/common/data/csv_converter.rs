@@ -29,6 +29,15 @@ impl CsvConverter {
             "next_fund_start_time",
             "registration_snapshot_time",
             "next_registration_snapshot_time",
+            "insight_sharing_start",
+            "proposal_submission_start",
+            "refine_proposals_start",
+            "finalize_proposals_start",
+            "assessment_qa_start",
+            "snapshot_start",
+            "voting_start",
+            "voting_end",
+            "tallying_end",
         ];
         let content: Vec<Vec<String>> = funds.iter().map(convert_fund).collect();
         self.build_file(headers, content, path)
@@ -219,6 +228,15 @@ fn convert_fund(fund: &Fund) -> Vec<String> {
         unix_timestamp_to_rfc3339(fund.next_fund_start_time),
         unix_timestamp_to_rfc3339(fund.registration_snapshot_time),
         unix_timestamp_to_rfc3339(fund.next_registration_snapshot_time),
+        unix_timestamp_to_rfc3339(fund.insight_sharing_start),
+        unix_timestamp_to_rfc3339(fund.proposal_submission_start),
+        unix_timestamp_to_rfc3339(fund.refine_proposals_start),
+        unix_timestamp_to_rfc3339(fund.finalize_proposals_start),
+        unix_timestamp_to_rfc3339(fund.assessment_qa_start),
+        unix_timestamp_to_rfc3339(fund.snapshot_start),
+        unix_timestamp_to_rfc3339(fund.voting_start),
+        unix_timestamp_to_rfc3339(fund.voting_end),
+        unix_timestamp_to_rfc3339(fund.tallying_end),
     ]
 }
 
