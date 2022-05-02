@@ -1,5 +1,5 @@
+use super::config::ServiceSettings;
 use super::config::{Cors, Log, Tls, ADDRESS_DEFAULT, BLOCK0_PATH_DEFAULT, DB_URL_DEFAULT};
-use super::config::{ServiceSettings, SNAPSHOT_PATH_DEFAULT};
 use std::net::SocketAddr;
 use std::str::FromStr;
 
@@ -16,7 +16,6 @@ impl Default for ServiceSettings {
             enable_api_tokens: false,
             log: Log::default(),
             service_version: "".to_string(),
-            snapshot: SNAPSHOT_PATH_DEFAULT.to_string(),
         }
     }
 }

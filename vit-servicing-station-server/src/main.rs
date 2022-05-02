@@ -117,22 +117,21 @@ async fn main() {
     let context =
         v0::context::new_shared_context(db_pool, &settings.block0_path, &settings.service_version);
 
-    let (read_context, update_handler) = match snapshot_service::new_context() {
+    let (snapshot_rx, snapshot_tx) = match snapshot_service::new_context() {
         Ok(ctx) => ctx,
         Err(e) => {
             error!("Failed to setup snapshot watcher service {}", e);
             std::process::exit(ApplicationExitCode::SnapshotWatcherError.into());
         }
     };
-    let _guard = match server::async_watch(settings.snapshot.clone().into(), update_handler).await {
-        Ok(guard) => guard,
-        Err(e) => {
-            error!("Couldn't start snapshot watcher service: {}", e);
-            std::process::exit(ApplicationExitCode::SnapshotWatcherError.into());
-        }
-    };
 
-    let app = v0::filter(context, read_context, settings.enable_api_tokens).await;
+    let app = v0::filter(
+        context,
+        snapshot_rx,
+        snapshot_tx,
+        settings.enable_api_tokens,
+    )
+    .await;
 
     info!(
         "Running server at {}, database located at {}",

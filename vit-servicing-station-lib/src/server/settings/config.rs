@@ -17,7 +17,6 @@ const VIT_SERVICE_VERSION_ENV_VARIABLE: &str = "SERVICE_VERSION";
 pub(crate) const ADDRESS_DEFAULT: &str = "0.0.0.0:3030";
 pub(crate) const DB_URL_DEFAULT: &str = "./db/database.sqlite3";
 pub(crate) const BLOCK0_PATH_DEFAULT: &str = "./resources/v0/block0.bin";
-pub(crate) const SNAPSHOT_PATH_DEFAULT: &str = "./resources/snapshot/snapshot.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, StructOpt)]
 #[serde(deny_unknown_fields)]
@@ -64,18 +63,6 @@ pub struct ServiceSettings {
 
     #[structopt(long, env = VIT_SERVICE_VERSION_ENV_VARIABLE)]
     pub service_version: String,
-
-    /// Path to the snapshot file to populate v0/snapshot
-    ///
-    /// Because the parent directory will be watched for changes instead of the file path, it's not
-    /// necessary for the file to exist at startup. Only modifications to the actual file provided
-    /// will trigger a reload of the data.
-    ///
-    /// Because of the above, it's advisable to use a dedicated directory, in order to reduce the
-    /// number of filesystem notifications, but it's not a requirement.
-    #[serde(default)]
-    #[structopt(long, default_value = SNAPSHOT_PATH_DEFAULT)]
-    pub snapshot: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, StructOpt, Default)]
@@ -191,10 +178,6 @@ impl ServiceSettings {
         }
 
         return_settings.enable_api_tokens = other_settings.enable_api_tokens;
-
-        if other_settings.snapshot != SNAPSHOT_PATH_DEFAULT {
-            return_settings.snapshot = other_settings.snapshot.clone();
-        }
 
         return_settings
     }

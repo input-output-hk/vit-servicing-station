@@ -16,7 +16,8 @@ use warp::{Filter, Rejection, Reply};
 pub async fn filter(
     root: BoxedFilter<()>,
     context: SharedContext,
-    snapshot_context: snapshot_service::SharedContext,
+    snapshot_rx: snapshot_service::SharedContext,
+    snapshot_tx: snapshot_service::UpdateHandle,
     enable_api_tokens: bool,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     // mount health endpoint
@@ -43,7 +44,8 @@ pub async fn filter(
     let reviews_filter = advisor_reviews::filter(reviews_root.boxed(), context.clone()).await;
 
     let snapshot_root = warp::path!("snapshot" / ..);
-    let snapshot_filter = snapshot_service::filter(snapshot_root.boxed(), snapshot_context.clone());
+    let snapshot_rx_filter = snapshot_service::filter(snapshot_root.boxed(), snapshot_rx.clone());
+    let snapshot_tx_filter = snapshot_service::update_filter(snapshot_root.boxed(), snapshot_tx);
 
     let api_token_filter = if enable_api_tokens {
         api_token::api_token_filter(context).await.boxed()
@@ -59,7 +61,8 @@ pub async fn filter(
                 .or(funds_filter)
                 .or(challenges_filter)
                 .or(reviews_filter)
-                .or(snapshot_filter),
+                .or(snapshot_rx_filter)
+                .or(snapshot_tx_filter),
         ),
     )
     .boxed()
