@@ -1,10 +1,11 @@
 mod handlers;
 mod routes;
 
+use std::mem::size_of;
+
 use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
 pub use routes::filter;
-use sled::Transactional;
-use std::cmp::max;
+use sled::{IVec, Transactional};
 use voting_hir::VoterHIR;
 
 #[derive(thiserror::Error, Debug)]
@@ -21,34 +22,44 @@ pub enum Error {
 
 pub type Tag = String;
 type Group = String;
+type TagId = u32;
 
 #[derive(Clone)]
 pub struct SharedContext {
-    db: sled::Db,
+    _db: sled::Db,
+    tags: sled::Tree,
+    entries: sled::Tree,
 }
 
 impl SharedContext {
+    fn new(db: sled::Db) -> Result<Self, Error> {
+        let tags = db.open_tree("tags")?;
+        let entries = db.open_tree("entries")?;
+
+        Ok(Self {
+            _db: db,
+            tags,
+            entries,
+        })
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn get_voting_power(
         &self,
         tag: &str,
         id: &Identifier,
     ) -> Result<Option<Vec<(Group, Value)>>, Error> {
-        let entries = self.db.open_tree("entries")?;
-        let tags = self.db.open_tree("tags")?;
-
-        let tag = if let Some(tag) = tags.get(tag)? {
+        let tag = if let Some(tag) = self.tags.get(tag)? {
             tag
         } else {
             return Ok(None);
         };
 
         let key = {
-            let mut key = [0u8; 32 + 4];
+            let mut key = [0u8; size_of::<TagId>() + 32usize];
 
-            let (tag_part, id_part) = key.split_at_mut(4);
+            let (tag_part, id_part) = key.split_at_mut(size_of::<TagId>());
             tag_part.copy_from_slice(&*tag);
-
             id_part.copy_from_slice(id.as_ref().as_ref());
 
             key
@@ -58,7 +69,7 @@ impl SharedContext {
 
         let mut result: Vec<(Group, Value)> = vec![];
 
-        for entries in entries.range(key.clone()..) {
+        for entries in self.entries.range(key..) {
             let (k, v) = entries?;
 
             if k[0..key_len] > key[..] {
@@ -77,10 +88,8 @@ impl SharedContext {
     }
 
     pub fn get_tags(&self) -> Result<Vec<Tag>, Error> {
-        let tags = self.db.open_tree("tags")?;
-
         let mut result = vec![];
-        for entries in tags.iter() {
+        for entries in self.tags.iter() {
             let (tag, _) = entries?;
             result.push(String::from_utf8(tag.to_vec()).map_err(|_| Error::InternalError)?);
         }
@@ -95,31 +104,26 @@ pub struct UpdateHandle {
     _db: sled::Db,
     tags: sled::Tree,
     entries: sled::Tree,
-    next_tag_id: u32,
+    seqs: sled::Tree,
 }
 
+const TAG_SEQ_KEY: &str = "TID";
+
 impl UpdateHandle {
-    pub fn new(db: sled::Db) -> Result<Self, Error> {
+    fn new(db: sled::Db) -> Result<Self, Error> {
         let tags = db.open_tree("tags")?;
         let entries = db.open_tree("entries")?;
+        let seqs = db.open_tree("seqs")?;
 
-        let mut next_tag_id = None;
-
-        for kv in tags.iter() {
-            let (_, v) = kv?;
-
-            let id = u32::from_be_bytes(v.as_ref().try_into().unwrap());
-
-            next_tag_id = next_tag_id.map(|c| max(c, id)).or_else(|| Some(id));
+        if seqs.get(TAG_SEQ_KEY)?.is_none() {
+            seqs.insert(TAG_SEQ_KEY, &TagId::MIN.to_be_bytes())?;
         }
-
-        let next_tag_id = next_tag_id.map(|id| id + 1).unwrap_or(0);
 
         Ok(UpdateHandle {
             _db: db,
             tags,
             entries,
-            next_tag_id,
+            seqs,
         })
     }
 
@@ -131,22 +135,16 @@ impl UpdateHandle {
     ) -> Result<(), Error> {
         let mut batch = sled::Batch::default();
 
-        let tag_id = match self.tags.get(tag.clone())? {
-            Some(tag_id_raw) => {
-                let tag_id = u32::from_be_bytes(tag_id_raw.as_ref().try_into().unwrap());
+        enum Tag {
+            Existing(IVec),
+            New(IVec),
+        }
 
-                for entry in self
-                    .entries
-                    .range(tag_id_raw.as_ref()..&(tag_id + 1).to_be_bytes())
-                {
-                    let (k, _) = entry?;
-
-                    batch.remove(k);
-                }
-
-                Some(tag_id_raw)
-            }
-            None => None,
+        let tag_id = if let Some(existing) = self.tags.get(tag)? {
+            Tag::Existing(existing)
+        } else {
+            // unwrapping here is fine because the constructor initializes this entry to 0
+            Tag::New(self.seqs.get(TAG_SEQ_KEY)?.unwrap())
         };
 
         for entry in snapshot.into_iter() {
@@ -156,14 +154,17 @@ impl UpdateHandle {
                 voting_power,
             } = entry;
 
-            let mut key = Vec::with_capacity(4 + 32 + voting_group.as_bytes().len());
+            let voting_key_bytes = voting_key.as_ref().as_ref();
 
-            match tag_id {
-                None => key.extend(&self.next_tag_id.to_be_bytes()),
-                Some(ref tag_id_raw) => key.extend(&**tag_id_raw),
+            let mut key = Vec::with_capacity(
+                size_of::<TagId>() + voting_key_bytes.len() + voting_group.as_bytes().len(),
+            );
+
+            match &tag_id {
+                Tag::Existing(tag_id) | Tag::New(tag_id) => key.extend(&**tag_id),
             }
 
-            key.extend(voting_key.as_ref().as_ref());
+            key.extend(voting_key_bytes);
             key.extend(voting_group.as_bytes());
 
             batch.insert(key, &u64::from(voting_power).to_be_bytes());
@@ -171,15 +172,19 @@ impl UpdateHandle {
 
         {
             let tag = tag.to_string();
-            let tag_id = tag_id.clone();
             let tags = self.tags.clone();
             let entries = self.entries.clone();
-            let next_tag_id = self.next_tag_id.to_be_bytes();
+            let seqs = self.seqs.clone();
 
             tokio::task::spawn_blocking(move || {
-                (&tags, &entries).transaction(move |(tags, entries)| {
-                    if let None = tag_id {
-                        tags.insert(tag.as_bytes(), &next_tag_id)?;
+                (&tags, &entries, &seqs).transaction(move |(tags, entries, seqs)| {
+                    if let Tag::New(id) = &tag_id {
+                        tags.insert(tag.as_bytes(), id)?;
+                        seqs.insert(
+                            TAG_SEQ_KEY,
+                            &(TagId::from_be_bytes(id.as_ref().try_into().unwrap()) + 1)
+                                .to_be_bytes(),
+                        )?;
                     }
 
                     entries.apply_batch(&batch)?;
@@ -193,10 +198,6 @@ impl UpdateHandle {
             .map_err(Error::DbTxError)?;
         }
 
-        if let None = tag_id {
-            self.next_tag_id += 1;
-        }
-
         Ok(())
     }
 }
@@ -204,7 +205,7 @@ impl UpdateHandle {
 pub fn new_context() -> Result<(SharedContext, UpdateHandle), Error> {
     let db = sled::Config::new().temporary(true).open()?;
 
-    Ok((SharedContext { db: db.clone() }, UpdateHandle::new(db)?))
+    Ok((SharedContext::new(db.clone())?, UpdateHandle::new(db)?))
 }
 
 #[cfg(test)]
