@@ -141,8 +141,7 @@ paths:
             application/json:
               schema:
                 items:
-                  allOf:
-                    - $ref: "#/components/schemas/ProposalWithChallengeInfo"
+                  $ref: "#/components/schemas/ProposalWithChallengeInfo"
 
   /api/v0/proposal/{id}/{voter_group_id}:
     get:
@@ -168,8 +167,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: "#/components/schemas/ProposalWithChallengeInfo"
+                $ref: "#/components/schemas/ProposalWithChallengeInfo"
         "404":
           description: The requested proposal was not found
 
