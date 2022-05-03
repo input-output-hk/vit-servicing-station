@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Queryable, PartialOrd, Ord)]
 pub struct Group {
-    #[serde(alias = "tokenId")]
+    #[serde(alias = "fundId")]
     pub fund_id: i32,
     #[serde(alias = "tokenId")]
     pub token_identifier: String,
