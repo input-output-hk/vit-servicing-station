@@ -56,6 +56,45 @@ paths:
                 $ref: "#/components/schemas/Fund"
         "404":
           description: The requested fund was not found
+    put:
+      operationId: putFund
+      summary: Update or create fund
+      tags: [fund]
+      description: |
+        Retrieves information on the identified treasury fund campaign.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      responses:
+        "200":
+          description: Valid response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fund"
+        "422":
+          description: The input is malformed.
+
+  /api/v0/funds/:
+    get:
+      operationId: getFunds
+      summary: Get list of the funds
+      tags: [fund]
+      description: |
+        Get list of all the funds in the db. Ordered in time, which means the first one is the current one.
+      responses:
+        "200":
+          description: Valid response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Fund"
+        "404":
+          description: The requested fund was not found
 
   /api/v0/proposals:
     post:
@@ -284,6 +323,36 @@ components:
           items:
             $ref: "#/components/schemas/Challenge"
           description: A list of campaign challenges structuring the proposals.
+        insight_sharing_start:
+          type: string
+          format: date-time
+        proposal_submission_start:
+          type: string
+          format: date-time
+        refine_proposals_start:
+          type: string
+          format: date-time
+        finalize_proposals_start:
+          type: string
+          format: date-time
+        proposal_assessment_start:
+          type: string
+          format: date-time
+        assessment_qa_start:
+          type: string
+          format: date-time
+        snapshot_start:
+          type: string
+          format: date-time
+        voting_start:
+          type: string
+          format: date-time
+        voting_end:
+          type: string
+          format: date-time
+        tallying_end:
+          type: string
+          format: date-time
 
     VotePlan:
       properties:
