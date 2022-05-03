@@ -7,7 +7,6 @@ use diesel::{ExpressionMethods, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
-// #[serde(into = "FundWithLegacyFields")]
 pub struct Fund {
     #[serde(default = "Default::default")]
     pub id: i32,
@@ -222,7 +221,7 @@ impl Insertable<funds::table> for Fund {
             funds::fund_start_time.eq(self.fund_start_time),
             funds::fund_end_time.eq(self.fund_end_time),
             funds::next_fund_start_time.eq(self.next_fund_start_time),
-            funds::insight_sharing_start.eq(dbg!(self.insight_sharing_start)),
+            funds::insight_sharing_start.eq(self.insight_sharing_start),
             funds::proposal_submission_start.eq(self.proposal_submission_start),
             funds::refine_proposals_start.eq(self.refine_proposals_start),
             funds::finalize_proposals_start.eq(self.finalize_proposals_start),
@@ -250,10 +249,12 @@ pub mod test {
     use diesel::{Insertable, RunQueryDsl};
     use time::{Duration, OffsetDateTime};
 
-    pub fn get_test_fund() -> Fund {
+    pub fn get_test_fund(fund_id: Option<i32>) -> Fund {
         const FUND_ID: i32 = 42;
+        let fund_id = fund_id.unwrap_or(FUND_ID);
+
         Fund {
-            id: FUND_ID,
+            id: fund_id,
             fund_name: "hey oh let's go".to_string(),
             fund_goal: "test this endpoint".to_string(),
             registration_snapshot_time: (OffsetDateTime::now_utc() + Duration::days(3))
@@ -264,8 +265,8 @@ pub mod test {
             fund_start_time: OffsetDateTime::now_utc().unix_timestamp(),
             fund_end_time: OffsetDateTime::now_utc().unix_timestamp(),
             next_fund_start_time: OffsetDateTime::now_utc().unix_timestamp(),
-            chain_vote_plans: vec![voteplans_testing::get_test_voteplan_with_fund_id(FUND_ID)],
-            challenges: vec![challenges_testing::get_test_challenge_with_fund_id(FUND_ID)],
+            chain_vote_plans: vec![voteplans_testing::get_test_voteplan_with_fund_id(fund_id)],
+            challenges: vec![challenges_testing::get_test_challenge_with_fund_id(fund_id)],
             insight_sharing_start: OffsetDateTime::now_utc().unix_timestamp(),
             proposal_submission_start: OffsetDateTime::now_utc().unix_timestamp(),
             refine_proposals_start: OffsetDateTime::now_utc().unix_timestamp(),

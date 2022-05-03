@@ -44,6 +44,8 @@ pub async fn query_fund(pool: &DbConnectionPool) -> Result<Fund, HandleError> {
     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
     tokio::task::spawn_blocking(move || {
         let fund = fund_dsl::funds
+            // TODO: Not sure if sorting by the PK is actually necessary
+            .order(fund_dsl::id)
             .first::<Fund>(&db_conn)
             .map_err(|_e| HandleError::NotFound("fund".to_string()));
         let fund = match fund {
@@ -82,7 +84,29 @@ pub async fn query_all_funds(pool: &DbConnectionPool) -> Result<Vec<Fund>, Handl
     tokio::task::spawn_blocking(move || {
         fund_dsl::funds
             .load::<Fund>(&db_conn)
-            .map_err(|_| HandleError::InternalError("Error retrieving funds".to_string()))
+            .map_err(|_| HandleError::InternalError("Error retrieving funds".to_string()))?
+            .into_iter()
+            .map(|mut fund| {
+                let voteplans = diesel::QueryDsl::filter(
+                    voteplans_dsl::voteplans,
+                    voteplans_dsl::fund_id.eq(fund.id),
+                )
+                .load::<Voteplan>(&db_conn)
+                .map_err(|_e| HandleError::NotFound("Error loading voteplans".to_string()))?;
+
+                let challenges = diesel::QueryDsl::filter(
+                    challenges_dsl::challenges,
+                    challenges_dsl::fund_id.eq(fund.id),
+                )
+                .load::<Challenge>(&db_conn)
+                .map_err(|_e| HandleError::NotFound("Error loading voteplans".to_string()))?;
+
+                fund.chain_vote_plans = voteplans;
+                fund.challenges = challenges;
+
+                Ok(fund)
+            })
+            .collect()
     })
     .await
     .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))?
@@ -95,4 +119,17 @@ pub fn insert_fund(fund: Fund, db_conn: &DbConnection) -> QueryResult<Fund> {
     // This can be done in a single query if we move to postgres or any DB that supports `get_result`
     // instead of `execute` in the previous insert
     funds::table.order(fund_dsl::id.desc()).first(db_conn)
+}
+
+pub async fn put_fund(fund: Fund, pool: &DbConnectionPool) -> Result<(), HandleError> {
+    let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
+    diesel::replace_into(funds::table)
+        .values(fund.values())
+        .execute(&db_conn)
+        .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))?;
+
+    // TODO:
+    // replace the voteplan and challenges too?
+
+    Ok(())
 }

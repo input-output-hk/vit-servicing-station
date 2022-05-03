@@ -21,7 +21,7 @@ pub enum Error {
     #[error(transparent)]
     IoError(#[from] std::io::Error),
 
-    #[error("Wrong number of input fund in {0}, just one fund data can be process at a time")]
+    #[error("Invalid Fund Data: {0}")]
     InvalidFundData(String),
 }
 
@@ -95,6 +95,7 @@ impl CsvDataCmd {
     ) -> Result<(), Error> {
         db_file_exists(db_url)?;
         let funds = CsvDataCmd::load_from_csv::<Fund>(funds_path)?;
+
         let mut voteplans = CsvDataCmd::load_from_csv::<Voteplan>(voteplans_path)?;
         let mut challenges: HashMap<i32, Challenge> =
             CsvDataCmd::load_from_csv::<Challenge>(challenges_path)?

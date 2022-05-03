@@ -11,3 +11,13 @@ pub async fn get_fund(context: SharedContext) -> Result<Fund, HandleError> {
     let pool = &context.read().await.db_connection_pool;
     funds_queries::query_fund(pool).await
 }
+
+pub async fn get_all_funds(context: SharedContext) -> Result<Vec<Fund>, HandleError> {
+    let pool = &context.read().await.db_connection_pool;
+    funds_queries::query_all_funds(pool).await
+}
+
+pub async fn put_fund(fund: Fund, context: SharedContext) -> Result<(), HandleError> {
+    let pool = &context.read().await.db_connection_pool;
+    funds_queries::put_fund(fund, pool).await
+}
