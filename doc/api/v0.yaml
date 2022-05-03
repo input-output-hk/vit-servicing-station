@@ -118,8 +118,7 @@ paths:
           content:
             application/json:
               schema:
-                - $ref: "#/components/schemas/ProposalWithChallengeInfo"
-                - $ref: "#/components/schemas/ProposalChainInfo"
+                $ref: "#/components/schemas/ProposalWithChallengeInfo"
 
   /api/v0/proposals/{voter_group_id}:
     get:
@@ -144,7 +143,6 @@ paths:
                 items:
                   allOf:
                     - $ref: "#/components/schemas/ProposalWithChallengeInfo"
-                    - $ref: "#/components/schemas/ProposalChainInfo"
 
   /api/v0/proposal/{id}/{voter_group_id}:
     get:
@@ -172,7 +170,6 @@ paths:
               schema:
                 allOf:
                   - $ref: "#/components/schemas/ProposalWithChallengeInfo"
-                  - $ref: "#/components/schemas/ProposalChainInfo"
         "404":
           description: The requested proposal was not found
 
@@ -490,9 +487,6 @@ components:
           type: string
           description: |
             Whether the voting is done using the public or the privacy-preserving protocol.
-
-    ProposalChainInfo:
-      properties:
         chain_voteplan_id:
           type: string
           description: Identifier of the vote plan a proposal belongs to.
