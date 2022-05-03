@@ -146,9 +146,9 @@ impl CsvDataCmd {
 
         // insert fund and retrieve fund with id
         let fund = vit_servicing_station_lib::db::queries::funds::insert_fund(
-            funds_iter.next().ok_or(Error::InvalidFundData(
-                funds_path.to_string_lossy().to_string(),
-            ))?,
+            funds_iter
+                .next()
+                .ok_or_else(|| Error::InvalidFundData(funds_path.to_string_lossy().to_string()))?,
             &db_conn,
         )
         .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
