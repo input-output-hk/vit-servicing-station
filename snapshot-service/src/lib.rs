@@ -37,7 +37,7 @@ impl TagId {
             .map(Self)
     }
 
-    fn to_be_bytes(self) -> [u8; 4] {
+    fn to_be_bytes(&self) -> [u8; 4] {
         self.0.to_be_bytes()
     }
 
@@ -357,7 +357,7 @@ mod tests {
         tx.update(TAG2, inputs.clone()).await.unwrap();
 
         assert_eq!(
-            rx.get_voting_power(&TAG1, &voting_key).unwrap().unwrap(),
+            rx.get_voting_power(TAG1, &voting_key).unwrap().unwrap(),
             inputs
                 .iter()
                 .cloned()
@@ -368,7 +368,7 @@ mod tests {
         tx.update(TAG1, inputs[0..1].to_vec()).await.unwrap();
 
         assert_eq!(
-            rx.get_voting_power(&TAG1, &voting_key).unwrap().unwrap(),
+            rx.get_voting_power(TAG1, &voting_key).unwrap().unwrap(),
             inputs[0..1]
                 .iter()
                 .cloned()
@@ -378,7 +378,7 @@ mod tests {
 
         // asserting that TAG2 is untouched, just in case
         assert_eq!(
-            rx.get_voting_power(&TAG2, &voting_key).unwrap().unwrap(),
+            rx.get_voting_power(TAG2, &voting_key).unwrap().unwrap(),
             inputs
                 .iter()
                 .cloned()
