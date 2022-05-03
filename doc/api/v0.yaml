@@ -111,16 +111,15 @@ paths:
         content:
           application/json:
             schema:
-              allOf:
-                - $ref: '#/components/schemas/ProposalsByVoteplanIdAndIndexQuery'
-                - $ref: "#/components/schemas/ProposalChainInfo"
+              $ref: '#/components/schemas/ProposalsByVoteplanIdAndIndexQuery'
       responses:
         "200":
           description: Valid response
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProposalWithChallengeInfo"
+                - $ref: "#/components/schemas/ProposalWithChallengeInfo"
+                - $ref: "#/components/schemas/ProposalChainInfo"
 
   /api/v0/proposals/{voter_group_id}:
     get:
