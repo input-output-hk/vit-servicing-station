@@ -17,7 +17,7 @@ pub fn load_data_test() {
 
     let funds = temp_dir.child("funds.csv");
     csv_converter
-        .funds(dbg!(snapshot.funds().clone()), funds.path())
+        .funds(snapshot.funds().clone(), funds.path())
         .unwrap();
 
     let proposals = temp_dir.child("proposals.csv");
