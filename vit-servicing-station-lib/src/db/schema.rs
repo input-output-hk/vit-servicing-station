@@ -50,6 +50,7 @@ table! {
         proposal_submission_start -> BigInt,
         refine_proposals_start -> BigInt,
         finalize_proposals_start -> BigInt,
+        proposal_assessment_start -> BigInt,
         assessment_qa_start -> BigInt,
         snapshot_start -> BigInt,
         voting_start -> BigInt,

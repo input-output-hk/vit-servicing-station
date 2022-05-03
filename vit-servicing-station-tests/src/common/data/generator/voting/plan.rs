@@ -231,6 +231,7 @@ impl ValidVotePlanGenerator {
             proposal_submission_start: voting_start,
             refine_proposals_start: voting_start,
             finalize_proposals_start: voting_start,
+            proposal_assessment_start: voting_start,
             assessment_qa_start: voting_start,
             snapshot_start: voting_start,
             voting_start,

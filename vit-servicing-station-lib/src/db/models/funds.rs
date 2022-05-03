@@ -55,6 +55,9 @@ pub struct Fund {
     pub finalize_proposals_start: i64,
     #[serde(deserialize_with = "crate::utils::serde::deserialize_unix_timestamp_from_rfc3339")]
     #[serde(serialize_with = "crate::utils::serde::serialize_unix_timestamp_as_rfc3339")]
+    pub proposal_assessment_start: i64,
+    #[serde(deserialize_with = "crate::utils::serde::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(serialize_with = "crate::utils::serde::serialize_unix_timestamp_as_rfc3339")]
     pub assessment_qa_start: i64,
     #[serde(deserialize_with = "crate::utils::serde::deserialize_unix_timestamp_from_rfc3339")]
     #[serde(serialize_with = "crate::utils::serde::serialize_unix_timestamp_as_rfc3339")]
@@ -136,6 +139,8 @@ impl Queryable<funds::SqlType, Db> for Fund {
         i64,
         // finalize_proposals_start
         i64,
+        // proposal_assessment_start
+        i64,
         // assessment_qa_start
         i64,
         // snapshot_start
@@ -165,11 +170,12 @@ impl Queryable<funds::SqlType, Db> for Fund {
             proposal_submission_start: row.10,
             refine_proposals_start: row.11,
             finalize_proposals_start: row.12,
-            assessment_qa_start: row.13,
-            snapshot_start: row.14,
-            voting_start: row.15,
-            voting_end: row.16,
-            tallying_end: row.17,
+            proposal_assessment_start: row.13,
+            assessment_qa_start: row.14,
+            snapshot_start: row.15,
+            voting_start: row.16,
+            voting_end: row.17,
+            tallying_end: row.18,
         }
     }
 }
@@ -192,6 +198,7 @@ impl Insertable<funds::table> for Fund {
         diesel::dsl::Eq<funds::proposal_submission_start, i64>,
         diesel::dsl::Eq<funds::refine_proposals_start, i64>,
         diesel::dsl::Eq<funds::finalize_proposals_start, i64>,
+        diesel::dsl::Eq<funds::proposal_assessment_start, i64>,
         diesel::dsl::Eq<funds::assessment_qa_start, i64>,
         diesel::dsl::Eq<funds::snapshot_start, i64>,
         diesel::dsl::Eq<funds::voting_start, i64>,
@@ -219,6 +226,7 @@ impl Insertable<funds::table> for Fund {
             funds::proposal_submission_start.eq(self.proposal_submission_start),
             funds::refine_proposals_start.eq(self.refine_proposals_start),
             funds::finalize_proposals_start.eq(self.finalize_proposals_start),
+            funds::proposal_assessment_start.eq(self.proposal_assessment_start),
             funds::assessment_qa_start.eq(self.assessment_qa_start),
             funds::snapshot_start.eq(self.snapshot_start),
             funds::voting_start.eq(self.voting_start),
@@ -262,6 +270,7 @@ pub mod test {
             proposal_submission_start: OffsetDateTime::now_utc().unix_timestamp(),
             refine_proposals_start: OffsetDateTime::now_utc().unix_timestamp(),
             finalize_proposals_start: OffsetDateTime::now_utc().unix_timestamp(),
+            proposal_assessment_start: OffsetDateTime::now_utc().unix_timestamp(),
             assessment_qa_start: OffsetDateTime::now_utc().unix_timestamp(),
             snapshot_start: OffsetDateTime::now_utc().unix_timestamp(),
             voting_start: OffsetDateTime::now_utc().unix_timestamp(),

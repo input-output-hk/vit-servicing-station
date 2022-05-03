@@ -14,6 +14,7 @@ create table funds
     proposal_submission_start BIGINT NOT NULL,
     refine_proposals_start BIGINT NOT NULL,
     finalize_proposals_start BIGINT NOT NULL,
+    proposal_assessment_start BIGINT NOT NULL,
     assessment_qa_start BIGINT NOT NULL,
     snapshot_start BIGINT NOT NULL,
     voting_start BIGINT NOT NULL,

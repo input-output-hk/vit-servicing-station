@@ -24,6 +24,7 @@ struct FundDateTimes {
     proposal_submission_start: OffsetDateTime,
     refine_proposals_start: OffsetDateTime,
     finalize_proposals_start: OffsetDateTime,
+    proposal_assessment_start: OffsetDateTime,
     assessment_qa_start: OffsetDateTime,
     snapshot_start: OffsetDateTime,
     voting_start: OffsetDateTime,
@@ -81,6 +82,7 @@ impl ArbitrarySnapshotGenerator {
             proposal_submission_start: dates.proposal_submission_start.unix_timestamp(),
             refine_proposals_start: dates.refine_proposals_start.unix_timestamp(),
             finalize_proposals_start: dates.finalize_proposals_start.unix_timestamp(),
+            proposal_assessment_start: dates.proposal_assessment_start.unix_timestamp(),
             assessment_qa_start: dates.assessment_qa_start.unix_timestamp(),
             snapshot_start: dates.snapshot_start.unix_timestamp(),
             voting_start: dates.voting_start.unix_timestamp(),
@@ -150,6 +152,7 @@ impl ArbitrarySnapshotGenerator {
         let proposal_submission_start = rand_datetime_in_range(insight_sharing_start, end);
         let refine_proposals_start = rand_datetime_in_range(proposal_submission_start, end);
         let finalize_proposals_start = rand_datetime_in_range(refine_proposals_start, end);
+        let proposal_assessment_start = rand_datetime_in_range(finalize_proposals_start, end);
         let assessment_qa_start = rand_datetime_in_range(finalize_proposals_start, end);
         let snapshot_start = rand_datetime_in_range(assessment_qa_start, end);
         let voting_start = rand_datetime_in_range(snapshot_start, end);
@@ -166,6 +169,7 @@ impl ArbitrarySnapshotGenerator {
             proposal_submission_start,
             refine_proposals_start,
             finalize_proposals_start,
+            proposal_assessment_start,
             assessment_qa_start,
             snapshot_start,
             voting_start,
