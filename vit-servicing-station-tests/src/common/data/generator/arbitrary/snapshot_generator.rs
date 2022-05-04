@@ -3,6 +3,7 @@ use crate::common::data::ArbitraryValidVotingTemplateGenerator;
 use crate::common::data::{Snapshot, ValidVotingTemplateGenerator};
 use std::iter;
 use time::{Duration, OffsetDateTime};
+use vit_servicing_station_lib::db::models::funds::FundStageDates;
 use vit_servicing_station_lib::db::models::{
     api_tokens::ApiTokenData,
     challenges::Challenge,
@@ -78,16 +79,18 @@ impl ArbitrarySnapshotGenerator {
             next_registration_snapshot_time: dates.next_snapshot.unix_timestamp(),
             chain_vote_plans: vec![self.voteplan_with_fund_id(id.abs())],
             challenges: self.challenges_with_fund_id(id.abs()),
-            insight_sharing_start: dates.insight_sharing_start.unix_timestamp(),
-            proposal_submission_start: dates.proposal_submission_start.unix_timestamp(),
-            refine_proposals_start: dates.refine_proposals_start.unix_timestamp(),
-            finalize_proposals_start: dates.finalize_proposals_start.unix_timestamp(),
-            proposal_assessment_start: dates.proposal_assessment_start.unix_timestamp(),
-            assessment_qa_start: dates.assessment_qa_start.unix_timestamp(),
-            snapshot_start: dates.snapshot_start.unix_timestamp(),
-            voting_start: dates.voting_start.unix_timestamp(),
-            voting_end: dates.voting_end.unix_timestamp(),
-            tallying_end: dates.tallying_end.unix_timestamp(),
+            stage_dates: FundStageDates {
+                insight_sharing_start: dates.insight_sharing_start.unix_timestamp(),
+                proposal_submission_start: dates.proposal_submission_start.unix_timestamp(),
+                refine_proposals_start: dates.refine_proposals_start.unix_timestamp(),
+                finalize_proposals_start: dates.finalize_proposals_start.unix_timestamp(),
+                proposal_assessment_start: dates.proposal_assessment_start.unix_timestamp(),
+                assessment_qa_start: dates.assessment_qa_start.unix_timestamp(),
+                snapshot_start: dates.snapshot_start.unix_timestamp(),
+                voting_start: dates.voting_start.unix_timestamp(),
+                voting_end: dates.voting_end.unix_timestamp(),
+                tallying_end: dates.tallying_end.unix_timestamp(),
+            },
         }
     }
 

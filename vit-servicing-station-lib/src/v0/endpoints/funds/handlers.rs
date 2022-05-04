@@ -8,7 +8,7 @@ pub async fn get_fund_by_id(id: i32, context: SharedContext) -> Result<impl Repl
 }
 
 pub async fn get_fund(context: SharedContext) -> Result<impl Reply, Rejection> {
-    Ok(HandlerResult(logic::get_fund(context).await))
+    Ok(HandlerResult(logic::get_current_fund(context).await))
 }
 
 pub async fn get_all_funds(context: SharedContext) -> Result<impl Reply, Rejection> {
@@ -25,6 +25,7 @@ pub mod test {
     use crate::db::{
         migrations as db_testing,
         models::funds::{test as funds_testing, Fund},
+        queries::funds::FundWithNext,
     };
     use crate::v0::context::test::new_in_memmory_db_test_shared_context;
     use warp::Filter;
@@ -39,8 +40,14 @@ pub mod test {
         // initialize db
         let pool = &shared_context.read().await.db_connection_pool;
         db_testing::initialize_db_with_migration(&pool.get().unwrap());
-        let fund: Fund = funds_testing::get_test_fund(None);
+        let fund: Fund = funds_testing::get_test_fund(Some(1));
+        let mut next_fund: Fund = funds_testing::get_test_fund(Some(2));
+
+        next_fund.challenges = Vec::new();
+        next_fund.chain_vote_plans = Vec::new();
+
         funds_testing::populate_db_with_fund(&fund, pool);
+        funds_testing::populate_db_with_fund(&next_fund, pool);
 
         // build filter
         let filter = warp::any()
@@ -50,9 +57,14 @@ pub mod test {
 
         let result = warp::test::request().method("GET").reply(&filter).await;
         assert_eq!(result.status(), warp::http::StatusCode::OK);
-        let result_fund: Fund =
+        let result_fund: FundWithNext =
             serde_json::from_str(&String::from_utf8(result.body().to_vec()).unwrap()).unwrap();
-        assert_eq!(fund, result_fund);
+        assert_eq!(fund, result_fund.fund);
+
+        let next = result_fund.next.unwrap();
+        assert_eq!(next_fund.id, next.id);
+        assert_eq!(next_fund.fund_name, next.fund_name);
+        assert_eq!(next_fund.stage_dates, next.stage_dates);
     }
 
     #[tokio::test]
