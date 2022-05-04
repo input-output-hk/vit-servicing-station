@@ -61,7 +61,7 @@ paths:
       summary: Update or create fund
       tags: [fund]
       description: |
-        Retrieves information on the identified treasury fund campaign.
+        Update or replace the fund in the db with the one provided.
       parameters:
         - in: path
           name: id
@@ -71,10 +71,6 @@ paths:
       responses:
         "200":
           description: Valid response
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Fund"
         "422":
           description: The input is malformed.
 
