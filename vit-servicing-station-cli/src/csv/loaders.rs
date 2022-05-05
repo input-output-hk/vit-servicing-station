@@ -34,6 +34,10 @@ pub enum CsvDataCmd {
         db_url: String,
 
         /// Path to the csv containing funds information
+        /// At the moment, it's required these are ordered.
+        ///
+        /// Also the first fund being the current one, which means previous funds should not be
+        /// included. This restriction may be lifted in the future.
         #[structopt(long = "funds")]
         funds: PathBuf,
 
