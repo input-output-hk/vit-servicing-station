@@ -77,7 +77,7 @@ pub async fn query_current_fund(pool: &DbConnectionPool) -> Result<FundWithNext,
         let mut funds = funds.into_iter();
         let mut current = funds
             .next()
-            .ok_or(HandleError::NotFound("current found not found".to_string()))?;
+            .ok_or_else(|| HandleError::NotFound("current found not found".to_string()))?;
 
         let next = funds.next();
 
