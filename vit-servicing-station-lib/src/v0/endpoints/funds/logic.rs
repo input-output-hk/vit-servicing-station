@@ -13,7 +13,7 @@ pub async fn get_current_fund(context: SharedContext) -> Result<FundWithNext, Ha
     funds_queries::query_current_fund(pool).await
 }
 
-pub async fn get_all_funds(context: SharedContext) -> Result<Vec<Fund>, HandleError> {
+pub async fn get_all_funds(context: SharedContext) -> Result<Vec<i32>, HandleError> {
     let pool = &context.read().await.db_connection_pool;
     funds_queries::query_all_funds(pool).await
 }

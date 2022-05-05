@@ -122,10 +122,10 @@ pub mod test {
 
         let result = warp::test::request().method("GET").reply(&filter).await;
         assert_eq!(result.status(), warp::http::StatusCode::OK);
-        let result_funds: Vec<Fund> =
+        let result_funds: Vec<i32> =
             serde_json::from_str(&String::from_utf8(result.body().to_vec()).unwrap()).unwrap();
 
-        assert_eq!(vec![fund1, fund2], result_funds);
+        assert_eq!(vec![fund1.id, fund2.id], result_funds);
     }
 
     #[tokio::test]

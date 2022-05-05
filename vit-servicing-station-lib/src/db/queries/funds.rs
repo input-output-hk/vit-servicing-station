@@ -107,34 +107,13 @@ pub async fn query_current_fund(pool: &DbConnectionPool) -> Result<FundWithNext,
     .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))?
 }
 
-pub async fn query_all_funds(pool: &DbConnectionPool) -> Result<Vec<Fund>, HandleError> {
+pub async fn query_all_funds(pool: &DbConnectionPool) -> Result<Vec<i32>, HandleError> {
     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
     tokio::task::spawn_blocking(move || {
         fund_dsl::funds
-            .load::<Fund>(&db_conn)
-            .map_err(|_| HandleError::InternalError("Error retrieving funds".to_string()))?
-            .into_iter()
-            .map(|mut fund| {
-                let voteplans = diesel::QueryDsl::filter(
-                    voteplans_dsl::voteplans,
-                    voteplans_dsl::fund_id.eq(fund.id),
-                )
-                .load::<Voteplan>(&db_conn)
-                .map_err(|_e| HandleError::NotFound("Error loading voteplans".to_string()))?;
-
-                let challenges = diesel::QueryDsl::filter(
-                    challenges_dsl::challenges,
-                    challenges_dsl::fund_id.eq(fund.id),
-                )
-                .load::<Challenge>(&db_conn)
-                .map_err(|_e| HandleError::NotFound("Error loading voteplans".to_string()))?;
-
-                fund.chain_vote_plans = voteplans;
-                fund.challenges = challenges;
-
-                Ok(fund)
-            })
-            .collect()
+            .select(fund_dsl::id)
+            .load::<i32>(&db_conn)
+            .map_err(|_| HandleError::InternalError("Error retrieving funds".to_string()))
     })
     .await
     .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))?
