@@ -159,7 +159,6 @@ pub mod test {
         let mut updated_fund = fund2.clone();
         updated_fund.fund_name = "modified fund name".into();
 
-        let updated_fund = fund2.clone();
         let result = warp::test::request()
             .method("PUT")
             .body(serde_json::to_string(&updated_fund).unwrap())
@@ -168,17 +167,11 @@ pub mod test {
 
         assert_eq!(result.status(), warp::http::StatusCode::OK);
 
-        let get_filter = warp::any()
-            .and(warp::get())
-            .and(with_context)
-            .and_then(get_all_funds);
+        let result_fund = test_get_fund(fund2.id, shared_context.clone()).await;
+        assert_eq!(updated_fund, result_fund);
 
-        let result = warp::test::request().method("GET").reply(&get_filter).await;
-        assert_eq!(result.status(), warp::http::StatusCode::OK);
-        let result_funds: Vec<Fund> =
-            serde_json::from_str(&String::from_utf8(result.body().to_vec()).unwrap()).unwrap();
-
-        assert_eq!(vec![fund1.clone(), updated_fund.clone()], result_funds);
+        let result_fund = test_get_fund(fund1.id, shared_context.clone()).await;
+        assert_eq!(fund1, result_fund);
 
         assert_eq!(
             warp::test::request()
@@ -190,11 +183,34 @@ pub mod test {
             warp::http::StatusCode::OK
         );
 
-        let result = warp::test::request().method("GET").reply(&get_filter).await;
-        assert_eq!(result.status(), warp::http::StatusCode::OK);
-        let result_funds: Vec<Fund> =
-            serde_json::from_str(&String::from_utf8(result.body().to_vec()).unwrap()).unwrap();
+        let result_fund = test_get_fund(fund3.id, shared_context.clone()).await;
+        assert_eq!(fund3, result_fund);
 
-        assert_eq!(vec![fund1, updated_fund, fund3], result_funds);
+        let result_fund = test_get_fund(fund2.id, shared_context.clone()).await;
+        assert_eq!(updated_fund.clone(), result_fund.clone());
+        // just to be extra sure
+        assert_ne!(fund2, updated_fund);
+
+        let result_fund = test_get_fund(fund1.id, shared_context.clone()).await;
+        assert_eq!(fund1, result_fund);
+    }
+
+    async fn test_get_fund(id: i32, context: SharedContext) -> Fund {
+        let with_context = warp::any().map(move || context.clone());
+
+        let get_filter = warp::path!(i32)
+            .and(warp::get())
+            .and(with_context)
+            .and_then(get_fund_by_id);
+
+        let result = warp::test::request()
+            .method("GET")
+            .path(&format!("/{}", id))
+            .reply(&get_filter)
+            .await;
+
+        assert_eq!(result.status(), warp::http::StatusCode::OK);
+
+        serde_json::from_str(&String::from_utf8(result.body().to_vec()).unwrap()).unwrap()
     }
 }
