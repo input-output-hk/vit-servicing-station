@@ -73,7 +73,7 @@ paths:
       responses:
         "200":
           description: Valid response
-        "422":
+        "400":
           description: The input is malformed.
 
   /api/v0/funds/:
