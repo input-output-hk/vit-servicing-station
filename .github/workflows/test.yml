@@ -96,8 +96,14 @@ jobs:
       - uses: actions-rs/cargo@v1
         continue-on-error: false
         with:
-          command: test
-          args: --locked
+          command: install
+          args: cargo-nextest
+
+      - uses: actions-rs/cargo@v1
+        continue-on-error: false
+        with:
+          command: nextest
+          args: run --locked
 
   lints:
     name: Rust lints
