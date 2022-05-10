@@ -27,6 +27,16 @@ pub async fn filter(
         .and_then(get_all_funds)
         .boxed();
 
+    // fund_by_id need to be checked first otherwise requests are swallowed by the fund::any
+    root.and(fund_by_id.or(fund).or(all_funds)).boxed()
+}
+
+pub fn admin_filter(
+    root: BoxedFilter<()>,
+    context: SharedContext,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    let with_context = warp::any().map(move || context.clone());
+
     let put_fund = warp::path::end()
         .and(warp::put())
         .and(warp::body::json())
@@ -35,6 +45,5 @@ pub async fn filter(
         .boxed();
 
     // fund_by_id need to be checked first otherwise requests are swallowed by the fund::any
-    root.and(fund_by_id.or(fund).or(all_funds).or(put_fund))
-        .boxed()
+    root.and(put_fund).boxed()
 }
