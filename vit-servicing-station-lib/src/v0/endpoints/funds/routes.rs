@@ -23,7 +23,7 @@ pub async fn filter(
 
     let all_funds = warp::path::end()
         .and(warp::get())
-        .and(with_context.clone())
+        .and(with_context)
         .and_then(get_all_funds)
         .boxed();
 
