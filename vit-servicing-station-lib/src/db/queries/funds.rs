@@ -86,26 +86,13 @@ pub async fn query_current_fund(pool: &DbConnectionPool) -> Result<FundWithNext,
             .map_err(|_e| HandleError::NotFound("fund".to_string()))?;
 
         let mut funds = funds.into_iter();
-        let mut current = funds
+        let current = funds
             .next()
             .ok_or_else(|| HandleError::NotFound("current found not found".to_string()))?;
 
         let next = funds.next();
 
-        current.chain_vote_plans = voteplans_dsl::voteplans
-            .filter(voteplans_dsl::fund_id.eq(current.id))
-            .load::<Voteplan>(&db_conn)
-            .map_err(|_e| HandleError::NotFound("Error loading voteplans".to_string()))?;
-
-        current.challenges = challenges_dsl::challenges
-            .filter(challenges_dsl::fund_id.eq(current.id))
-            .load::<Challenge>(&db_conn)
-            .map_err(|_e| HandleError::NotFound("Error loading challenges".to_string()))?;
-
-        current.goals = goals_dsl::goals
-            .filter(goals_dsl::fund_id.eq(current.id))
-            .load::<Goal>(&db_conn)
-            .map_err(|_e| HandleError::NotFound("Error loading goals".to_string()))?;
+        let current = join_fund(current, &db_conn)?;
 
         Ok(FundWithNext {
             fund: current,
