@@ -23,7 +23,7 @@ impl From<&Goal> for InsertGoal {
     fn from(g: &Goal) -> Self {
         Self {
             goal_name: g.goal_name.clone(),
-            fund_id: g.fund_id.clone(),
+            fund_id: g.fund_id,
         }
     }
 }
