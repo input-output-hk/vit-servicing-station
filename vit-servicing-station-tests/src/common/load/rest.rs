@@ -26,7 +26,7 @@ impl RequestGenerator for VitRestRequestGenerator {
         self.rest_client
             .set_api_token(self.snapshot_randomizer.random_token());
 
-        match self.snapshot_randomizer.random_usize() % 7 {
+        match self.snapshot_randomizer.random_usize() % 3 {
             0 => self
                 .rest_client
                 .health()

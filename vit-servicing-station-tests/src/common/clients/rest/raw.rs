@@ -148,7 +148,7 @@ impl RestClient {
         Ok(response)
     }
 
-    pub fn get(&self, path: &str) -> Result<reqwest::blocking::Response, reqwest::Error> {
+    fn get(&self, path: &str) -> Result<reqwest::blocking::Response, reqwest::Error> {
         self.logger.log_request(path);
         let mut res = self.client()?.get(path);
 
@@ -163,11 +163,7 @@ impl RestClient {
         Ok(response)
     }
 
-    pub fn put(
-        &self,
-        path: &str,
-        body: String,
-    ) -> Result<reqwest::blocking::Response, reqwest::Error> {
+    fn put(&self, path: &str, body: String) -> Result<reqwest::blocking::Response, reqwest::Error> {
         self.logger.log_request(path);
         let mut res = self.client()?.put(path).body(body);
 

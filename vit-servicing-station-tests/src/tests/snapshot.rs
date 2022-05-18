@@ -91,7 +91,7 @@ pub fn replace_snapshot_with_tag() {
             rest_client
                 .voting_power(&second_snapshot.tag, &entry.voting_key.to_hex())
                 .unwrap(),
-            "expected empty data for entry idx: {}",
+            "expected non-empty data for entry idx: {}",
             idx
         );
     }
@@ -108,7 +108,7 @@ pub fn import_snapshots_with_different_tags() {
     rest_client.put_snapshot(&first_snapshot).unwrap();
 
     let second_snapshot = SnapshotUpdater::from(first_snapshot.clone())
-        .update_tag("fund9")
+        .with_tag("fund9")
         .build();
 
     rest_client.put_snapshot(&second_snapshot).unwrap();
@@ -159,10 +159,10 @@ pub fn import_big_snapshot() {
         .with_tag("big")
         .with_entries_count(100_000)
         .with_groups(vec![
-            "daily".to_string(),
-            "fund8".to_string(),
-            "fund9".to_string(),
-            "fund10".to_string(),
+            "drep".to_string(),
+            "direct".to_string(),
+            "drep2".to_string(),
+            "drep3".to_string(),
         ])
         .build();
 

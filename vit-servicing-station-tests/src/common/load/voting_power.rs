@@ -43,7 +43,8 @@ impl RequestGenerator for VotingPowerRequestGenerator {
     }
 
     fn split(mut self) -> (Self, Option<Self>) {
-        // Since this is idempotent calls we could split as many times as we want
+        // Since VotingPowerRequestGenerator doesn't need any requests house keeping after sending
+        // we could split as many times as we want
         // but that may trigger a bug in rayon so we artificially limit it
         if self.max_splits == 0 {
             return (self, None);

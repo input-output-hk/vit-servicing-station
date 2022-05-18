@@ -24,13 +24,7 @@ impl SnapshotRandomizer {
     pub fn random_token(&mut self) -> String {
         let tokens = self.snapshot.tokens();
         let random_idx = self.random_usize() % tokens.len();
-        tokens
-            .keys()
-            .cloned()
-            .collect::<Vec<String>>()
-            .get(random_idx)
-            .unwrap()
-            .clone()
+        tokens.keys().nth(random_idx).cloned().unwrap()
     }
 
     pub fn random_usize(&mut self) -> usize {

@@ -101,7 +101,7 @@ impl From<Snapshot> for SnapshotUpdater {
 }
 
 impl SnapshotUpdater {
-    pub fn update_tag<S: Into<String>>(mut self, tag: S) -> Self {
+    pub fn with_tag<S: Into<String>>(mut self, tag: S) -> Self {
         self.snapshot.tag = tag.into();
         self
     }
