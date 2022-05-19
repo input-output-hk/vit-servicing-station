@@ -58,7 +58,7 @@ pub enum CsvDataCmd {
         #[structopt(long = "reviews")]
         reviews: PathBuf,
 
-        /// Path to the csv containing advisor reviews information
+        /// Path to the csv containing goals information
         #[structopt(long = "goals")]
         goals: PathBuf,
     },
