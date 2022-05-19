@@ -47,16 +47,14 @@ pub async fn filter(
     let snapshot_rx_filter = snapshot_service::filter(snapshot_root.boxed(), snapshot_rx.clone());
 
     let admin_filter = {
-        let base = warp::path("admin");
+        let base = warp::path!("admin" / ..);
 
         let snapshot_tx_filter =
-            snapshot_service::update_filter(warp::path!("snapshot").boxed(), snapshot_tx);
+            warp::path!("snapshot" / ..).and(snapshot_service::update_filter(snapshot_tx).boxed());
 
-        let fund_filter = funds::admin_filter(warp::path!("fund").boxed(), context.clone());
+        let fund_filter = warp::path!("fund" / ..).and(funds::admin_filter(context.clone()));
 
-        warp::any()
-            .and(base)
-            .and(snapshot_tx_filter.or(fund_filter))
+        base.and(snapshot_tx_filter.or(fund_filter))
     };
 
     let api_token_filter = if enable_api_tokens {

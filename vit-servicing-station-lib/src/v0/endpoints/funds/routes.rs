@@ -32,18 +32,12 @@ pub async fn filter(
 }
 
 pub fn admin_filter(
-    root: BoxedFilter<()>,
     context: SharedContext,
-) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     let with_context = warp::any().map(move || context.clone());
 
-    let put_fund = warp::path::end()
-        .and(warp::put())
+    warp::put()
         .and(warp::body::json())
         .and(with_context)
         .and_then(put_fund)
-        .boxed();
-
-    // fund_by_id need to be checked first otherwise requests are swallowed by the fund::any
-    root.and(put_fund).boxed()
 }
