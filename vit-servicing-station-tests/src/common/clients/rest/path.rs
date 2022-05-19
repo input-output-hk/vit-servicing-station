@@ -14,7 +14,7 @@ impl RestPathBuilder {
         }
     }
 
-    pub fn admin(self: Self) -> Self {
+    pub fn admin(self) -> Self {
         Self {
             address: self.address,
             root: self.root + "admin/",
