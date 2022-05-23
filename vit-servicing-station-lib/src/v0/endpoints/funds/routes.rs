@@ -36,7 +36,8 @@ pub fn admin_filter(
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     let with_context = warp::any().map(move || context.clone());
 
-    warp::put()
+    warp::path::end()
+        .and(warp::put())
         .and(warp::body::json())
         .and(with_context)
         .and_then(put_fund)
