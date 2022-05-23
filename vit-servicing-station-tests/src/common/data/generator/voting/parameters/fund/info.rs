@@ -58,8 +58,8 @@ impl Default for FundInfo {
                 goal_name: "goal1".to_string(),
                 fund_id: 1,
             }],
-            results_url: format!("http://localhost/fund/1/results/"),
-            survey_url: format!("http://localhost/fund/1/survey/"),
+            results_url: "http://localhost/fund/1/results/".to_string(),
+            survey_url: "http://localhost/fund/1/survey/".to_string(),
         }
     }
 }
