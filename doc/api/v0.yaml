@@ -253,7 +253,7 @@ paths:
         "200":
           description: Success
 
-  /api/v0/admin/fund/{id}:
+  /api/v0/admin/fund:
     put:
       operationId: putFund
       summary: Update or create fund
