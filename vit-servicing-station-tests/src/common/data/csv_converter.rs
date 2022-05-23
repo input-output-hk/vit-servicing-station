@@ -244,6 +244,7 @@ fn convert_fund(fund: &Fund) -> Vec<String> {
         chain_vote_plans: _,
         challenges: _,
         stage_dates,
+        goals: _,
         results_url,
         survey_url,
     } = fund;
