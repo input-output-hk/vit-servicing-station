@@ -118,15 +118,8 @@ impl CsvDataCmd {
         db_file_exists(db_url)?;
 
         let funds_path = funds;
-        let funds = {
-            let funds = CsvDataCmd::load_from_csv::<Fund>(funds)?;
-            if funds.len() != 1 {
-                return Err(Error::InvalidFundData(
-                    funds_path.to_string_lossy().to_string(),
-                ));
-            }
-            funds
-        };
+        let funds = CsvDataCmd::load_from_csv::<Fund>(funds)?;
+
         let mut voteplans = CsvDataCmd::load_from_csv::<Voteplan>(voteplans)?;
         let mut challenges: HashMap<i32, Challenge> =
             CsvDataCmd::load_from_csv::<Challenge>(challenges)?

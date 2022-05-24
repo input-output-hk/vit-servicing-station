@@ -16,7 +16,7 @@ use vit_servicing_station_lib::db::models::community_advisors_reviews::AdvisorRe
 use vit_servicing_station_lib::db::models::proposals::FullProposalInfo;
 use vit_servicing_station_lib::server::settings::ServiceSettings;
 use vit_servicing_station_lib::{
-    db::models::{funds::Fund, proposals::Proposal},
+    db::models::funds::Fund,
     v0::endpoints::{proposals::ProposalVoteplanIdAndIndexes, service_version::ServiceVersion},
 };
 
@@ -84,7 +84,7 @@ impl RestClient {
         self.verify_status_code(&self.raw.put_snapshot(&snapshot.tag, content)?)
     }
 
-    pub fn proposal(&self, id: &str, group: &str) -> Result<Proposal, Error> {
+    pub fn proposal(&self, id: &str, group: &str) -> Result<FullProposalInfo, Error> {
         let response = self.raw.proposal(id, group)?;
         self.verify_status_code(&response)?;
         let content = response.text()?;
@@ -95,7 +95,7 @@ impl RestClient {
         })
     }
 
-    pub fn proposals(&self, group: &str) -> Result<Vec<Proposal>, Error> {
+    pub fn proposals(&self, group: &str) -> Result<Vec<FullProposalInfo>, Error> {
         let response = self.raw.proposals(group)?;
         self.verify_status_code(&response)?;
         let content = response.text()?;

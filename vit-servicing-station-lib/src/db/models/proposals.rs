@@ -566,7 +566,7 @@ pub mod test {
             .unwrap();
 
         let proposal_voteplan_values = (
-            proposals_voteplans::proposal_id.eq(proposal_id.clone()),
+            proposals_voteplans::proposal_id.eq(proposal_id),
             proposals_voteplans::chain_voteplan_id
                 .eq(full_proposal.voteplan.chain_voteplan_id.clone()),
             proposals_voteplans::chain_proposal_index

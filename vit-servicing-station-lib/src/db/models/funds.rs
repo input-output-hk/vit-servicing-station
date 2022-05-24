@@ -274,6 +274,7 @@ pub mod test {
             challenges::test as challenges_testing,
             funds::{Fund, FundStageDates},
             goals::{Goal, InsertGoal},
+            groups::Group,
             voteplans::test as voteplans_testing,
         },
         schema::{funds, goals, groups},
@@ -322,12 +323,12 @@ pub mod test {
             survey_url: format!("http://localhost/fund/{FUND_ID}/survey/"),
             groups: IntoIterator::into_iter([
                 Group {
-                    fund_id: FUND_ID,
+                    fund_id,
                     token_identifier: "token1".into(),
                     group_id: "group1".into(),
                 },
                 Group {
-                    fund_id: FUND_ID,
+                    fund_id,
                     token_identifier: "token2".into(),
                     group_id: "group2".into(),
                 },
@@ -366,7 +367,7 @@ pub mod test {
             }
 
             // TODO: call batch_insert_groups?
-            let i = diesel::insert_into(groups::table)
+            diesel::insert_into(groups::table)
                 .values(
                     fund.groups
                         .clone()
@@ -376,8 +377,6 @@ pub mod test {
                 )
                 .execute(&*connection)
                 .unwrap();
-
-            dbg!("inserted {} groups", i);
         }
     }
 }

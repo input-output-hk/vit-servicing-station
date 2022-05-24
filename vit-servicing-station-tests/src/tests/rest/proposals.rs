@@ -1,5 +1,5 @@
 use crate::common::{
-    clients::RawRestClient,
+    clients::rest,
     data,
     startup::{db::DbBuilder, quick_start, server::ServerBootstrapper},
 };
@@ -67,26 +67,20 @@ pub fn get_proposal_by_id() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(actual_proposal, expected_proposal);
 
     // non existing
-    assert_eq!(
-        rest_client
-            .proposal("2", &expected_proposal.group_id)?
-            .status(),
-        StatusCode::NOT_FOUND
-    );
+    assert!(matches!(
+        rest_client.proposal("2", &expected_proposal.group_id),
+        Err(rest::Error::ErrorStatusCode(StatusCode::NOT_FOUND))
+    ));
     // malformed index
-    assert_eq!(
-        rest_client
-            .proposal("a", &expected_proposal.group_id)?
-            .status(),
-        StatusCode::NOT_FOUND
-    );
+    assert!(matches!(
+        rest_client.proposal("a", &expected_proposal.group_id),
+        Err(rest::Error::ErrorStatusCode(StatusCode::NOT_FOUND))
+    ));
     // overflow index
-    assert_eq!(
-        rest_client
-            .proposal_raw("3147483647", &expected_proposal.group_id)?
-            .status(),
-        StatusCode::NOT_FOUND
-    );
+    assert!(matches!(
+        rest_client.proposal("3147483647", &expected_proposal.group_id),
+        Err(rest::Error::ErrorStatusCode(StatusCode::NOT_FOUND))
+    ));
 
     Ok(())
 }
