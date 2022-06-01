@@ -133,6 +133,7 @@ pub mod test {
         let challenge: Challenge =
             challenges_testing::get_test_challenge_with_fund_id(proposal.proposal.fund_id);
         challenges_testing::populate_db_with_challenge(&challenge, pool);
+
         // build filter
         let filter = warp::any()
             .and(warp::post())

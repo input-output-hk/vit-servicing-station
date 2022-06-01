@@ -3,7 +3,6 @@ use crate::common::data::generator::{ArbitraryGenerator, Snapshot, ValidVotingTe
 use crate::common::data::ValidVotePlanParameters;
 use chain_impl_mockchain::certificate::VotePlan;
 use vit_servicing_station_lib::db::models::community_advisors_reviews::AdvisorReview;
-use vit_servicing_station_lib::db::models::groups::Group;
 use vit_servicing_station_lib::db::models::proposals::FullProposalInfo;
 use vit_servicing_station_lib::db::models::proposals::ProposalVotePlanCommon;
 use vit_servicing_station_lib::db::models::{
@@ -31,6 +30,8 @@ impl ValidVotePlanGenerator {
 
         let fund_template = template_generator.next_fund();
         self.parameters.current_fund.info.fund_goal = fund_template.goal;
+
+        let groups = self.parameters.current_fund.info.groups.clone();
 
         let vote_plans: Vec<Voteplan> = self
             .parameters
@@ -91,6 +92,11 @@ impl ValidVotePlanGenerator {
         let mut proposals = vec![];
 
         for (index, vote_plan) in vote_plans.iter().enumerate() {
+            let group = groups
+                .iter()
+                .find(|g| g.token_identifier == vote_plan.token_identifier)
+                .unwrap();
+
             for (index, proposal) in self.parameters.current_fund.vote_plans[index]
                 .proposals()
                 .iter()
@@ -162,7 +168,7 @@ impl ValidVotePlanGenerator {
                         chain_voteplan_id: vote_plan.chain_voteplan_id.clone(),
                         chain_proposal_index: index as i64,
                     },
-                    group_id: "group1".to_string(),
+                    group_id: group.group_id.clone(),
                 });
             }
         }
@@ -192,15 +198,6 @@ impl ValidVotePlanGenerator {
         .collect();
 
         let goals = fund.goals.clone();
-
-        let groups = vote_plans
-            .iter()
-            .map(|vp| Group {
-                fund_id: fund.id,
-                group_id: "group1".into(),
-                token_identifier: vp.token_identifier.clone(),
-            })
-            .collect();
 
         let mut funds = vec![fund];
         let next_funds: Vec<Fund> = self
