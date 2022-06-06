@@ -47,7 +47,7 @@ create table proposals
 );
 
 create table proposals_voteplans (
-    proposal_id VARCHAR NOT NULL primary key,
+    proposal_id VARCHAR NOT NULL,
     chain_voteplan_id VARCHAR NOT NULL,
     chain_proposal_index BIGINT NOT NULL,
     FOREIGN KEY (proposal_id)
