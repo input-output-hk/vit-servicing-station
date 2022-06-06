@@ -1,4 +1,4 @@
-use crate::db::queries::funds::FundWithNext;
+use crate::db::queries::funds::{FundNextInfo, FundWithNext};
 use crate::db::{models::funds::Fund, queries::funds as funds_queries};
 use crate::v0::context::SharedContext;
 use crate::v0::errors::HandleError;
@@ -11,6 +11,11 @@ pub async fn get_fund_by_id(id: i32, context: SharedContext) -> Result<Fund, Han
 pub async fn get_current_fund(context: SharedContext) -> Result<FundWithNext, HandleError> {
     let pool = &context.read().await.db_connection_pool;
     funds_queries::query_current_fund(pool).await
+}
+
+pub async fn get_next_fund(context: SharedContext) -> Result<FundNextInfo, HandleError> {
+    let FundWithNext { next, .. } = get_current_fund(context).await?;
+    Ok(next.unwrap())
 }
 
 pub async fn get_all_funds(context: SharedContext) -> Result<Vec<i32>, HandleError> {
