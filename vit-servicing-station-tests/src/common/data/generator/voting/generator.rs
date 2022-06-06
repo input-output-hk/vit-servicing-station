@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use super::parameters::SingleVotePlanParameters;
+use super::ProposalTemplate;
 use crate::common::data::generator::{ArbitraryGenerator, Snapshot, ValidVotingTemplateGenerator};
 use crate::common::data::ValidVotePlanParameters;
-use chain_impl_mockchain::certificate::VotePlan;
+use chain_impl_mockchain::certificate::{ExternalProposalId, VotePlan};
 use vit_servicing_station_lib::db::models::community_advisors_reviews::AdvisorReview;
 use vit_servicing_station_lib::db::models::proposals::FullProposalInfo;
 use vit_servicing_station_lib::db::models::proposals::ProposalVotePlanCommon;
@@ -91,6 +94,8 @@ impl ValidVotePlanGenerator {
 
         let mut proposals = vec![];
 
+        let mut mirrored_templates = HashMap::<ExternalProposalId, ProposalTemplate>::new();
+
         for (index, vote_plan) in vote_plans.iter().enumerate() {
             let group = groups
                 .iter()
@@ -102,7 +107,11 @@ impl ValidVotePlanGenerator {
                 .iter()
                 .enumerate()
             {
-                let proposal_template = template_generator.next_proposal();
+                let proposal_template = mirrored_templates
+                    .entry(proposal.id())
+                    .or_insert_with(|| template_generator.next_proposal())
+                    .clone();
+
                 let challenge_idx: i32 = proposal_template.challenge_id.unwrap().parse().unwrap();
                 let mut challenge = fund
                     .challenges

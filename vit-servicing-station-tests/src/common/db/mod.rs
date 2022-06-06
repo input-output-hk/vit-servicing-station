@@ -82,7 +82,7 @@ impl<'a> DbInserter<'a> {
                     .eq(proposal.proposal.chain_vote_options.as_csv_string()),
                 proposals::challenge_id.eq(proposal.proposal.challenge_id),
             );
-            diesel::insert_into(proposals::table)
+            diesel::insert_or_ignore_into(proposals::table)
                 .values(values)
                 .execute(self.connection)
                 .map_err(DbInserterError::DieselError)?;
@@ -132,7 +132,7 @@ impl<'a> DbInserter<'a> {
                         proposal_simple_challenge::proposal_solution
                             .eq(data.proposal_solution.clone()),
                     );
-                    diesel::insert_into(proposal_simple_challenge::table)
+                    diesel::insert_or_ignore_into(proposal_simple_challenge::table)
                         .values(simple_values)
                         .execute(self.connection)
                         .map_err(DbInserterError::DieselError)?;
@@ -150,7 +150,7 @@ impl<'a> DbInserter<'a> {
                         proposal_community_choice_challenge::proposal_metrics
                             .eq(data.proposal_metrics.clone()),
                     );
-                    diesel::insert_into(proposal_community_choice_challenge::table)
+                    diesel::insert_or_ignore_into(proposal_community_choice_challenge::table)
                         .values(community_values)
                         .execute(self.connection)
                         .map_err(DbInserterError::DieselError)?;
