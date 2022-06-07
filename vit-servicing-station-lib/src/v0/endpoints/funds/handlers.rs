@@ -11,6 +11,10 @@ pub async fn get_fund(context: SharedContext) -> Result<impl Reply, Rejection> {
     Ok(HandlerResult(logic::get_current_fund(context).await))
 }
 
+pub async fn get_next_fund(context: SharedContext) -> Result<impl Reply, Rejection> {
+    Ok(HandlerResult(logic::get_next_fund(context).await))
+}
+
 pub async fn get_all_funds(context: SharedContext) -> Result<impl Reply, Rejection> {
     Ok(HandlerResult(logic::get_all_funds(context).await))
 }
@@ -25,7 +29,7 @@ pub mod test {
     use crate::db::{
         migrations as db_testing,
         models::funds::{test as funds_testing, Fund},
-        queries::funds::FundWithNext,
+        queries::funds::{FundNextInfo, FundWithNext},
     };
     use crate::v0::context::test::new_in_memmory_db_test_shared_context;
     use warp::Filter;
@@ -214,5 +218,42 @@ pub mod test {
         assert_eq!(result.status(), warp::http::StatusCode::OK);
 
         serde_json::from_str(&String::from_utf8(result.body().to_vec()).unwrap()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_get_next_fund() {
+        let shared_context = new_in_memmory_db_test_shared_context();
+        let filter_context = shared_context.clone();
+        let with_context = warp::any().map(move || filter_context.clone());
+
+        let pool = &shared_context.read().await.db_connection_pool;
+        db_testing::initialize_db_with_migration(&pool.get().unwrap());
+
+        let fund1: Fund = funds_testing::get_test_fund(Some(1));
+        let mut fund2: Fund = funds_testing::get_test_fund(Some(2));
+
+        fund2.challenges = vec![];
+        fund2.chain_vote_plans = vec![];
+
+        funds_testing::populate_db_with_fund(&fund1, pool);
+        funds_testing::populate_db_with_fund(&fund2, pool);
+
+        let filter = warp::path!("next")
+            .and(warp::get())
+            .and(with_context)
+            .and_then(get_next_fund);
+
+        let result = warp::test::request()
+            .path("/next")
+            .method("GET")
+            .reply(&filter)
+            .await;
+        assert_eq!(result.status(), warp::http::StatusCode::OK);
+
+        let result: Option<FundNextInfo> =
+            serde_json::from_str(&String::from_utf8(result.body().to_vec()).unwrap()).unwrap();
+        let result = result.unwrap();
+
+        assert_eq!(result.id, 2);
     }
 }

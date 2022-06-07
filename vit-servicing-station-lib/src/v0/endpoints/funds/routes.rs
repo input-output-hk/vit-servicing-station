@@ -1,5 +1,4 @@
 use super::handlers::*;
-use super::logic::get_next_fund;
 use crate::v0::context::SharedContext;
 use warp::filters::BoxedFilter;
 use warp::{Filter, Rejection, Reply};
@@ -20,14 +19,14 @@ pub async fn filter(
         .and(with_context.clone())
         .and_then(get_fund_by_id);
 
-    let next_fund = warp::path!("path")
+    let next_fund = warp::path!("next")
         .and(warp::get())
         .and(with_context.clone())
         .and_then(get_next_fund);
 
     let all_funds = warp::path::end()
         .and(warp::get())
-        .and(with_context.clone())
+        .and(with_context)
         .and_then(get_all_funds);
 
     // fund_by_id need to be checked first otherwise requests are swallowed by the fund::any

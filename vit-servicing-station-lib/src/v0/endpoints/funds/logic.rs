@@ -13,9 +13,9 @@ pub async fn get_current_fund(context: SharedContext) -> Result<FundWithNext, Ha
     funds_queries::query_current_fund(pool).await
 }
 
-pub async fn get_next_fund(context: SharedContext) -> Result<FundNextInfo, HandleError> {
+pub async fn get_next_fund(context: SharedContext) -> Result<Option<FundNextInfo>, HandleError> {
     let FundWithNext { next, .. } = get_current_fund(context).await?;
-    Ok(next.unwrap())
+    Ok(next)
 }
 
 pub async fn get_all_funds(context: SharedContext) -> Result<Vec<i32>, HandleError> {
