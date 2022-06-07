@@ -31,7 +31,7 @@ pub async fn filter(
         .and_then(get_all_funds);
 
     // fund_by_id need to be checked first otherwise requests are swallowed by the fund::any
-    root.and(fund_by_id.or(fund).or(all_funds))
+    root.and(fund_by_id.or(fund).or(next_fund).or(all_funds))
 }
 
 pub fn admin_filter(
