@@ -20,6 +20,7 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         funds: Vec<Fund>,
         proposals: Vec<FullProposalInfo>,
