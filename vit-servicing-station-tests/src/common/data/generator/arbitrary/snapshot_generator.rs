@@ -298,6 +298,7 @@ impl ArbitrarySnapshotGenerator {
 
         let mut challenges = vec![
             Challenge {
+                internal_id: first_challenge.internal_id,
                 id: simple_id.abs(),
                 challenge_type: ChallengeType::Simple,
                 title: first_challenge.title,
@@ -309,6 +310,7 @@ impl ArbitrarySnapshotGenerator {
                 highlights: self.template_generator.gen_highlights(),
             },
             Challenge {
+                internal_id: second_challenge.internal_id,
                 id: community_choice_id.abs(),
                 challenge_type: ChallengeType::CommunityChoice,
                 title: second_challenge.title,
@@ -331,6 +333,7 @@ impl ArbitrarySnapshotGenerator {
         let challenge = self.template_generator.next_challenge();
 
         Challenge {
+            internal_id: challenge.internal_id,
             id: id.abs(),
             challenge_type: ChallengeType::CommunityChoice,
             title: challenge.title,
