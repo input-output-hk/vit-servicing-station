@@ -48,7 +48,7 @@ pub fn out_settings_file_override() {
 #[test]
 #[ignore = "issue in comment for https://github.com/input-output-hk/vit-servicing-station/pull/75"]
 pub fn out_settings_file_from_cmdline() {
-    let temp_dir = TempDir::new().unwrap().into_persistent();
+    let temp_dir = TempDir::new().unwrap();
     let (_, settings) = example_settings_file(&temp_dir);
     let out_settings_file = temp_dir.child("settings.json");
 

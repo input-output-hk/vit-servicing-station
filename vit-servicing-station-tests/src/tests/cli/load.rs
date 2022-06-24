@@ -105,7 +105,7 @@ pub fn load_data_test() {
 
 #[test]
 pub fn voting_snapshot_build() {
-    let temp_dir = TempDir::new().unwrap().into_persistent();
+    let temp_dir = TempDir::new().unwrap();
     let mut db_builder = DbBuilder::new();
     db_builder.with_snapshot(&multivoteplan_snapshot());
     db_builder.build(&temp_dir).unwrap();

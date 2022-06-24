@@ -77,7 +77,7 @@ pub fn add_generated_token_to_db() -> Result<(), Box<dyn Error>> {
 
 #[test]
 pub fn add_generated_token_to_db_negative() -> Result<(), Box<dyn Error>> {
-    let temp_dir = TempDir::new().unwrap().into_persistent();
+    let temp_dir = TempDir::new().unwrap();
     let (server, _snapshot) = quick_start(&temp_dir).unwrap();
 
     let vit_cli: VitCli = Default::default();

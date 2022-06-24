@@ -12,7 +12,7 @@ use vit_servicing_station_lib::db::models::community_advisors_reviews::{
 #[test]
 pub fn get_advisor_reviews() -> Result<(), Box<dyn std::error::Error>> {
     use pretty_assertions::assert_eq;
-    let temp_dir = TempDir::new().unwrap().into_persistent();
+    let temp_dir = TempDir::new().unwrap();
     let proposal_id = 1234;
     let expected_review = AdvisorReview {
         id: 1,

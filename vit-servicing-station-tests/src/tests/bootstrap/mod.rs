@@ -8,7 +8,7 @@ pub mod arguments;
 
 #[test]
 pub fn bootstrap_with_random_data() -> Result<(), Box<dyn std::error::Error>> {
-    let temp_dir = TempDir::new().unwrap().into_persistent();
+    let temp_dir = TempDir::new().unwrap();
     let snapshot = data::ArbitrarySnapshotGenerator::default().snapshot();
     let db_path = DbBuilder::new().with_snapshot(&snapshot).build(&temp_dir)?;
 

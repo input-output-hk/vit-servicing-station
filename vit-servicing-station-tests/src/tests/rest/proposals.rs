@@ -29,7 +29,7 @@ pub fn get_proposals_list_is_not_empty() {
 
 #[test]
 pub fn get_proposal_by_id() -> Result<(), Box<dyn std::error::Error>> {
-    let temp_dir = TempDir::new().unwrap().into_persistent();
+    let temp_dir = TempDir::new().unwrap();
 
     let mut gen = data::ArbitrarySnapshotGenerator::default();
 

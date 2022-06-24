@@ -20,7 +20,7 @@ pub fn get_funds_list_is_not_empty() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 pub fn get_funds_by_id() -> Result<(), Box<dyn std::error::Error>> {
     use pretty_assertions::assert_eq;
-    let temp_dir = TempDir::new().unwrap().into_persistent();
+    let temp_dir = TempDir::new().unwrap();
     let mut expected_fund = data::funds().first().unwrap().clone();
     let (hash, token) = data::token();
 

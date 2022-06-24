@@ -130,7 +130,7 @@ pub fn cors_https() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 pub fn cors_multi_domain() -> Result<(), Box<dyn std::error::Error>> {
-    let temp_dir = TempDir::new().unwrap().into_persistent();
+    let temp_dir = TempDir::new().unwrap();
     let snapshot = ArbitrarySnapshotGenerator::default().snapshot();
     let db_path = DbBuilder::new().with_snapshot(&snapshot).build(&temp_dir)?;
 

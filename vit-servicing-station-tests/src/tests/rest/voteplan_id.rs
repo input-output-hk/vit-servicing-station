@@ -5,7 +5,7 @@ use vit_servicing_station_lib::v0::endpoints::proposals::ProposalVoteplanIdAndIn
 
 #[test]
 pub fn get_proposals_by_voteplan_id_and_index() {
-    let temp_dir = TempDir::new().unwrap().into_persistent();
+    let temp_dir = TempDir::new().unwrap();
     let snapshot = multivoteplan_snapshot();
 
     let db_path = DbBuilder::new()
