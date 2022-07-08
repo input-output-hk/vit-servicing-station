@@ -47,6 +47,8 @@ mod test {
                 column: Column::Title,
             }],
             order_by: vec![],
+            limit: None,
+            offset: None,
         })
         .unwrap();
 
@@ -87,6 +89,8 @@ mod test {
                 column: Column::Title,
                 descending: false,
             }],
+            limit: None,
+            offset: None,
         };
 
         let body = serde_json::to_string(&query).unwrap();
@@ -141,5 +145,69 @@ mod test {
             temp
         };
         assert_eq!(reversed, reversed_output);
+    }
+
+    #[tokio::test]
+    async fn limits_and_offset_item_search() {
+        let (with_context, conn) = test_context().await;
+
+        add_test_proposal_and_challenge(10, &conn);
+        let (_, challenge_2) = add_test_proposal_and_challenge(11, &conn);
+        let (_, challenge_3) = add_test_proposal_and_challenge(12, &conn);
+        let (_, challenge_4) = add_test_proposal_and_challenge(13, &conn);
+        let (_, challenge_5) = add_test_proposal_and_challenge(14, &conn);
+
+        let filter = warp::path!("search")
+            .and(warp::post())
+            .and(warp::body::json())
+            .and(with_context)
+            .and_then(search);
+
+        let query = Query {
+            table: Table::Challenges,
+            filter: vec![Constraint {
+                column: Column::Title,
+                search: "1".to_string(),
+            }],
+            order_by: vec![OrderBy {
+                column: Column::Title,
+                descending: false,
+            }],
+            limit: Some(4),
+            offset: Some(1),
+        };
+
+        let body = serde_json::to_string(&query).unwrap();
+
+        let challenges: Vec<Challenge> = warp::test::request()
+            .method("POST")
+            .path("/search")
+            .body(body)
+            .reply(&filter)
+            .await
+            .as_json();
+
+        let challenge_2 = Challenge {
+            internal_id: 2,
+            ..challenge_2
+        };
+
+        let challenge_3 = Challenge {
+            internal_id: 3,
+            ..challenge_3
+        };
+
+        let challenge_4 = Challenge {
+            internal_id: 4,
+            ..challenge_4
+        };
+
+        let challenge_5 = Challenge {
+            internal_id: 5,
+            ..challenge_5
+        };
+
+        let output = vec![challenge_2, challenge_3, challenge_4, challenge_5];
+        assert_eq!(challenges, output);
     }
 }

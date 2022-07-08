@@ -27,6 +27,8 @@ fn search(
         table,
         filter,
         order_by,
+        limit,
+        offset,
     }: Query,
     conn: &PooledConnection<ConnectionManager<DbConnection>>,
 ) -> Result<SearchResponse, HandleError> {
@@ -57,6 +59,14 @@ fn search(
                     (true, Type) => query.then_order_by(challenge_type.desc()),
                     _ => return Err(HandleError::BadRequest("invalid column".to_string())),
                 }
+            }
+
+            if let Some(limit) = limit {
+                query = query.limit(limit)
+            }
+
+            if let Some(offset) = offset {
+                query = query.offset(offset)
             }
 
             let vec = query
@@ -93,6 +103,14 @@ fn search(
                     (true, Funds) => query.then_order_by(proposal_funds.desc()),
                     _ => return Err(HandleError::BadRequest("invalid column".to_string())),
                 }
+            }
+
+            if let Some(limit) = limit {
+                query = query.limit(limit)
+            }
+
+            if let Some(offset) = offset {
+                query = query.offset(offset)
             }
 
             let vec = query

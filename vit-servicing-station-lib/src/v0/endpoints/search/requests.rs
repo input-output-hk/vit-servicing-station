@@ -10,6 +10,8 @@ pub struct Query {
     pub filter: Vec<Constraint>,
     #[serde(default)]
     pub order_by: Vec<OrderBy>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
