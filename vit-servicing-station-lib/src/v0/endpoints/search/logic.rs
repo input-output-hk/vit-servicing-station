@@ -1,15 +1,23 @@
 use warp::{Rejection, Reply};
 
 use crate::{
-    db::queries::search::search_db,
+    db::queries::search::{search_count_db, search_db},
     v0::{context::SharedContext, result::HandlerResult},
 };
 
-use super::requests::Query;
+use super::requests::{Query, QueryCount};
 
 pub(super) async fn search(query: Query, ctx: SharedContext) -> Result<impl Reply, Rejection> {
     let pool = ctx.read().await.db_connection_pool.clone();
     Ok(HandlerResult(search_db(query, &pool).await))
+}
+
+pub(super) async fn search_count(
+    query: QueryCount,
+    ctx: SharedContext,
+) -> Result<impl Reply, Rejection> {
+    let pool = ctx.read().await.db_connection_pool.clone();
+    Ok(HandlerResult(search_count_db(query, &pool).await))
 }
 
 #[cfg(test)]
@@ -37,7 +45,7 @@ mod test {
         let filter = warp::path!("search")
             .and(warp::post())
             .and(warp::body::json())
-            .and(with_context)
+            .and(with_context.clone())
             .and_then(search);
 
         let body = serde_json::to_string(&Query {
@@ -62,6 +70,32 @@ mod test {
 
         assert_eq!(challenges.len(), 1);
         assert_eq!(challenges[0], challenge);
+
+        let body = serde_json::to_string(&QueryCount {
+            table: Table::Challenges,
+            filter: vec![Constraint {
+                search: "1".to_string(),
+                column: Column::Title,
+            }],
+            order_by: vec![],
+        })
+        .unwrap();
+
+        let filter = warp::path!("search_count")
+            .and(warp::post())
+            .and(warp::body::json())
+            .and(with_context)
+            .and_then(search);
+
+        let count: i64 = warp::test::request()
+            .method("POST")
+            .path("/search_count")
+            .body(body)
+            .reply(&filter)
+            .await
+            .as_json();
+
+        assert_eq!(count, 1);
     }
 
     #[tokio::test]

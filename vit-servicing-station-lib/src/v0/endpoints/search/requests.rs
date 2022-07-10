@@ -16,6 +16,16 @@ pub struct Query {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
+pub struct QueryCount {
+    pub table: Table,
+    #[serde(default)]
+    pub filter: Vec<Constraint>,
+    #[serde(default)]
+    pub order_by: Vec<OrderBy>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct Constraint {
     pub search: String,
     pub column: Column,
@@ -72,5 +82,6 @@ mod tests {
     #[test]
     fn filters_and_orders_are_optional() {
         from_value::<Query>(json!({"table": "proposals"})).unwrap();
+        from_value::<QueryCount>(json!({"table": "proposals"})).unwrap();
     }
 }
