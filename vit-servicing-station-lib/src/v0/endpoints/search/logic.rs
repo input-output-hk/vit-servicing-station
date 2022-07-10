@@ -85,7 +85,7 @@ mod test {
             .and(warp::post())
             .and(warp::body::json())
             .and(with_context)
-            .and_then(search);
+            .and_then(search_count);
 
         let count: i64 = warp::test::request()
             .method("POST")
@@ -107,11 +107,17 @@ mod test {
         let (_, challenge_3) = add_test_proposal_and_challenge(12, &conn);
         add_test_proposal_and_challenge(20, &conn);
 
-        let filter = warp::path!("search")
+        let filter_search = warp::path!("search")
+            .and(warp::post())
+            .and(warp::body::json())
+            .and(with_context.clone())
+            .and_then(search);
+
+        let filter_search_count = warp::path!("search_count")
             .and(warp::post())
             .and(warp::body::json())
             .and(with_context)
-            .and_then(search);
+            .and_then(search_count);
 
         let query = Query {
             table: Table::Challenges,
@@ -133,7 +139,7 @@ mod test {
             .method("POST")
             .path("/search")
             .body(body)
-            .reply(&filter)
+            .reply(&filter_search)
             .await
             .as_json();
 
@@ -156,6 +162,29 @@ mod test {
         let output = vec![challenge_1, challenge_2, challenge_3];
         assert_eq!(challenges, output);
 
+        let body = serde_json::to_string(&QueryCount {
+            table: Table::Challenges,
+            filter: vec![Constraint {
+                column: Column::Title,
+                search: "1".to_string(),
+            }],
+            order_by: vec![OrderBy {
+                column: Column::Title,
+                descending: false,
+            }],
+        })
+        .unwrap();
+
+        let count: i64 = warp::test::request()
+            .method("POST")
+            .path("/search_count")
+            .body(body)
+            .reply(&filter_search_count)
+            .await
+            .as_json();
+
+        assert_eq!(count, 3);
+
         let body = serde_json::to_string(&Query {
             order_by: vec![OrderBy {
                 column: Column::Title,
@@ -169,7 +198,7 @@ mod test {
             .method("POST")
             .path("/search")
             .body(body)
-            .reply(&filter)
+            .reply(&filter_search)
             .await
             .as_json();
 
@@ -179,6 +208,29 @@ mod test {
             temp
         };
         assert_eq!(reversed, reversed_output);
+
+        let body = serde_json::to_string(&QueryCount {
+            order_by: vec![OrderBy {
+                column: Column::Title,
+                descending: true,
+            }],
+            table: Table::Challenges,
+            filter: vec![Constraint {
+                column: Column::Title,
+                search: "1".to_string(),
+            }],
+        })
+        .unwrap();
+
+        let count: i64 = warp::test::request()
+            .method("POST")
+            .path("/search_count")
+            .body(body)
+            .reply(&filter_search_count)
+            .await
+            .as_json();
+
+        assert_eq!(count, 3);
     }
 
     #[tokio::test]
