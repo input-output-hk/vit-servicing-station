@@ -36,7 +36,7 @@ pub struct Proposer {
 pub enum ChallengeType {
     Simple,
     CommunityChoice,
-    Native
+    Native,
 }
 
 impl std::str::FromStr for ChallengeType {
@@ -49,7 +49,10 @@ impl std::str::FromStr for ChallengeType {
             "native" => Ok(ChallengeType::Native),
             s => Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("Expected any of [simple | community-choice | native], found: {}", s),
+                format!(
+                    "Expected any of [simple | community-choice | native], found: {}",
+                    s
+                ),
             )),
         }
     }
