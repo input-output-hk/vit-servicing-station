@@ -35,7 +35,7 @@ pub struct Proposer {
 pub enum ChallengeType {
     Simple,
     CommunityChoice,
-    Native
+    Native,
 }
 
 impl std::str::FromStr for ChallengeType {
@@ -48,7 +48,10 @@ impl std::str::FromStr for ChallengeType {
             "native" => Ok(ChallengeType::Native),
             s => Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("Expected any of [simple | community-choice | native], found: {}", s),
+                format!(
+                    "Expected any of [simple | community-choice | native], found: {}",
+                    s
+                ),
             )),
         }
     }
@@ -282,9 +285,11 @@ impl Queryable<full_proposals_info::SqlType, Db> for FullProposalInfo {
         // It should be safe to unwrap this values here if DB is sanitized and hence tables have data
         // relative to the challenge type.
         let challenge_info = match challenge_type {
-            ChallengeType::Simple | ChallengeType::Native => ProposalChallengeInfo::Simple(simple::ChallengeInfo {
-                proposal_solution: row.27.clone().unwrap(),
-            }),
+            ChallengeType::Simple | ChallengeType::Native => {
+                ProposalChallengeInfo::Simple(simple::ChallengeInfo {
+                    proposal_solution: row.27.clone().unwrap(),
+                })
+            }
             ChallengeType::CommunityChoice => {
                 ProposalChallengeInfo::CommunityChoice(community_choice::ChallengeInfo {
                     proposal_brief: row.28.clone().unwrap(),
