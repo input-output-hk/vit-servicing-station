@@ -5,6 +5,8 @@ use crate::db::schema::goals;
 use diesel::{Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 
+pub use goals_impl::InsertGoal;
+
 #[derive(Serialize, Deserialize, Queryable, Clone, Debug, PartialEq, Eq)]
 #[diesel(table_name = goals)]
 pub struct Goal {
@@ -15,13 +17,17 @@ pub struct Goal {
     pub fund_id: i32,
 }
 
-// This warning is disabled here because of Insertable.
-#[allow(clippy::extra_unused_lifetimes)]
-#[derive(Deserialize, Insertable, Clone, Debug)]
-#[table_name = "goals"]
-pub struct InsertGoal {
-    pub goal_name: String,
-    pub fund_id: i32,
+mod goals_impl {
+    #![allow(clippy::extra_unused_lifetimes)]
+
+    use super::*;
+
+    #[derive(Deserialize, Insertable, Clone, Debug)]
+    #[table_name = "goals"]
+    pub struct InsertGoal {
+        pub goal_name: String,
+        pub fund_id: i32,
+    }
 }
 
 impl From<&Goal> for InsertGoal {
