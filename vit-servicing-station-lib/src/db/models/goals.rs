@@ -15,6 +15,8 @@ pub struct Goal {
     pub fund_id: i32,
 }
 
+// This warning is disabled here because of Insertable.
+#[allow(clippy::extra_unused_lifetimes)]
 #[derive(Deserialize, Insertable, Clone, Debug)]
 #[table_name = "goals"]
 pub struct InsertGoal {
