@@ -4,19 +4,16 @@ use crate::db::models::{challenges::Challenge, proposals::FullProposalInfo};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct Query {
-    pub table: Table,
-    #[serde(default)]
-    pub filter: Vec<Constraint>,
-    #[serde(default)]
-    pub order_by: Vec<OrderBy>,
+pub struct SearchQuery {
+    #[serde(flatten)]
+    pub query: SearchCountQuery,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct QueryCount {
+pub struct SearchCountQuery {
     pub table: Table,
     #[serde(default)]
     pub filter: Vec<Constraint>,
@@ -81,7 +78,7 @@ mod tests {
 
     #[test]
     fn filters_and_orders_are_optional() {
-        from_value::<Query>(json!({"table": "proposals"})).unwrap();
-        from_value::<QueryCount>(json!({"table": "proposals"})).unwrap();
+        from_value::<SearchQuery>(json!({"table": "proposals"})).unwrap();
+        from_value::<SearchCountQuery>(json!({"table": "proposals"})).unwrap();
     }
 }

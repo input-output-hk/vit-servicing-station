@@ -5,15 +5,18 @@ use crate::{
     v0::{context::SharedContext, result::HandlerResult},
 };
 
-use super::requests::{Query, QueryCount};
+use super::requests::{SearchCountQuery, SearchQuery};
 
-pub(super) async fn search(query: Query, ctx: SharedContext) -> Result<impl Reply, Rejection> {
+pub(super) async fn search(
+    query: SearchQuery,
+    ctx: SharedContext,
+) -> Result<impl Reply, Rejection> {
     let pool = ctx.read().await.db_connection_pool.clone();
     Ok(HandlerResult(search_db(query, &pool).await))
 }
 
 pub(super) async fn search_count(
-    query: QueryCount,
+    query: SearchCountQuery,
     ctx: SharedContext,
 ) -> Result<impl Reply, Rejection> {
     let pool = ctx.read().await.db_connection_pool.clone();
@@ -48,13 +51,15 @@ mod test {
             .and(with_context.clone())
             .and_then(search);
 
-        let body = serde_json::to_string(&Query {
-            table: Table::Challenges,
-            filter: vec![Constraint {
-                search: "1".to_string(),
-                column: Column::Title,
-            }],
-            order_by: vec![],
+        let body = serde_json::to_string(&SearchQuery {
+            query: SearchCountQuery {
+                table: Table::Challenges,
+                filter: vec![Constraint {
+                    search: "1".to_string(),
+                    column: Column::Title,
+                }],
+                order_by: vec![],
+            },
             limit: None,
             offset: None,
         })
@@ -71,7 +76,7 @@ mod test {
         assert_eq!(challenges.len(), 1);
         assert_eq!(challenges[0], challenge);
 
-        let body = serde_json::to_string(&QueryCount {
+        let body = serde_json::to_string(&SearchCountQuery {
             table: Table::Challenges,
             filter: vec![Constraint {
                 search: "1".to_string(),
@@ -119,16 +124,18 @@ mod test {
             .and(with_context)
             .and_then(search_count);
 
-        let query = Query {
-            table: Table::Challenges,
-            filter: vec![Constraint {
-                column: Column::Title,
-                search: "1".to_string(),
-            }],
-            order_by: vec![OrderBy {
-                column: Column::Title,
-                descending: false,
-            }],
+        let query = SearchQuery {
+            query: SearchCountQuery {
+                table: Table::Challenges,
+                filter: vec![Constraint {
+                    column: Column::Title,
+                    search: "1".to_string(),
+                }],
+                order_by: vec![OrderBy {
+                    column: Column::Title,
+                    descending: false,
+                }],
+            },
             limit: None,
             offset: None,
         };
@@ -162,7 +169,7 @@ mod test {
         let output = vec![challenge_1, challenge_2, challenge_3];
         assert_eq!(challenges, output);
 
-        let body = serde_json::to_string(&QueryCount {
+        let body = serde_json::to_string(&SearchCountQuery {
             table: Table::Challenges,
             filter: vec![Constraint {
                 column: Column::Title,
@@ -185,11 +192,14 @@ mod test {
 
         assert_eq!(count, 3);
 
-        let body = serde_json::to_string(&Query {
-            order_by: vec![OrderBy {
-                column: Column::Title,
-                descending: true,
-            }],
+        let body = serde_json::to_string(&SearchQuery {
+            query: SearchCountQuery {
+                order_by: vec![OrderBy {
+                    column: Column::Title,
+                    descending: true,
+                }],
+                ..query.query
+            },
             ..query
         })
         .unwrap();
@@ -209,7 +219,7 @@ mod test {
         };
         assert_eq!(reversed, reversed_output);
 
-        let body = serde_json::to_string(&QueryCount {
+        let body = serde_json::to_string(&SearchCountQuery {
             order_by: vec![OrderBy {
                 column: Column::Title,
                 descending: true,
@@ -249,16 +259,18 @@ mod test {
             .and(with_context)
             .and_then(search);
 
-        let query = Query {
-            table: Table::Challenges,
-            filter: vec![Constraint {
-                column: Column::Title,
-                search: "1".to_string(),
-            }],
-            order_by: vec![OrderBy {
-                column: Column::Title,
-                descending: false,
-            }],
+        let query = SearchQuery {
+            query: SearchCountQuery {
+                table: Table::Challenges,
+                filter: vec![Constraint {
+                    column: Column::Title,
+                    search: "1".to_string(),
+                }],
+                order_by: vec![OrderBy {
+                    column: Column::Title,
+                    descending: false,
+                }],
+            },
             limit: Some(4),
             offset: Some(1),
         };

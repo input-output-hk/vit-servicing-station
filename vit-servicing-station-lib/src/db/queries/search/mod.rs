@@ -8,14 +8,14 @@ use crate::{
     db::{DbConnection, DbConnectionPool},
     v0::{
         endpoints::search::requests::{
-            Column, Constraint, OrderBy, Query, QueryCount, SearchResponse, Table,
+            Column, Constraint, OrderBy, SearchCountQuery, SearchQuery, SearchResponse, Table,
         },
         errors::HandleError,
     },
 };
 
 pub async fn search_db(
-    query: Query,
+    query: SearchQuery,
     pool: &DbConnectionPool,
 ) -> Result<SearchResponse, HandleError> {
     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
@@ -25,7 +25,7 @@ pub async fn search_db(
 }
 
 pub async fn search_count_db(
-    query: QueryCount,
+    query: SearchCountQuery,
     pool: &DbConnectionPool,
 ) -> Result<i64, HandleError> {
     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
@@ -35,15 +35,19 @@ pub async fn search_count_db(
 }
 
 fn search(
-    Query {
+    SearchQuery {
+        query,
+        limit,
+        offset,
+    }: SearchQuery,
+    conn: &PooledConnection<ConnectionManager<DbConnection>>,
+) -> Result<SearchResponse, HandleError> {
+    let SearchCountQuery {
         table,
         filter,
         order_by,
-        limit,
-        offset,
-    }: Query,
-    conn: &PooledConnection<ConnectionManager<DbConnection>>,
-) -> Result<SearchResponse, HandleError> {
+    } = query;
+
     match table {
         Table::Challenges => {
             use crate::db::schema::challenges::dsl::*;
@@ -134,11 +138,11 @@ fn search(
 }
 
 fn search_count(
-    QueryCount {
+    SearchCountQuery {
         table,
         filter,
         order_by,
-    }: QueryCount,
+    }: SearchCountQuery,
     conn: &PooledConnection<ConnectionManager<DbConnection>>,
 ) -> Result<i64, HandleError> {
     match table {
