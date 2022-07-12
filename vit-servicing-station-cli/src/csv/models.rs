@@ -187,7 +187,7 @@ impl Proposal {
         };
 
         let challenge_info = match challenge_type {
-            ChallengeType::Simple => match self.proposal_solution {
+            ChallengeType::Simple | ChallengeType::Native => match self.proposal_solution {
                 Some(proposal_solution) => {
                     ProposalChallengeInfo::Simple(simple::ChallengeInfo { proposal_solution })
                 }

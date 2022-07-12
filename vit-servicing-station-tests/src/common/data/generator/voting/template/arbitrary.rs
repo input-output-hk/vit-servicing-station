@@ -131,9 +131,11 @@ impl ArbitraryValidVotingTemplateGenerator {
         challenge_type: &ChallengeType,
     ) -> ProposalChallengeInfo {
         match challenge_type {
-            ChallengeType::Simple => ProposalChallengeInfo::Simple(SimpleChallengeInfo {
-                proposal_solution: CatchPhase().fake::<String>(),
-            }),
+            ChallengeType::Simple | ChallengeType::Native => {
+                ProposalChallengeInfo::Simple(SimpleChallengeInfo {
+                    proposal_solution: CatchPhase().fake::<String>(),
+                })
+            }
             ChallengeType::CommunityChoice => {
                 ProposalChallengeInfo::CommunityChoice(CommunityChoiceChallengeInfo {
                     proposal_brief: CatchPhase().fake::<String>(),
