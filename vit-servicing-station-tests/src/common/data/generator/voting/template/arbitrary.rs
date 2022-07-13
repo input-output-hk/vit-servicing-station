@@ -119,9 +119,10 @@ impl ArbitraryValidVotingTemplateGenerator {
     }
 
     pub fn challenge_type(&mut self) -> ChallengeType {
-        match self.generator.next_u32() % 2 {
+        match self.generator.next_u32() % 3 {
             0 => ChallengeType::Simple,
             1 => ChallengeType::CommunityChoice,
+            2 => ChallengeType::Native,
             _ => unreachable!(),
         }
     }
