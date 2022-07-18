@@ -8,6 +8,13 @@ use voting_hir::VoterHIR;
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
+pub async fn get_staked_ada(
+    voting_key: String,
+    context: SharedContext,
+) -> Result<impl Reply, Rejection> {
+    Ok(warp::reply::json(&()))
+}
+
 #[tracing::instrument(skip(context))]
 pub async fn get_voting_power(
     tag: String,
