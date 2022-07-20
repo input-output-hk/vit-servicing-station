@@ -16,7 +16,7 @@ mod test {
         F::Extract: Reply + Send,
     {
         let result = warp::test::request()
-            .path(format!("/snapshot/voting_power/{}/{}", tag, voting_key).as_ref())
+            .path(format!("/snapshot/{}/{}", tag, voting_key).as_ref())
             .reply(filter)
             .await;
 

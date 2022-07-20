@@ -45,8 +45,8 @@ impl RestPathBuilder {
         self.path("snapshot")
     }
 
-    pub fn snapshot_voting_power(&self, tag: &str, key: &str) -> String {
-        self.path(&format!("snapshot/voting_power/{}/{}", tag, key))
+    pub fn snapshot_voting_power_and_delegations(&self, tag: &str, key: &str) -> String {
+        self.path(&format!("snapshot/{}/{}", tag, key))
     }
 
     pub fn proposal(&self, id: &str, group: &str) -> String {

@@ -8,16 +8,8 @@ use tokio::sync::Mutex;
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
-pub async fn get_delegations(
-    _tag: String,
-    _voting_key: String,
-    _context: SharedContext,
-) -> Result<impl Reply, Rejection> {
-    Ok(warp::reply::json(&()))
-}
-
 #[tracing::instrument(skip(context))]
-pub async fn get_voting_power(
+pub async fn get_voting_power_and_delegations(
     tag: String,
     voting_key: String,
     context: SharedContext,
@@ -32,13 +24,13 @@ pub async fn get_voting_power(
         .into_response());
     };
 
-    match tokio::task::spawn_blocking(move || context.get_voting_power(&tag, &key))
+    match tokio::task::spawn_blocking(move || context.get_voting_power_and_delegations(&tag, &key))
         .await
         .unwrap()
     {
         Ok(Some(entries)) => {
-            let results: Vec<_> = entries.into_iter().map(|(voting_group, voting_power)| {
-            json!({"voting_power": voting_power, "voting_group": voting_group})
+            let results: Vec<_> = entries.into_iter().map(|(voting_group, voting_power, delegations)| {
+            json!({"voting_power": voting_power, "voting_group": voting_group, "delegations": delegations})
         }).collect();
             Ok(warp::reply::json(&results).into_response())
         }

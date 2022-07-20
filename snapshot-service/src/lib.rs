@@ -2,6 +2,7 @@ mod handlers;
 mod routes;
 
 use catalyst_toolbox::snapshot::{SnapshotInfo, VoterHIR};
+use chain_ser::packer::Codec;
 use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
 pub use routes::{filter, update_filter};
 use sled::{IVec, Transactional};
@@ -65,11 +66,11 @@ impl SharedContext {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn get_voting_power(
+    pub fn get_voting_power_and_delegations(
         &self,
         tag: &str,
         id: &Identifier,
-    ) -> Result<Option<Vec<(Group, Value)>>, Error> {
+    ) -> Result<Option<Vec<(Group, Value, u64)>>, Error> {
         let tag = if let Some(tag) = self.tags.get(tag)? {
             tag
         } else {
@@ -88,7 +89,7 @@ impl SharedContext {
             key
         };
 
-        let mut result: Vec<(Group, Value)> = vec![];
+        let mut result = vec![];
 
         for entries in self.entries.range(key_prefix..) {
             let (k, v) = entries?;
@@ -101,9 +102,11 @@ impl SharedContext {
             let group = String::from_utf8(k[key_prefix.len()..].to_vec())
                 .map_err(|_| Error::InternalError)?;
 
-            let voting_power = Value::from(u64::from_be_bytes(v.as_ref().try_into().unwrap()));
+            let mut codec = Codec::<&[u8]>::new(v.as_ref().try_into().unwrap());
+            let voting_power = codec.get_be_u64().unwrap().into();
+            let delegations = codec.get_be_u64().unwrap();
 
-            result.push((group, voting_power));
+            result.push((group, voting_power, delegations));
         }
 
         Ok(Some(result))
@@ -194,6 +197,7 @@ impl UpdateHandle {
                 voting_group,
                 voting_power,
             } = entry.hir;
+            let delegations = entry.contributions.len();
 
             let voting_key_bytes = voting_key.as_ref().as_ref();
 
@@ -208,7 +212,11 @@ impl UpdateHandle {
             key.extend(voting_key_bytes);
             key.extend(voting_group.as_bytes());
 
-            batch.insert(key, &u64::from(voting_power).to_be_bytes());
+            let mut codec = Codec::new(Vec::new());
+            codec.put_be_u64(voting_power.into()).unwrap();
+            codec.put_be_u64(delegations as u64).unwrap();
+
+            batch.insert(key, codec.into_inner().as_slice());
         }
 
         {
@@ -318,18 +326,22 @@ mod tests {
 
         assert_eq!(
             &key_0_values[..],
-            &rx.get_voting_power(TAG1, &keys[0]).unwrap().unwrap()[..],
+            &rx.get_voting_power_and_delegations(TAG1, &keys[0])
+                .unwrap()
+                .unwrap()[..],
         );
 
         assert!(&rx
-            .get_voting_power(TAG1, &keys[1])
+            .get_voting_power_and_delegations(TAG1, &keys[1])
             .unwrap()
             .unwrap()
             .is_empty(),);
 
         assert_eq!(
             &key_1_values[..],
-            &rx.get_voting_power(TAG2, &keys[1]).unwrap().unwrap()[..],
+            &rx.get_voting_power_and_delegations(TAG2, &keys[1])
+                .unwrap()
+                .unwrap()[..],
         );
     }
 
@@ -368,7 +380,9 @@ mod tests {
         tx.update(TAG2, inputs.clone()).await.unwrap();
 
         assert_eq!(
-            rx.get_voting_power(TAG1, &voting_key).unwrap().unwrap(),
+            rx.get_voting_power_and_delegations(TAG1, &voting_key)
+                .unwrap()
+                .unwrap(),
             inputs
                 .iter()
                 .cloned()
@@ -379,7 +393,9 @@ mod tests {
         tx.update(TAG1, inputs[0..1].to_vec()).await.unwrap();
 
         assert_eq!(
-            rx.get_voting_power(TAG1, &voting_key).unwrap().unwrap(),
+            rx.get_voting_power_and_delegations(TAG1, &voting_key)
+                .unwrap()
+                .unwrap(),
             inputs[0..1]
                 .iter()
                 .cloned()
@@ -389,7 +405,9 @@ mod tests {
 
         // asserting that TAG2 is untouched, just in case
         assert_eq!(
-            rx.get_voting_power(TAG2, &voting_key).unwrap().unwrap(),
+            rx.get_voting_power_and_delegations(TAG2, &voting_key)
+                .unwrap()
+                .unwrap(),
             inputs
                 .iter()
                 .cloned()
