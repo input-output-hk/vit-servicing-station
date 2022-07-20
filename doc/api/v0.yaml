@@ -265,7 +265,7 @@ paths:
         "400":
           description: Invalid combination of table/column (e.g. using funds column on challenges table)
 
-  /api/v0/snapshot/{tag}/{voting_key}:
+  /api/v0/snapshot/voting_power/{tag}/{voting_key}:
     get:
       operationId: getVotingPower
       summary: Get voting power by voting key

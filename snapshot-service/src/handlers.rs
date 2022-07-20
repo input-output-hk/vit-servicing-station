@@ -8,9 +8,10 @@ use voting_hir::VoterHIR;
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
-pub async fn get_staked_ada(
-    voting_key: String,
-    context: SharedContext,
+pub async fn get_delegations(
+    _tag: String,
+    _voting_key: String,
+    _context: SharedContext,
 ) -> Result<impl Reply, Rejection> {
     Ok(warp::reply::json(&()))
 }

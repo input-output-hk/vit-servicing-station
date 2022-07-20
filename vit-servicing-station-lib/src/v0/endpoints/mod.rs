@@ -58,8 +58,6 @@ pub async fn filter(
 
     let snapshot_root = warp::path!("snapshot" / ..);
     let snapshot_rx_filter = snapshot_service::filter(snapshot_root.boxed(), snapshot_rx.clone());
-    let snapshot_delegation_details_filter =
-        snapshot_service::delegation_details_filter(snapshot_root.boxed(), snapshot_rx.clone());
 
     let admin_filter = {
         let base = warp::path!("admin" / ..);
@@ -90,7 +88,6 @@ pub async fn filter(
                 .or(search_filter)
                 .or(search_count_filter)
                 .or(snapshot_rx_filter)
-                .or(snapshot_delegation_details_filter)
                 .or(admin_filter),
         ),
     )

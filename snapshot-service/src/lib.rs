@@ -1,7 +1,7 @@
 mod handlers;
 mod routes;
 
-pub use routes::{filter, update_filter, delegation_details_filter};
+pub use routes::{filter, update_filter};
 
 use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
 use sled::{IVec, Transactional};
