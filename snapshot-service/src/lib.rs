@@ -1,12 +1,11 @@
 mod handlers;
 mod routes;
 
-pub use routes::{filter, update_filter};
-
+use catalyst_toolbox::snapshot::{SnapshotInfo, VoterHIR};
 use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
+pub use routes::{filter, update_filter};
 use sled::{IVec, Transactional};
 use std::mem::size_of;
-use voting_hir::VoterHIR;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -154,7 +153,7 @@ impl UpdateHandle {
     pub async fn update(
         &mut self,
         tag: &str,
-        snapshot: impl IntoIterator<Item = VoterHIR>,
+        snapshot: impl IntoIterator<Item = SnapshotInfo>,
     ) -> Result<(), Error> {
         let mut batch = sled::Batch::default();
 
@@ -194,7 +193,7 @@ impl UpdateHandle {
                 voting_key,
                 voting_group,
                 voting_power,
-            } = entry;
+            } = entry.hir;
 
             let voting_key_bytes = voting_key.as_ref().as_ref();
 
@@ -286,10 +285,13 @@ mod tests {
         let content_a = std::iter::repeat(keys[0].clone())
             .take(key_0_values.len())
             .zip(key_0_values.iter().cloned())
-            .map(|(voting_key, (voting_group, voting_power))| VoterHIR {
-                voting_key,
-                voting_group,
-                voting_power,
+            .map(|(voting_key, (voting_group, voting_power))| SnapshotInfo {
+                contributions: vec![],
+                hir: VoterHIR {
+                    voting_key,
+                    voting_group,
+                    voting_power,
+                },
             })
             .collect::<Vec<_>>();
 
@@ -300,10 +302,13 @@ mod tests {
         let content_b = std::iter::repeat(keys[1].clone())
             .take(key_1_values.len())
             .zip(key_1_values.iter().cloned())
-            .map(|(voting_key, (voting_group, voting_power))| VoterHIR {
-                voting_key,
-                voting_group,
-                voting_power,
+            .map(|(voting_key, (voting_group, voting_power))| SnapshotInfo {
+                contributions: vec![],
+                hir: VoterHIR {
+                    voting_key,
+                    voting_group,
+                    voting_power,
+                },
             })
             .collect::<Vec<_>>();
 
@@ -341,15 +346,21 @@ mod tests {
         .unwrap();
 
         let inputs = [
-            VoterHIR {
-                voting_key: voting_key.clone(),
-                voting_group: "GROUP1".into(),
-                voting_power: 1.into(),
+            SnapshotInfo {
+                contributions: vec![],
+                hir: VoterHIR {
+                    voting_key: voting_key.clone(),
+                    voting_group: "GROUP1".into(),
+                    voting_power: 1.into(),
+                },
             },
-            VoterHIR {
-                voting_key: voting_key.clone(),
-                voting_group: "GROUP2".into(),
-                voting_power: 1.into(),
+            SnapshotInfo {
+                contributions: vec![],
+                hir: VoterHIR {
+                    voting_key: voting_key.clone(),
+                    voting_group: "GROUP2".into(),
+                    voting_power: 1.into(),
+                },
             },
         ];
 
@@ -361,7 +372,7 @@ mod tests {
             inputs
                 .iter()
                 .cloned()
-                .map(|hir| (hir.voting_group, hir.voting_power))
+                .map(|snapshot| (snapshot.hir.voting_group, snapshot.hir.voting_power))
                 .collect::<Vec<_>>()
         );
 
@@ -372,7 +383,7 @@ mod tests {
             inputs[0..1]
                 .iter()
                 .cloned()
-                .map(|hir| (hir.voting_group, hir.voting_power))
+                .map(|snapshot| (snapshot.hir.voting_group, snapshot.hir.voting_power))
                 .collect::<Vec<_>>()
         );
 
@@ -382,7 +393,7 @@ mod tests {
             inputs
                 .iter()
                 .cloned()
-                .map(|hir| (hir.voting_group, hir.voting_power))
+                .map(|snapshot| (snapshot.hir.voting_group, snapshot.hir.voting_power))
                 .collect::<Vec<_>>()
         );
     }

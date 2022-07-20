@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use crate::{SharedContext, UpdateHandle};
+use catalyst_toolbox::snapshot::SnapshotInfo;
 use jormungandr_lib::crypto::account::Identifier;
 use serde_json::json;
 use tokio::sync::Mutex;
-use voting_hir::VoterHIR;
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
@@ -65,7 +65,7 @@ pub async fn get_tags(context: SharedContext) -> Result<impl Reply, Rejection> {
 #[tracing::instrument(skip(context))]
 pub async fn put_tag(
     tag: String,
-    snapshot: Vec<VoterHIR>,
+    snapshot: Vec<SnapshotInfo>,
     context: Arc<Mutex<UpdateHandle>>,
 ) -> Result<impl Reply, Rejection> {
     let mut handle = context.lock().await;

@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test {
+    use catalyst_toolbox::snapshot::{SnapshotInfo, VoterHIR};
     use jormungandr_lib::crypto::account::Identifier;
     use tracing::Level;
-    use voting_hir::VoterHIR;
     use warp::hyper::StatusCode;
     use warp::{Filter, Reply};
 
@@ -55,23 +55,32 @@ mod test {
         ];
 
         let content_a = serde_json::to_string(&[
-            VoterHIR {
-                voting_key: Identifier::from_hex(keys[0]).unwrap(),
-                voting_group: GROUP1.to_string(),
-                voting_power: 1.into(),
+            SnapshotInfo {
+                contributions: vec![],
+                hir: VoterHIR {
+                    voting_key: Identifier::from_hex(keys[0]).unwrap(),
+                    voting_group: GROUP1.to_string(),
+                    voting_power: 1.into(),
+                },
             },
-            VoterHIR {
-                voting_key: Identifier::from_hex(keys[0]).unwrap(),
-                voting_group: GROUP2.to_string(),
-                voting_power: 2.into(),
+            SnapshotInfo {
+                contributions: vec![],
+                hir: VoterHIR {
+                    voting_key: Identifier::from_hex(keys[0]).unwrap(),
+                    voting_group: GROUP2.to_string(),
+                    voting_power: 2.into(),
+                },
             },
         ])
         .unwrap();
 
-        let content_b = serde_json::to_string(&[VoterHIR {
-            voting_key: Identifier::from_hex(keys[0]).unwrap(),
-            voting_group: GROUP1.to_string(),
-            voting_power: 2.into(),
+        let content_b = serde_json::to_string(&[SnapshotInfo {
+            contributions: vec![],
+            hir: VoterHIR {
+                voting_key: Identifier::from_hex(keys[0]).unwrap(),
+                voting_group: GROUP1.to_string(),
+                voting_power: 2.into(),
+            },
         }])
         .unwrap();
 

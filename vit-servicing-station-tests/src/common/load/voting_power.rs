@@ -33,7 +33,10 @@ impl RequestGenerator for VotingPowerRequestGenerator {
         self.rest_client
             .voting_power(
                 &self.snapshot.tag,
-                &content[rng.gen_range(0, content.len())].voting_key.to_hex(),
+                &content[rng.gen_range(0, content.len())]
+                    .hir
+                    .voting_key
+                    .to_hex(),
             )
             .map(|_| Request {
                 ids: vec![Some(rng.next_u64().to_string())],
