@@ -21,7 +21,10 @@ pub enum Error {
 }
 
 pub type Tag = String;
-type Group = String;
+pub type Group = String;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UserInfo(Group, Value, u64);
 
 #[repr(transparent)]
 struct TagId(u32);
@@ -70,7 +73,7 @@ impl SharedContext {
         &self,
         tag: &str,
         id: &Identifier,
-    ) -> Result<Option<Vec<(Group, Value, u64)>>, Error> {
+    ) -> Result<Option<Vec<UserInfo>>, Error> {
         let tag = if let Some(tag) = self.tags.get(tag)? {
             tag
         } else {
@@ -102,11 +105,11 @@ impl SharedContext {
             let group = String::from_utf8(k[key_prefix.len()..].to_vec())
                 .map_err(|_| Error::InternalError)?;
 
-            let mut codec = Codec::<&[u8]>::new(v.as_ref().try_into().unwrap());
+            let mut codec = Codec::<&[u8]>::new(v.as_ref());
             let voting_power = codec.get_be_u64().unwrap().into();
             let delegations = codec.get_be_u64().unwrap();
 
-            result.push((group, voting_power, delegations));
+            result.push(UserInfo(group, voting_power, delegations));
         }
 
         Ok(Some(result))
@@ -286,15 +289,15 @@ mod tests {
         const TAG2: &str = "tag2";
 
         let key_0_values = [
-            (GROUP1.to_string(), Value::from(1), 0),
-            (GROUP2.to_string(), Value::from(2), 0),
+            UserInfo(GROUP1.to_string(), Value::from(1), 0),
+            UserInfo(GROUP2.to_string(), Value::from(2), 0),
         ];
 
         let content_a = std::iter::repeat(keys[0].clone())
             .take(key_0_values.len())
             .zip(key_0_values.iter().cloned())
             .map(
-                |(voting_key, (voting_group, voting_power, _))| SnapshotInfo {
+                |(voting_key, UserInfo(voting_group, voting_power, _))| SnapshotInfo {
                     contributions: vec![],
                     hir: VoterHIR {
                         voting_key,
@@ -307,13 +310,13 @@ mod tests {
 
         tx.update(TAG1, content_a.clone()).await.unwrap();
 
-        let key_1_values = [(GROUP1.to_string(), Value::from(3), 0)];
+        let key_1_values = [UserInfo(GROUP1.to_string(), Value::from(3), 0)];
 
         let content_b = std::iter::repeat(keys[1].clone())
             .take(key_1_values.len())
             .zip(key_1_values.iter().cloned())
             .map(
-                |(voting_key, (voting_group, voting_power, _))| SnapshotInfo {
+                |(voting_key, UserInfo(voting_group, voting_power, _))| SnapshotInfo {
                     contributions: vec![],
                     hir: VoterHIR {
                         voting_key,
@@ -390,7 +393,7 @@ mod tests {
             inputs
                 .iter()
                 .cloned()
-                .map(|snapshot| (
+                .map(|snapshot| UserInfo(
                     snapshot.hir.voting_group,
                     snapshot.hir.voting_power,
                     snapshot.contributions.len() as u64
@@ -407,7 +410,7 @@ mod tests {
             inputs[0..1]
                 .iter()
                 .cloned()
-                .map(|snapshot| (
+                .map(|snapshot| UserInfo(
                     snapshot.hir.voting_group,
                     snapshot.hir.voting_power,
                     snapshot.contributions.len() as u64
@@ -423,7 +426,7 @@ mod tests {
             inputs
                 .iter()
                 .cloned()
-                .map(|snapshot| (
+                .map(|snapshot| UserInfo(
                     snapshot.hir.voting_group,
                     snapshot.hir.voting_power,
                     snapshot.contributions.len() as u64
