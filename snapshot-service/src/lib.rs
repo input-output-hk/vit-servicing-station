@@ -286,38 +286,42 @@ mod tests {
         const TAG2: &str = "tag2";
 
         let key_0_values = [
-            (GROUP1.to_string(), Value::from(1)),
-            (GROUP2.to_string(), Value::from(2)),
+            (GROUP1.to_string(), Value::from(1), 0),
+            (GROUP2.to_string(), Value::from(2), 0),
         ];
 
         let content_a = std::iter::repeat(keys[0].clone())
             .take(key_0_values.len())
             .zip(key_0_values.iter().cloned())
-            .map(|(voting_key, (voting_group, voting_power))| SnapshotInfo {
-                contributions: vec![],
-                hir: VoterHIR {
-                    voting_key,
-                    voting_group,
-                    voting_power,
+            .map(
+                |(voting_key, (voting_group, voting_power, _))| SnapshotInfo {
+                    contributions: vec![],
+                    hir: VoterHIR {
+                        voting_key,
+                        voting_group,
+                        voting_power,
+                    },
                 },
-            })
+            )
             .collect::<Vec<_>>();
 
         tx.update(TAG1, content_a.clone()).await.unwrap();
 
-        let key_1_values = [(GROUP1.to_string(), Value::from(3))];
+        let key_1_values = [(GROUP1.to_string(), Value::from(3), 0)];
 
         let content_b = std::iter::repeat(keys[1].clone())
             .take(key_1_values.len())
             .zip(key_1_values.iter().cloned())
-            .map(|(voting_key, (voting_group, voting_power))| SnapshotInfo {
-                contributions: vec![],
-                hir: VoterHIR {
-                    voting_key,
-                    voting_group,
-                    voting_power,
+            .map(
+                |(voting_key, (voting_group, voting_power, _))| SnapshotInfo {
+                    contributions: vec![],
+                    hir: VoterHIR {
+                        voting_key,
+                        voting_group,
+                        voting_power,
+                    },
                 },
-            })
+            )
             .collect::<Vec<_>>();
 
         tx.update(TAG2, [content_a, content_b].concat())
@@ -386,7 +390,11 @@ mod tests {
             inputs
                 .iter()
                 .cloned()
-                .map(|snapshot| (snapshot.hir.voting_group, snapshot.hir.voting_power))
+                .map(|snapshot| (
+                    snapshot.hir.voting_group,
+                    snapshot.hir.voting_power,
+                    snapshot.contributions.len() as u64
+                ))
                 .collect::<Vec<_>>()
         );
 
@@ -399,7 +407,11 @@ mod tests {
             inputs[0..1]
                 .iter()
                 .cloned()
-                .map(|snapshot| (snapshot.hir.voting_group, snapshot.hir.voting_power))
+                .map(|snapshot| (
+                    snapshot.hir.voting_group,
+                    snapshot.hir.voting_power,
+                    snapshot.contributions.len() as u64
+                ))
                 .collect::<Vec<_>>()
         );
 
@@ -411,7 +423,11 @@ mod tests {
             inputs
                 .iter()
                 .cloned()
-                .map(|snapshot| (snapshot.hir.voting_group, snapshot.hir.voting_power))
+                .map(|snapshot| (
+                    snapshot.hir.voting_group,
+                    snapshot.hir.voting_power,
+                    snapshot.contributions.len() as u64
+                ))
                 .collect::<Vec<_>>()
         );
     }

@@ -26,7 +26,7 @@ pub fn import_new_snapshot() {
         assert_eq!(
             vec![voting_power],
             rest_client
-                .voting_power(&snapshot.tag, &entry.hir.voting_key.to_hex())
+                .voting_power_and_delegations(&snapshot.tag, &entry.hir.voting_key.to_hex())
                 .unwrap(),
             "wrong data for entry idx: {}",
             idx
@@ -53,7 +53,7 @@ pub fn reimport_with_empty_snapshot() {
     for (idx, entry) in snapshot.content.iter().enumerate() {
         assert!(
             rest_client
-                .voting_power(&snapshot.tag, &entry.hir.voting_key.to_hex())
+                .voting_power_and_delegations(&snapshot.tag, &entry.hir.voting_key.to_hex())
                 .unwrap()
                 .is_empty(),
             "expected empty data for entry idx: {}",
@@ -77,7 +77,7 @@ pub fn replace_snapshot_with_tag() {
     for (idx, entry) in first_snapshot.content.iter().enumerate() {
         assert!(
             rest_client
-                .voting_power(&first_snapshot.tag, &entry.hir.voting_key.to_hex())
+                .voting_power_and_delegations(&first_snapshot.tag, &entry.hir.voting_key.to_hex())
                 .unwrap()
                 .is_empty(),
             "expected empty data for entry idx: {}",
@@ -89,7 +89,7 @@ pub fn replace_snapshot_with_tag() {
         assert_eq!(
             vec![voting_power],
             rest_client
-                .voting_power(&second_snapshot.tag, &entry.hir.voting_key.to_hex())
+                .voting_power_and_delegations(&second_snapshot.tag, &entry.hir.voting_key.to_hex())
                 .unwrap(),
             "expected non-empty data for entry idx: {}",
             idx
@@ -118,7 +118,7 @@ pub fn import_snapshots_with_different_tags() {
         assert_eq!(
             vec![voting_power.clone()],
             rest_client
-                .voting_power(&first_snapshot.tag, &entry.hir.voting_key.to_hex())
+                .voting_power_and_delegations(&first_snapshot.tag, &entry.hir.voting_key.to_hex())
                 .unwrap(),
             "wrong data for entry idx: {}",
             idx
@@ -126,7 +126,7 @@ pub fn import_snapshots_with_different_tags() {
         assert_eq!(
             vec![voting_power],
             rest_client
-                .voting_power(&second_snapshot.tag, &entry.hir.voting_key.to_hex())
+                .voting_power_and_delegations(&second_snapshot.tag, &entry.hir.voting_key.to_hex())
                 .unwrap(),
             "wrong data for entry idx: {}",
             idx
@@ -172,7 +172,7 @@ pub fn import_big_snapshot() {
     assert_eq!(
         vec![voting_power],
         rest_client
-            .voting_power(&snapshot.tag, &entry.hir.voting_key.to_hex())
+            .voting_power_and_delegations(&snapshot.tag, &entry.hir.voting_key.to_hex())
             .unwrap(),
         "wrong data for entry idx"
     );
