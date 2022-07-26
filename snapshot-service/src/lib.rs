@@ -1,7 +1,7 @@
 mod handlers;
 mod routes;
 
-use catalyst_toolbox::snapshot::{SnapshotInfo, VoterHIR};
+use catalyst_toolbox::snapshot::{KeyContribution, SnapshotInfo, VoterHIR};
 use chain_ser::packer::Codec;
 use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
 pub use routes::{filter, update_filter};
@@ -27,7 +27,8 @@ pub type Group = String;
 pub struct VoterInfo {
     group: Group,
     voting_power: Value,
-    delegations: u64,
+    delegations_power: u64,
+    delegations_count: u64,
 }
 
 #[repr(transparent)]
@@ -111,12 +112,14 @@ impl SharedContext {
 
             let mut codec = Codec::<&[u8]>::new(v.as_ref());
             let voting_power = codec.get_be_u64().unwrap().into();
-            let delegations = codec.get_be_u64().unwrap();
+            let delegations_power = codec.get_be_u64().unwrap();
+            let delegations_count = codec.get_be_u64().unwrap();
 
             result.push(VoterInfo {
                 group,
                 voting_power,
-                delegations,
+                delegations_power,
+                delegations_count,
             });
         }
 
@@ -208,7 +211,17 @@ impl UpdateHandle {
                 voting_group,
                 voting_power,
             } = entry.hir;
-            let delegations = entry.contributions.len();
+            let delegations_count = entry.contributions.len();
+            let delegations_power = entry
+                .contributions
+                .iter()
+                .map(
+                    |KeyContribution {
+                         reward_address: _,
+                         value,
+                     }| value,
+                )
+                .sum();
 
             let voting_key_bytes = voting_key.as_ref().as_ref();
 
@@ -225,7 +238,8 @@ impl UpdateHandle {
 
             let mut codec = Codec::new(Vec::new());
             codec.put_be_u64(voting_power.into()).unwrap();
-            codec.put_be_u64(delegations as u64).unwrap();
+            codec.put_be_u64(delegations_power).unwrap();
+            codec.put_be_u64(delegations_count as u64).unwrap();
 
             batch.insert(key, codec.into_inner().as_slice());
         }
@@ -273,6 +287,8 @@ pub fn new_context() -> Result<(SharedContext, UpdateHandle), Error> {
 
 #[cfg(test)]
 mod tests {
+    use catalyst_toolbox::snapshot::KeyContribution;
+
     use super::*;
 
     #[tokio::test]
@@ -300,12 +316,14 @@ mod tests {
             VoterInfo {
                 group: GROUP1.to_string(),
                 voting_power: Value::from(1),
-                delegations: 0,
+                delegations_power: 0,
+                delegations_count: 0,
             },
             VoterInfo {
                 group: GROUP2.to_string(),
                 voting_power: Value::from(2),
-                delegations: 0,
+                delegations_power: 0,
+                delegations_count: 0,
             },
         ];
 
@@ -318,7 +336,8 @@ mod tests {
                     VoterInfo {
                         group: voting_group,
                         voting_power,
-                        delegations: _,
+                        delegations_power: _,
+                        delegations_count: _,
                     },
                 )| SnapshotInfo {
                     contributions: vec![],
@@ -336,7 +355,8 @@ mod tests {
         let key_1_values = [VoterInfo {
             group: GROUP1.to_string(),
             voting_power: Value::from(3),
-            delegations: 0,
+            delegations_power: 0,
+            delegations_count: 0,
         }];
 
         let content_b = std::iter::repeat(keys[1].clone())
@@ -348,7 +368,8 @@ mod tests {
                     VoterInfo {
                         group: voting_group,
                         voting_power,
-                        delegations: _,
+                        delegations_power: _,
+                        delegations_count: _,
                     },
                 )| SnapshotInfo {
                     contributions: vec![],
@@ -430,7 +451,17 @@ mod tests {
                 .map(|snapshot| VoterInfo {
                     group: snapshot.hir.voting_group,
                     voting_power: snapshot.hir.voting_power,
-                    delegations: snapshot.contributions.len() as u64
+                    delegations_power: snapshot
+                        .contributions
+                        .iter()
+                        .map(
+                            |KeyContribution {
+                                 reward_address: _,
+                                 value,
+                             }| value
+                        )
+                        .sum(),
+                    delegations_count: snapshot.contributions.len() as u64
                 })
                 .collect::<Vec<_>>()
         );
@@ -447,7 +478,17 @@ mod tests {
                 .map(|snapshot| VoterInfo {
                     group: snapshot.hir.voting_group,
                     voting_power: snapshot.hir.voting_power,
-                    delegations: snapshot.contributions.len() as u64
+                    delegations_power: snapshot
+                        .contributions
+                        .iter()
+                        .map(
+                            |KeyContribution {
+                                 reward_address: _,
+                                 value,
+                             }| value
+                        )
+                        .sum(),
+                    delegations_count: snapshot.contributions.len() as u64
                 })
                 .collect::<Vec<_>>()
         );
@@ -463,7 +504,17 @@ mod tests {
                 .map(|snapshot| VoterInfo {
                     group: snapshot.hir.voting_group,
                     voting_power: snapshot.hir.voting_power,
-                    delegations: snapshot.contributions.len() as u64
+                    delegations_power: snapshot
+                        .contributions
+                        .iter()
+                        .map(
+                            |KeyContribution {
+                                 reward_address: _,
+                                 value,
+                             }| value
+                        )
+                        .sum(),
+                    delegations_count: snapshot.contributions.len() as u64
                 })
                 .collect::<Vec<_>>()
         );

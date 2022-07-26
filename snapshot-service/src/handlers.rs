@@ -29,8 +29,8 @@ pub async fn get_voting_power_and_delegations(
         .unwrap()
     {
         Ok(Some(entries)) => {
-            let results: Vec<_> = entries.into_iter().map(|VoterInfo{group: voting_group, voting_power, delegations}| {
-            json!({"voting_power": voting_power, "voting_group": voting_group, "delegations": delegations})
+            let results: Vec<_> = entries.into_iter().map(|VoterInfo{group: voting_group, voting_power,delegations_power, delegations_count}| {
+            json!({"voting_power": voting_power, "voting_group": voting_group, "delegations_power": delegations_power, "delegations_count": delegations_count})
         }).collect();
             Ok(warp::reply::json(&results).into_response())
         }
