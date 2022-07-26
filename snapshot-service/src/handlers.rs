@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{SharedContext, UpdateHandle, VoteInfo};
+use crate::{SharedContext, UpdateHandle, VoterInfo};
 use catalyst_toolbox::snapshot::SnapshotInfo;
 use jormungandr_lib::crypto::account::Identifier;
 use serde_json::json;
@@ -29,7 +29,7 @@ pub async fn get_voting_power_and_delegations(
         .unwrap()
     {
         Ok(Some(entries)) => {
-            let results: Vec<_> = entries.into_iter().map(|VoteInfo(voting_group, voting_power, delegations)| {
+            let results: Vec<_> = entries.into_iter().map(|VoterInfo{group: voting_group, voting_power, delegations}| {
             json!({"voting_power": voting_power, "voting_group": voting_group, "delegations": delegations})
         }).collect();
             Ok(warp::reply::json(&results).into_response())

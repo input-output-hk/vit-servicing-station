@@ -24,7 +24,11 @@ pub type Tag = String;
 pub type Group = String;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct VoteInfo(Group, Value, u64);
+pub struct VoterInfo {
+    group: Group,
+    voting_power: Value,
+    delegations: u64,
+}
 
 #[repr(transparent)]
 struct TagId(u32);
@@ -73,7 +77,7 @@ impl SharedContext {
         &self,
         tag: &str,
         id: &Identifier,
-    ) -> Result<Option<Vec<VoteInfo>>, Error> {
+    ) -> Result<Option<Vec<VoterInfo>>, Error> {
         let tag = if let Some(tag) = self.tags.get(tag)? {
             tag
         } else {
@@ -109,7 +113,11 @@ impl SharedContext {
             let voting_power = codec.get_be_u64().unwrap().into();
             let delegations = codec.get_be_u64().unwrap();
 
-            result.push(VoteInfo(group, voting_power, delegations));
+            result.push(VoterInfo {
+                group,
+                voting_power,
+                delegations,
+            });
         }
 
         Ok(Some(result))
@@ -289,15 +297,30 @@ mod tests {
         const TAG2: &str = "tag2";
 
         let key_0_values = [
-            VoteInfo(GROUP1.to_string(), Value::from(1), 0),
-            VoteInfo(GROUP2.to_string(), Value::from(2), 0),
+            VoterInfo {
+                group: GROUP1.to_string(),
+                voting_power: Value::from(1),
+                delegations: 0,
+            },
+            VoterInfo {
+                group: GROUP2.to_string(),
+                voting_power: Value::from(2),
+                delegations: 0,
+            },
         ];
 
         let content_a = std::iter::repeat(keys[0].clone())
             .take(key_0_values.len())
             .zip(key_0_values.iter().cloned())
             .map(
-                |(voting_key, VoteInfo(voting_group, voting_power, _))| SnapshotInfo {
+                |(
+                    voting_key,
+                    VoterInfo {
+                        group: voting_group,
+                        voting_power,
+                        delegations: _,
+                    },
+                )| SnapshotInfo {
                     contributions: vec![],
                     hir: VoterHIR {
                         voting_key,
@@ -310,13 +333,24 @@ mod tests {
 
         tx.update(TAG1, content_a.clone()).await.unwrap();
 
-        let key_1_values = [VoteInfo(GROUP1.to_string(), Value::from(3), 0)];
+        let key_1_values = [VoterInfo {
+            group: GROUP1.to_string(),
+            voting_power: Value::from(3),
+            delegations: 0,
+        }];
 
         let content_b = std::iter::repeat(keys[1].clone())
             .take(key_1_values.len())
             .zip(key_1_values.iter().cloned())
             .map(
-                |(voting_key, VoteInfo(voting_group, voting_power, _))| SnapshotInfo {
+                |(
+                    voting_key,
+                    VoterInfo {
+                        group: voting_group,
+                        voting_power,
+                        delegations: _,
+                    },
+                )| SnapshotInfo {
                     contributions: vec![],
                     hir: VoterHIR {
                         voting_key,
@@ -393,11 +427,11 @@ mod tests {
             inputs
                 .iter()
                 .cloned()
-                .map(|snapshot| VoteInfo(
-                    snapshot.hir.voting_group,
-                    snapshot.hir.voting_power,
-                    snapshot.contributions.len() as u64
-                ))
+                .map(|snapshot| VoterInfo {
+                    group: snapshot.hir.voting_group,
+                    voting_power: snapshot.hir.voting_power,
+                    delegations: snapshot.contributions.len() as u64
+                })
                 .collect::<Vec<_>>()
         );
 
@@ -410,11 +444,11 @@ mod tests {
             inputs[0..1]
                 .iter()
                 .cloned()
-                .map(|snapshot| VoteInfo(
-                    snapshot.hir.voting_group,
-                    snapshot.hir.voting_power,
-                    snapshot.contributions.len() as u64
-                ))
+                .map(|snapshot| VoterInfo {
+                    group: snapshot.hir.voting_group,
+                    voting_power: snapshot.hir.voting_power,
+                    delegations: snapshot.contributions.len() as u64
+                })
                 .collect::<Vec<_>>()
         );
 
@@ -426,11 +460,11 @@ mod tests {
             inputs
                 .iter()
                 .cloned()
-                .map(|snapshot| VoteInfo(
-                    snapshot.hir.voting_group,
-                    snapshot.hir.voting_power,
-                    snapshot.contributions.len() as u64
-                ))
+                .map(|snapshot| VoterInfo {
+                    group: snapshot.hir.voting_group,
+                    voting_power: snapshot.hir.voting_power,
+                    delegations: snapshot.contributions.len() as u64
+                })
                 .collect::<Vec<_>>()
         );
     }
