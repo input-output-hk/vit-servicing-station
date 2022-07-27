@@ -9,7 +9,7 @@ use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
 #[tracing::instrument(skip(context))]
-pub async fn get_voting_power_and_delegations(
+pub async fn get_voters_info(
     tag: String,
     voting_key: String,
     context: SharedContext,
@@ -24,7 +24,7 @@ pub async fn get_voting_power_and_delegations(
         .into_response());
     };
 
-    match tokio::task::spawn_blocking(move || context.get_voting_power_and_delegations(&tag, &key))
+    match tokio::task::spawn_blocking(move || context.get_voters_info(&tag, &key))
         .await
         .unwrap()
     {

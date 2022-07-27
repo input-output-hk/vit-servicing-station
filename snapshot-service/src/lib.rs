@@ -74,7 +74,7 @@ impl SharedContext {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn get_voting_power_and_delegations(
+    pub fn get_voters_info(
         &self,
         tag: &str,
         id: &Identifier,
@@ -388,20 +388,20 @@ mod tests {
 
         assert_eq!(
             &key_0_values[..],
-            &rx.get_voting_power_and_delegations(TAG1, &keys[0])
+            &rx.get_voters_info(TAG1, &keys[0])
                 .unwrap()
                 .unwrap()[..],
         );
 
         assert!(&rx
-            .get_voting_power_and_delegations(TAG1, &keys[1])
+            .get_voters_info(TAG1, &keys[1])
             .unwrap()
             .unwrap()
             .is_empty(),);
 
         assert_eq!(
             &key_1_values[..],
-            &rx.get_voting_power_and_delegations(TAG2, &keys[1])
+            &rx.get_voters_info(TAG2, &keys[1])
                 .unwrap()
                 .unwrap()[..],
         );
@@ -442,7 +442,7 @@ mod tests {
         tx.update(TAG2, inputs.clone()).await.unwrap();
 
         assert_eq!(
-            rx.get_voting_power_and_delegations(TAG1, &voting_key)
+            rx.get_voters_info(TAG1, &voting_key)
                 .unwrap()
                 .unwrap(),
             inputs
@@ -469,7 +469,7 @@ mod tests {
         tx.update(TAG1, inputs[0..1].to_vec()).await.unwrap();
 
         assert_eq!(
-            rx.get_voting_power_and_delegations(TAG1, &voting_key)
+            rx.get_voters_info(TAG1, &voting_key)
                 .unwrap()
                 .unwrap(),
             inputs[0..1]
@@ -495,7 +495,7 @@ mod tests {
 
         // asserting that TAG2 is untouched, just in case
         assert_eq!(
-            rx.get_voting_power_and_delegations(TAG2, &voting_key)
+            rx.get_voters_info(TAG2, &voting_key)
                 .unwrap()
                 .unwrap(),
             inputs
