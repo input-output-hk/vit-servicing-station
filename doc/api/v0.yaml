@@ -864,7 +864,10 @@ components:
           format: u64
         voting_group:
           type: string
-        delegations:
+        delegations_power:
+          type: integer
+          format: u64
+        delegations_count:
           type: integer
           format: u64
 
