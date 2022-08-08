@@ -458,7 +458,7 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 [[package]]
 name = "catalyst-toolbox"
 version = "0.3.0"
-source = "git+https://github.com/input-output-hk/catalyst-toolbox?branch=feature/update-deps#6aac1e6309d5472f0e06ffc18db1537ae82e3c4f"
+source = "git+https://github.com/input-output-hk/catalyst-toolbox?branch=main#94b413fa0f793ffd287c35da44489e81550e40c7"
 dependencies = [
  "assert_fs",
  "bech32 0.8.1",
@@ -509,7 +509,7 @@ dependencies = [
  "url",
  "versionisator",
  "vit-servicing-station-lib 0.3.4-dev (git+https://github.com/input-output-hk/vit-servicing-station.git?branch=master)",
- "voting-hir 0.1.0 (git+https://github.com/input-output-hk/catalyst-toolbox?branch=feature/update-deps)",
+ "voting-hir",
  "wallet",
 ]
 
@@ -4870,7 +4870,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "voting-hir 0.1.0 (git+https://github.com/input-output-hk/catalyst-toolbox?branch=main)",
+ "voting-hir",
  "warp",
 ]
 
@@ -5900,7 +5900,7 @@ dependencies = [
  "tracing",
  "tracing-futures",
  "tracing-subscriber",
- "voting-hir 0.1.0 (git+https://github.com/input-output-hk/catalyst-toolbox?branch=main)",
+ "voting-hir",
  "warp",
 ]
 
@@ -5963,15 +5963,6 @@ name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
-
-[[package]]
-name = "voting-hir"
-version = "0.1.0"
-source = "git+https://github.com/input-output-hk/catalyst-toolbox?branch=feature/update-deps#6aac1e6309d5472f0e06ffc18db1537ae82e3c4f"
-dependencies = [
- "jormungandr-lib",
- "serde",
-]
 
 [[package]]
 name = "voting-hir"
