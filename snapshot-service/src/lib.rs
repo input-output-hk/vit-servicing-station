@@ -312,6 +312,9 @@ mod tests {
         const TAG1: &str = "tag1";
         const TAG2: &str = "tag2";
 
+        const UPDATE_TIME1: u64 = 0;
+        const UPDATE_TIME2: u64 = 1;
+
         let key_0_values = [
             VoterInfo {
                 group: GROUP1.to_string(),
@@ -350,7 +353,9 @@ mod tests {
             )
             .collect::<Vec<_>>();
 
-        tx.update(TAG1, content_a.clone()).await.unwrap();
+        tx.update(TAG1, content_a.clone(), UPDATE_TIME1)
+            .await
+            .unwrap();
 
         let key_1_values = [VoterInfo {
             group: GROUP1.to_string(),
@@ -382,24 +387,31 @@ mod tests {
             )
             .collect::<Vec<_>>();
 
-        tx.update(TAG2, [content_a, content_b].concat())
+        tx.update(TAG2, [content_a, content_b].concat(), UPDATE_TIME2)
             .await
             .unwrap();
 
         assert_eq!(
             &key_0_values[..],
-            &rx.get_voters_info(TAG1, &keys[0]).unwrap().unwrap()[..],
+            &rx.get_voters_info(TAG1, &keys[0])
+                .unwrap()
+                .unwrap()
+                .voter_info[..],
         );
 
         assert!(&rx
             .get_voters_info(TAG1, &keys[1])
             .unwrap()
             .unwrap()
+            .voter_info
             .is_empty(),);
 
         assert_eq!(
             &key_1_values[..],
-            &rx.get_voters_info(TAG2, &keys[1]).unwrap().unwrap()[..],
+            &rx.get_voters_info(TAG2, &keys[1])
+                .unwrap()
+                .unwrap()
+                .voter_info[..],
         );
     }
 
@@ -407,6 +419,8 @@ mod tests {
     pub async fn test_snapshot_previous_entries_get_deleted() {
         const TAG1: &str = "tag1";
         const TAG2: &str = "tag2";
+
+        const UPDATE_TIME1: u64 = 0;
 
         let (rx, mut tx) = new_context().unwrap();
 
@@ -434,11 +448,14 @@ mod tests {
             },
         ];
 
-        tx.update(TAG1, inputs.clone()).await.unwrap();
-        tx.update(TAG2, inputs.clone()).await.unwrap();
+        tx.update(TAG1, inputs.clone(), UPDATE_TIME1).await.unwrap();
+        tx.update(TAG2, inputs.clone(), UPDATE_TIME1).await.unwrap();
 
         assert_eq!(
-            rx.get_voters_info(TAG1, &voting_key).unwrap().unwrap(),
+            rx.get_voters_info(TAG1, &voting_key)
+                .unwrap()
+                .unwrap()
+                .voter_info,
             inputs
                 .iter()
                 .cloned()
@@ -460,10 +477,15 @@ mod tests {
                 .collect::<Vec<_>>()
         );
 
-        tx.update(TAG1, inputs[0..1].to_vec()).await.unwrap();
+        tx.update(TAG1, inputs[0..1].to_vec(), UPDATE_TIME1)
+            .await
+            .unwrap();
 
         assert_eq!(
-            rx.get_voters_info(TAG1, &voting_key).unwrap().unwrap(),
+            rx.get_voters_info(TAG1, &voting_key)
+                .unwrap()
+                .unwrap()
+                .voter_info,
             inputs[0..1]
                 .iter()
                 .cloned()
@@ -487,7 +509,10 @@ mod tests {
 
         // asserting that TAG2 is untouched, just in case
         assert_eq!(
-            rx.get_voters_info(TAG2, &voting_key).unwrap().unwrap(),
+            rx.get_voters_info(TAG2, &voting_key)
+                .unwrap()
+                .unwrap()
+                .voter_info,
             inputs
                 .iter()
                 .cloned()

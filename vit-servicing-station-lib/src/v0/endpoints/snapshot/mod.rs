@@ -56,46 +56,52 @@ mod test {
             "1111111111111111111111111111111111111111111111111111111111111111",
         ];
 
-        let content_a = serde_json::to_string(&[
-            SnapshotInfo {
-                contributions: vec![
-                    KeyContribution {
-                        reward_address: "address_1".to_string(),
-                        value: 2,
+        let content_a = serde_json::to_string(&snapshot_service::SnapshotInfoUpdate {
+            snapshot: vec![
+                SnapshotInfo {
+                    contributions: vec![
+                        KeyContribution {
+                            reward_address: "address_1".to_string(),
+                            value: 2,
+                        },
+                        KeyContribution {
+                            reward_address: "address_2".to_string(),
+                            value: 2,
+                        },
+                    ],
+                    hir: VoterHIR {
+                        voting_key: Identifier::from_hex(keys[0]).unwrap(),
+                        voting_group: GROUP1.to_string(),
+                        voting_power: 1.into(),
                     },
-                    KeyContribution {
-                        reward_address: "address_2".to_string(),
-                        value: 2,
+                },
+                SnapshotInfo {
+                    contributions: vec![KeyContribution {
+                        reward_address: "address_3".to_string(),
+                        value: 3,
+                    }],
+                    hir: VoterHIR {
+                        voting_key: Identifier::from_hex(keys[0]).unwrap(),
+                        voting_group: GROUP2.to_string(),
+                        voting_power: 2.into(),
                     },
-                ],
+                },
+            ],
+            update_timestamp: 0,
+        })
+        .unwrap();
+
+        let content_b = serde_json::to_string(&snapshot_service::SnapshotInfoUpdate {
+            snapshot: vec![SnapshotInfo {
+                contributions: vec![],
                 hir: VoterHIR {
                     voting_key: Identifier::from_hex(keys[0]).unwrap(),
                     voting_group: GROUP1.to_string(),
-                    voting_power: 1.into(),
-                },
-            },
-            SnapshotInfo {
-                contributions: vec![KeyContribution {
-                    reward_address: "address_3".to_string(),
-                    value: 3,
-                }],
-                hir: VoterHIR {
-                    voting_key: Identifier::from_hex(keys[0]).unwrap(),
-                    voting_group: GROUP2.to_string(),
                     voting_power: 2.into(),
                 },
-            },
-        ])
-        .unwrap();
-
-        let content_b = serde_json::to_string(&[SnapshotInfo {
-            contributions: vec![],
-            hir: VoterHIR {
-                voting_key: Identifier::from_hex(keys[0]).unwrap(),
-                voting_group: GROUP1.to_string(),
-                voting_power: 2.into(),
-            },
-        }])
+            }],
+            update_timestamp: 1,
+        })
         .unwrap();
 
         let (shared_context, update_handler) = snapshot_service::new_context().unwrap();
