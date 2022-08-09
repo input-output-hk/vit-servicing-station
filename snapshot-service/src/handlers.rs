@@ -57,12 +57,19 @@ pub async fn get_tags(context: SharedContext) -> Result<impl Reply, Rejection> {
 #[tracing::instrument(skip(context))]
 pub async fn put_tag(
     tag: String,
-    snapshot: Vec<SnapshotInfo>,
+    snapshot_update: SnapshotInfoUpdate,
     context: Arc<Mutex<UpdateHandle>>,
 ) -> Result<impl Reply, Rejection> {
     let mut handle = context.lock().await;
+    let SnapshotInfoUpdate {
+        snapshot,
+        update_timestamp,
+    } = snapshot_update;
 
-    match handle.update(&tag, snapshot).await {
+    match handle
+        .update(&tag, snapshot, update_timestamp.try_into().unwrap())
+        .await
+    {
         Err(crate::Error::InternalError) => Ok(warp::reply::with_status(
             "Consistency error",
             StatusCode::INTERNAL_SERVER_ERROR,

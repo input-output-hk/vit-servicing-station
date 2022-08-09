@@ -5,6 +5,7 @@ use catalyst_toolbox::snapshot::{KeyContribution, SnapshotInfo, VoterHIR};
 use chain_ser::packer::Codec;
 use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
 pub use routes::{filter, update_filter};
+use serde::{Deserialize, Serialize};
 use sled::{IVec, Transactional};
 use std::mem::size_of;
 
@@ -23,12 +24,18 @@ pub enum Error {
 pub type Tag = String;
 pub type Group = String;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VoterInfo {
     group: Group,
     voting_power: Value,
     delegations_power: u64,
     delegations_count: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VotersInfo {
+    pub voter_info: Vec<VoterInfo>,
+    pub last_updated_time: u64,
 }
 
 #[repr(transparent)]
@@ -51,6 +58,19 @@ impl TagId {
 
     fn next(&self) -> Self {
         Self(self.0 + 1)
+    }
+}
+
+#[repr(transparent)]
+struct LastUpdate(u64);
+
+impl LastUpdate {
+    fn from_be_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        bytes
+            .try_into()
+            .map_err(|_| Error::InternalError)
+            .map(u64::from_be_bytes)
+            .map(Self)
     }
 }
 
@@ -171,6 +191,7 @@ impl UpdateHandle {
         &mut self,
         tag: &str,
         snapshot: impl IntoIterator<Item = SnapshotInfo>,
+        update_timestamp: u64,
     ) -> Result<(), Error> {
         let mut batch = sled::Batch::default();
 
@@ -283,6 +304,13 @@ pub fn new_context() -> Result<(SharedContext, UpdateHandle), Error> {
     let db = sled::Config::new().temporary(true).open()?;
 
     Ok((SharedContext::new(db.clone())?, UpdateHandle::new(db)?))
+}
+
+/// Snapshot information update with timestamp.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SnapshotInfoUpdate {
+    pub snapshot: Vec<SnapshotInfo>,
+    pub update_timestamp: i64,
 }
 
 #[cfg(test)]
