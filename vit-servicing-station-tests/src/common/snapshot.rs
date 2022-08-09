@@ -1,4 +1,4 @@
-use catalyst_toolbox::snapshot::{SnapshotInfo, VoterHIR};
+use snapshot_lib::{SnapshotInfo, VoterHIR};
 use chain_impl_mockchain::testing::TestGen;
 use itertools::Itertools;
 use rand::Rng;

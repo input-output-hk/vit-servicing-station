@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use catalyst_toolbox::snapshot::{KeyContribution, SnapshotInfo, VoterHIR};
+    use snapshot_lib::{KeyContribution, SnapshotInfo, VoterHIR};
     use jormungandr_lib::crypto::account::Identifier;
     use tracing::Level;
     use warp::hyper::StatusCode;
