@@ -29,16 +29,19 @@ pub type Group = String;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VoterInfo {
-    pub group: Group,
+    pub voting_group: Group,
     pub voting_power: Value,
     pub delegations_power: u64,
     pub delegations_count: u64,
 }
 
+/// Voter information in the current snapshot
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VotersInfo {
+    /// A listing of voter information in the current snapshot
     pub voter_info: Vec<VoterInfo>,
-    pub last_updated_time: u64,
+    /// Timestamp for the latest update in voter info in the current snapshot
+    pub last_updated: u64,
 }
 
 #[repr(transparent)]
@@ -133,7 +136,7 @@ impl SharedContext {
                 break;
             }
 
-            let group = String::from_utf8(k[key_prefix.len()..].to_vec())
+            let voting_group = String::from_utf8(k[key_prefix.len()..].to_vec())
                 .map_err(|_| Error::InternalError)?;
 
             let mut codec = Codec::<&[u8]>::new(v.as_ref());
@@ -142,7 +145,7 @@ impl SharedContext {
             let delegations_count = codec.get_be_u64().unwrap();
 
             result.push(VoterInfo {
-                group,
+                voting_group,
                 voting_power,
                 delegations_power,
                 delegations_count,
@@ -158,7 +161,7 @@ impl SharedContext {
 
         Ok(Some(VotersInfo {
             voter_info: result,
-            last_updated_time: last_update.0,
+            last_updated: last_update.0,
         }))
     }
 
@@ -370,13 +373,13 @@ mod tests {
 
         let key_0_values = [
             VoterInfo {
-                group: GROUP1.to_string(),
+                voting_group: GROUP1.to_string(),
                 voting_power: Value::from(1),
                 delegations_power: 0,
                 delegations_count: 0,
             },
             VoterInfo {
-                group: GROUP2.to_string(),
+                voting_group: GROUP2.to_string(),
                 voting_power: Value::from(2),
                 delegations_power: 0,
                 delegations_count: 0,
@@ -390,7 +393,7 @@ mod tests {
                 |(
                     voting_key,
                     VoterInfo {
-                        group: voting_group,
+                        voting_group,
                         voting_power,
                         delegations_power: _,
                         delegations_count: _,
@@ -411,7 +414,7 @@ mod tests {
             .unwrap();
 
         let key_1_values = [VoterInfo {
-            group: GROUP1.to_string(),
+            voting_group: GROUP1.to_string(),
             voting_power: Value::from(3),
             delegations_power: 0,
             delegations_count: 0,
@@ -424,7 +427,7 @@ mod tests {
                 |(
                     voting_key,
                     VoterInfo {
-                        group: voting_group,
+                        voting_group,
                         voting_power,
                         delegations_power: _,
                         delegations_count: _,
@@ -513,7 +516,7 @@ mod tests {
                 .iter()
                 .cloned()
                 .map(|snapshot| VoterInfo {
-                    group: snapshot.hir.voting_group,
+                    voting_group: snapshot.hir.voting_group,
                     voting_power: snapshot.hir.voting_power,
                     delegations_power: snapshot
                         .contributions
@@ -543,7 +546,7 @@ mod tests {
                 .iter()
                 .cloned()
                 .map(|snapshot| VoterInfo {
-                    group: snapshot.hir.voting_group,
+                    voting_group: snapshot.hir.voting_group,
                     voting_power: snapshot.hir.voting_power,
                     delegations_power: snapshot
                         .contributions
@@ -570,7 +573,7 @@ mod tests {
                 .iter()
                 .cloned()
                 .map(|snapshot| VoterInfo {
-                    group: snapshot.hir.voting_group,
+                    voting_group: snapshot.hir.voting_group,
                     voting_power: snapshot.hir.voting_power,
                     delegations_power: snapshot
                         .contributions

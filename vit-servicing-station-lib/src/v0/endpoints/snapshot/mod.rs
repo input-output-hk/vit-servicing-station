@@ -25,17 +25,20 @@ mod test {
             return Err(status);
         }
 
-        let result_voting_power: Vec<serde_json::Value> =
-            serde_json::from_str(&String::from_utf8(result.body().to_vec()).unwrap()).unwrap();
+        let req_body = String::from_utf8(result.body().to_vec()).unwrap();
+        let snapshot_service::VotersInfo {
+            voter_info,
+            last_updated: _timestamp,
+        } = serde_json::from_str(&req_body).unwrap();
 
-        Ok(result_voting_power
+        Ok(voter_info
             .into_iter()
             .map(|v| {
                 (
-                    v["voting_power"].as_u64().unwrap(),
-                    v["delegations_count"].as_u64().unwrap(),
-                    v["delegations_power"].as_u64().unwrap(),
-                    v["voting_group"].as_str().unwrap().to_string(),
+                    u64::from(v.voting_power),
+                    v.delegations_count,
+                    v.delegations_power,
+                    v.voting_group.clone(),
                 )
             })
             .collect::<Vec<_>>())
