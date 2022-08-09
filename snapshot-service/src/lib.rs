@@ -79,17 +79,20 @@ pub struct SharedContext {
     _db: sled::Db,
     tags: sled::Tree,
     entries: sled::Tree,
+    tag_updates: sled::Tree,
 }
 
 impl SharedContext {
     fn new(db: sled::Db) -> Result<Self, Error> {
         let tags = db.open_tree("tags")?;
         let entries = db.open_tree("entries")?;
+        let tag_updates = db.open_tree("tag_updates")?;
 
         Ok(Self {
             _db: db,
             tags,
             entries,
+            tag_updates,
         })
     }
 
@@ -164,6 +167,7 @@ pub struct UpdateHandle {
     tags: sled::Tree,
     entries: sled::Tree,
     seqs: sled::Tree,
+    tag_updates: sled::Tree,
 }
 
 const TAG_SEQ_KEY: &str = "TID";
@@ -173,6 +177,7 @@ impl UpdateHandle {
         let tags = db.open_tree("tags")?;
         let entries = db.open_tree("entries")?;
         let seqs = db.open_tree("seqs")?;
+        let tag_updates = db.open_tree("tag_updates")?;
 
         if seqs.get(TAG_SEQ_KEY)?.is_none() {
             seqs.insert(TAG_SEQ_KEY, &TagId::MIN.to_be_bytes())?;
@@ -183,6 +188,7 @@ impl UpdateHandle {
             tags,
             entries,
             seqs,
+            tag_updates,
         })
     }
 
