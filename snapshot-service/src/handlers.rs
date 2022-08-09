@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use crate::{SharedContext, UpdateHandle, VoterInfo};
-use catalyst_toolbox::snapshot::SnapshotInfo;
+use crate::{SharedContext, SnapshotInfoUpdate, UpdateHandle, VoterInfo};
 use jormungandr_lib::crypto::account::Identifier;
 use serde_json::json;
+use time::OffsetDateTime;
 use tokio::sync::Mutex;
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
@@ -28,11 +28,21 @@ pub async fn get_voters_info(
         .await
         .unwrap()
     {
-        Ok(Some(entries)) => {
-            let results: Vec<_> = entries.into_iter().map(|VoterInfo{group: voting_group, voting_power,delegations_power, delegations_count}| {
+        Ok(Some(snapshot)) => {
+            let voting_info: Vec<_> = snapshot.voter_info.into_iter().map(|VoterInfo{group: voting_group, voting_power,delegations_power, delegations_count}| {
             json!({"voting_power": voting_power, "voting_group": voting_group, "delegations_power": delegations_power, "delegations_count": delegations_count})
         }).collect();
-            Ok(warp::reply::json(&results).into_response())
+            if let Ok(last_update) =
+                OffsetDateTime::from_unix_timestamp(snapshot.last_updated_time.try_into().unwrap())
+            {
+                let results = json!({"voting_info": voting_info, "last_update": last_update});
+                Ok(warp::reply::json(&results).into_response())
+            } else {
+                Ok(
+                    warp::reply::with_status("Invalid time", StatusCode::UNPROCESSABLE_ENTITY)
+                        .into_response(),
+                )
+            }
         }
         Ok(None) => Err(warp::reject::not_found()),
         Err(_) => Ok(

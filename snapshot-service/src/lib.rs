@@ -29,10 +29,10 @@ pub type Group = String;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VoterInfo {
-    group: Group,
-    voting_power: Value,
-    delegations_power: u64,
-    delegations_count: u64,
+    pub group: Group,
+    pub voting_power: Value,
+    pub delegations_power: u64,
+    pub delegations_count: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -102,10 +102,10 @@ impl SharedContext {
     #[tracing::instrument(skip(self))]
     pub fn get_voters_info(
         &self,
-        tag: &str,
+        tag_str: &str,
         id: &Identifier,
-    ) -> Result<Option<Vec<VoterInfo>>, Error> {
-        let tag = if let Some(tag) = self.tags.get(tag)? {
+    ) -> Result<Option<VotersInfo>, Error> {
+        let tag = if let Some(tag) = self.tags.get(tag_str)? {
             tag
         } else {
             return Ok(None);
@@ -149,7 +149,17 @@ impl SharedContext {
             });
         }
 
-        Ok(Some(result))
+        let last_update = LastUpdate::from_be_bytes(
+            &self
+                .tag_updates
+                .get(tag_str.as_bytes())?
+                .ok_or(Error::InternalError)?,
+        )?;
+
+        Ok(Some(VotersInfo {
+            voter_info: result,
+            last_updated_time: last_update.0,
+        }))
     }
 
     pub fn get_tags(&self) -> Result<Vec<Tag>, Error> {
@@ -279,24 +289,30 @@ impl UpdateHandle {
             let tags = self.tags.clone();
             let entries = self.entries.clone();
             let seqs = self.seqs.clone();
+            let tag_updates = self.tag_updates.clone();
 
             tokio::task::spawn_blocking(move || {
-                (&tags, &entries, &seqs).transaction(move |(tags, entries, seqs)| {
-                    if let Tag::New(id) = &tag_id {
-                        tags.insert(tag.as_bytes(), id)?;
-                        seqs.insert(
-                            TAG_SEQ_KEY,
-                            &TagId::from_be_bytes(id.as_ref())
-                                .unwrap()
-                                .next()
-                                .to_be_bytes(),
-                        )?;
-                    }
+                (&tags, &entries, &seqs, &tag_updates).transaction(
+                    move |(tags, entries, seqs, tag_updates)| {
+                        if let Tag::New(id) = &tag_id {
+                            tags.insert(tag.as_bytes(), id)?;
+                            seqs.insert(
+                                TAG_SEQ_KEY,
+                                &TagId::from_be_bytes(id.as_ref())
+                                    .unwrap()
+                                    .next()
+                                    .to_be_bytes(),
+                            )?;
+                        }
 
-                    entries.apply_batch(&batch)?;
+                        entries.apply_batch(&batch)?;
 
-                    Ok(())
-                })?;
+                        // add timestamp for this tag update regardless if it is new or not
+                        tag_updates.insert(tag.as_bytes(), &update_timestamp.to_be_bytes())?;
+
+                        Ok(())
+                    },
+                )?;
 
                 Ok(())
             })
