@@ -19,6 +19,9 @@ pub enum Error {
 
     #[error("internal error")]
     InternalError,
+
+    #[error("invalid timestamp error")]
+    InvalidTimestampError,
 }
 
 pub type Tag = String;
