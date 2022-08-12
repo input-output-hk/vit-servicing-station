@@ -5,7 +5,10 @@ use chain_ser::packer::Codec;
 use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
 pub use routes::{filter, update_filter};
 use sled::{IVec, Transactional};
-use snapshot_lib::{KeyContribution, SnapshotInfo, VoterHIR};
+use snapshot_lib::{
+    voting_group::{RepsVotersAssigner, DEFAULT_DIRECT_VOTER_GROUP, DEFAULT_REPRESENTATIVE_GROUP},
+    Fraction, KeyContribution, RawSnapshot, Snapshot, SnapshotInfo, VoterHIR,
+};
 use std::mem::size_of;
 
 #[derive(thiserror::Error, Debug)]
@@ -15,6 +18,9 @@ pub enum Error {
 
     #[error(transparent)]
     DbTxError(#[from] sled::transaction::TransactionError),
+
+    #[error(transparent)]
+    SnapshotError(#[from] snapshot_lib::Error),
 
     #[error("internal error")]
     InternalError,
@@ -164,6 +170,132 @@ impl UpdateHandle {
             entries,
             seqs,
         })
+    }
+
+    pub async fn update2(
+        &mut self,
+        tag: &str,
+        snapshot: RawSnapshot,
+        min_stake_threshold: Value,
+        voting_power_cap: Fraction,
+        direct_voters_group: Option<String>,
+        representatives_group: Option<String>,
+    ) -> Result<(), Error> {
+        let direct_voter = direct_voters_group.unwrap_or_else(|| DEFAULT_DIRECT_VOTER_GROUP.into());
+        let representative =
+            representatives_group.unwrap_or_else(|| DEFAULT_REPRESENTATIVE_GROUP.into());
+        let assigner = RepsVotersAssigner::new(direct_voter, representative);
+        let snapshot = Snapshot::from_raw_snapshot(
+            snapshot,
+            min_stake_threshold,
+            voting_power_cap,
+            &assigner,
+        )?
+        .to_full_snapshot_info();
+        let mut batch = sled::Batch::default();
+
+        enum Tag {
+            Existing(IVec),
+            New(IVec),
+        }
+
+        let tag_id = if let Some(existing) = self.tags.get(tag)? {
+            // remove all existing entries for this tag so the ones that are not present in the new
+            // input get deleted
+            for entry in self.entries.range(&*existing..) {
+                let (k, _) = entry?;
+
+                // `existing` here is a prefix of the tree's key, since we are going to remove
+                // everything that starts with this tag, we don't need neither the public key nor
+                // the group.
+                //
+                // this is also equivalent to looping in the range(existing..existing+1).
+                if k[0..existing.len()] > *existing {
+                    break;
+                }
+
+                // notice that this uses the same Batch as the inserts, so if the entry exists in
+                // `snapshot` then it will not incur in a delete followed by an insert to the db.
+                batch.remove(k);
+            }
+
+            Tag::Existing(existing)
+        } else {
+            // unwrapping here is fine because the constructor initializes this entry to 0
+            Tag::New(self.seqs.get(TAG_SEQ_KEY)?.unwrap())
+        };
+
+        for entry in snapshot.into_iter() {
+            let VoterHIR {
+                voting_key,
+                voting_group,
+                voting_power,
+            } = entry.hir;
+            let delegations_count = entry.contributions.len();
+            let delegations_power = entry
+                .contributions
+                .iter()
+                .map(
+                    |KeyContribution {
+                         reward_address: _,
+                         value,
+                     }| value,
+                )
+                .sum();
+
+            let voting_key_bytes = voting_key.as_ref().as_ref();
+
+            let mut key = Vec::with_capacity(
+                size_of::<TagId>() + voting_key_bytes.len() + voting_group.as_bytes().len(),
+            );
+
+            match &tag_id {
+                Tag::Existing(tag_id) | Tag::New(tag_id) => key.extend(&**tag_id),
+            }
+
+            key.extend(voting_key_bytes);
+            key.extend(voting_group.as_bytes());
+
+            let mut codec = Codec::new(Vec::new());
+            codec.put_be_u64(voting_power.into()).unwrap();
+            codec.put_be_u64(delegations_power).unwrap();
+            codec.put_be_u64(delegations_count as u64).unwrap();
+
+            batch.insert(key, codec.into_inner().as_slice());
+        }
+
+        {
+            let tag = tag.to_string();
+            let tags = self.tags.clone();
+            let entries = self.entries.clone();
+            let seqs = self.seqs.clone();
+
+            tokio::task::spawn_blocking(move || {
+                (&tags, &entries, &seqs).transaction(move |(tags, entries, seqs)| {
+                    if let Tag::New(id) = &tag_id {
+                        tags.insert(tag.as_bytes(), id)?;
+                        seqs.insert(
+                            TAG_SEQ_KEY,
+                            &TagId::from_be_bytes(id.as_ref())
+                                .unwrap()
+                                .next()
+                                .to_be_bytes(),
+                        )?;
+                    }
+
+                    entries.apply_batch(&batch)?;
+
+                    Ok(())
+                })?;
+
+                Ok(())
+            })
+            .await
+            .unwrap()
+            .map_err(Error::DbTxError)?;
+        }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self, snapshot))]

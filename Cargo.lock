@@ -1798,7 +1798,7 @@ checksum = "6c8af84674fe1f223a982c933a0ee1086ac4d4052aa0fb8060c12c6ad838e754"
 [[package]]
 name = "jormungandr-lib"
 version = "0.13.0"
-source = "git+https://github.com/input-output-hk/jormungandr?branch=master#5f51deb34dc86d5124c44d885025dcbbc5371cd1"
+source = "git+https://github.com/input-output-hk/jormungandr?branch=master#2d6c90cdad96e8438bc76b42cb53ccfdf626e0a2"
 dependencies = [
  "base64 0.13.0",
  "bech32",
@@ -3434,7 +3434,7 @@ checksum = "2fd0db749597d91ff862fd1d55ea87f7855a744a8425a64695b6fca237d1dad1"
 [[package]]
 name = "snapshot-lib"
 version = "0.1.0"
-source = "git+https://github.com/input-output-hk/catalyst-toolbox?branch=main#5748d638ab1f0cc3ba40eb7953caa2ae0e9fab78"
+source = "git+https://github.com/input-output-hk/catalyst-toolbox?branch=feature/npg-2640-update-snapshot-lib#74260449bd0a4be86933d5233d050fffd892ab2d"
 dependencies = [
  "bech32",
  "chain-crypto",
