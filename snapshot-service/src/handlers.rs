@@ -62,7 +62,7 @@ pub async fn put_tag(
 ) -> Result<impl Reply, Rejection> {
     let mut handle = context.lock().await;
 
-    match handle.update(&tag, snapshot).await {
+    match handle.update_from_shanpshot_info(&tag, snapshot).await {
         Err(crate::Error::InternalError) => Ok(warp::reply::with_status(
             "Consistency error",
             StatusCode::INTERNAL_SERVER_ERROR,
