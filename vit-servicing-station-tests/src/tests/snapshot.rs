@@ -13,7 +13,7 @@ pub fn import_new_snapshot() {
 
     let snapshot = Snapshot::default();
 
-    rest_client.put_snapshot(&snapshot).unwrap();
+    rest_client.put_snapshot_info(&snapshot).unwrap();
 
     assert_eq!(
         vec![snapshot.tag.to_string()],
@@ -42,14 +42,14 @@ pub fn reimport_with_empty_snapshot() {
 
     let snapshot = Snapshot::default();
 
-    rest_client.put_snapshot(&snapshot).unwrap();
+    rest_client.put_snapshot_info(&snapshot).unwrap();
 
     let empty_snapshot = Snapshot {
         tag: snapshot.tag.clone(),
         content: Vec::new(),
     };
 
-    rest_client.put_snapshot(&empty_snapshot).unwrap();
+    rest_client.put_snapshot_info(&empty_snapshot).unwrap();
     for (idx, entry) in snapshot.content.iter().enumerate() {
         assert!(
             rest_client
@@ -69,11 +69,11 @@ pub fn replace_snapshot_with_tag() {
 
     let first_snapshot = Snapshot::default();
 
-    rest_client.put_snapshot(&first_snapshot).unwrap();
+    rest_client.put_snapshot_info(&first_snapshot).unwrap();
 
     let second_snapshot = Snapshot::default();
 
-    rest_client.put_snapshot(&second_snapshot).unwrap();
+    rest_client.put_snapshot_info(&second_snapshot).unwrap();
     for (idx, entry) in first_snapshot.content.iter().enumerate() {
         assert!(
             rest_client
@@ -105,13 +105,13 @@ pub fn import_snapshots_with_different_tags() {
 
     let first_snapshot = Snapshot::default();
 
-    rest_client.put_snapshot(&first_snapshot).unwrap();
+    rest_client.put_snapshot_info(&first_snapshot).unwrap();
 
     let second_snapshot = SnapshotUpdater::from(first_snapshot.clone())
         .with_tag("fund9")
         .build();
 
-    rest_client.put_snapshot(&second_snapshot).unwrap();
+    rest_client.put_snapshot_info(&second_snapshot).unwrap();
 
     for (idx, entry) in first_snapshot.content.iter().enumerate() {
         let voting_power = VotingPower::from(entry.hir.clone());
@@ -144,7 +144,7 @@ pub fn import_malformed_snapshot() {
     let mut content = serde_json::to_string(&snapshot.content).unwrap();
     content.pop();
     assert!(rest_client
-        .put_snapshot(&snapshot.tag, content)
+        .put_snapshot_info(&snapshot.tag, content)
         .unwrap()
         .status()
         .is_client_error());
@@ -166,7 +166,7 @@ pub fn import_big_snapshot() {
         ])
         .build();
 
-    rest_client.put_snapshot(&snapshot).unwrap();
+    rest_client.put_snapshot_info(&snapshot).unwrap();
     let entry = snapshot.content[0].clone();
     let voting_power = VotingPower::from(entry.hir.clone());
     assert_eq!(

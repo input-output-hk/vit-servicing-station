@@ -305,7 +305,7 @@ paths:
         "200":
           description: Success
 
-  /api/v0/admin/snapshot/{tag}:
+  /api/v0/admin/snapshot/snapshot_info/{tag}:
     put:
       operationId: updateSnapshot
       summary: Replace the snapshot data for the given tag

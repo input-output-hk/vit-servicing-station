@@ -40,8 +40,8 @@ impl RestClient {
             .map_err(Error::RequestError)
     }
 
-    pub fn put_snapshot(&self, tag: &str, content: String) -> Result<Response, Error> {
-        self.put(&self.path_builder.clone().admin().snapshot(tag), content)
+    pub fn put_snapshot_info(&self, tag: &str, content: String) -> Result<Response, Error> {
+        self.put(&self.path_builder.clone().admin().snapshot_info(tag), content)
             .map_err(Error::RequestError)
     }
 

@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use crate::{SharedContext, UpdateHandle, VoterInfo};
 use jormungandr_lib::crypto::account::Identifier;
+use jormungandr_lib::interfaces::Value;
 use serde_json::json;
-use snapshot_lib::SnapshotInfo;
+use snapshot_lib::{Fraction, RawSnapshot, SnapshotInfo};
 use tokio::sync::Mutex;
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
@@ -55,7 +56,43 @@ pub async fn get_tags(context: SharedContext) -> Result<impl Reply, Rejection> {
 }
 
 #[tracing::instrument(skip(context))]
-pub async fn put_tag(
+pub async fn put_raw_snapshot(
+    tag: String,
+    snapshot: RawSnapshot,
+    min_stake_threshold: Value,
+    voting_power_cap: Fraction,
+    direct_voters_group: Option<String>,
+    representatives_group: Option<String>,
+    context: Arc<Mutex<UpdateHandle>>,
+) -> Result<impl Reply, Rejection> {
+    let mut handle = context.lock().await;
+
+    match handle
+        .update_from_raw_snapshot(
+            &tag,
+            snapshot,
+            min_stake_threshold,
+            voting_power_cap,
+            direct_voters_group,
+            representatives_group,
+        )
+        .await
+    {
+        Err(crate::Error::InternalError) => Ok(warp::reply::with_status(
+            "Consistency error",
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+        .into_response()),
+        Err(e) => Ok(
+            warp::reply::with_status(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR)
+                .into_response(),
+        ),
+        Ok(_) => Ok(warp::reply().into_response()),
+    }
+}
+
+#[tracing::instrument(skip(context))]
+pub async fn put_snapshot_info(
     tag: String,
     snapshot: Vec<SnapshotInfo>,
     context: Arc<Mutex<UpdateHandle>>,
