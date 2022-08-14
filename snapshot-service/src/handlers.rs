@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::{SharedContext, UpdateHandle, VoterInfo};
 use jormungandr_lib::crypto::account::Identifier;
 use jormungandr_lib::interfaces::Value;
+use serde::Deserialize;
 use serde_json::json;
 use snapshot_lib::{Fraction, RawSnapshot, SnapshotInfo};
 use tokio::sync::Mutex;
@@ -55,14 +56,19 @@ pub async fn get_tags(context: SharedContext) -> Result<impl Reply, Rejection> {
     }
 }
 
-#[tracing::instrument(skip(context))]
-pub async fn put_raw_snapshot(
-    tag: String,
+#[derive(Debug, Deserialize)]
+pub struct RawSnapshotInput {
     snapshot: RawSnapshot,
     min_stake_threshold: Value,
     voting_power_cap: Fraction,
     direct_voters_group: Option<String>,
     representatives_group: Option<String>,
+}
+
+#[tracing::instrument(skip(context))]
+pub async fn put_raw_snapshot(
+    tag: String,
+    snapshot_input: RawSnapshotInput,
     context: Arc<Mutex<UpdateHandle>>,
 ) -> Result<impl Reply, Rejection> {
     let mut handle = context.lock().await;
@@ -70,11 +76,11 @@ pub async fn put_raw_snapshot(
     match handle
         .update_from_raw_snapshot(
             &tag,
-            snapshot,
-            min_stake_threshold,
-            voting_power_cap,
-            direct_voters_group,
-            representatives_group,
+            snapshot_input.snapshot,
+            snapshot_input.min_stake_threshold,
+            snapshot_input.voting_power_cap,
+            snapshot_input.direct_voters_group,
+            snapshot_input.representatives_group,
         )
         .await
     {

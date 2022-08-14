@@ -42,7 +42,7 @@ pub fn update_filter(
         .and(warp::put())
         .and(warp::body::json())
         .and(with_context)
-        .and_then(put_snapshot_info);
+        .and_then(put_raw_snapshot);
 
     snapshot_info.or(raw_snapshot)
 }
