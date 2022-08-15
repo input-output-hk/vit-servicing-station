@@ -4,6 +4,7 @@ mod routes;
 use chain_ser::packer::Codec;
 use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
 pub use routes::{filter, update_filter};
+use serde::{Deserialize, Serialize};
 use sled::{IVec, Transactional};
 use snapshot_lib::{
     voting_group::{RepsVotersAssigner, DEFAULT_DIRECT_VOTER_GROUP, DEFAULT_REPRESENTATIVE_GROUP},
@@ -24,17 +25,29 @@ pub enum Error {
 
     #[error("internal error")]
     InternalError,
+
+    #[error("invalid timestamp error")]
+    InvalidTimestampError,
 }
 
 pub type Tag = String;
 pub type Group = String;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VoterInfo {
-    group: Group,
-    voting_power: Value,
-    delegations_power: u64,
-    delegations_count: u64,
+    pub voting_group: Group,
+    pub voting_power: Value,
+    pub delegations_power: u64,
+    pub delegations_count: u64,
+}
+
+/// Voter information in the current snapshot
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VotersInfo {
+    /// A listing of voter information in the current snapshot
+    pub voter_info: Vec<VoterInfo>,
+    /// Timestamp for the latest update in voter info in the current snapshot
+    pub last_updated: u64,
 }
 
 #[repr(transparent)]
@@ -60,32 +73,48 @@ impl TagId {
     }
 }
 
+#[repr(transparent)]
+struct LastUpdate(u64);
+
+impl LastUpdate {
+    fn from_be_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        bytes
+            .try_into()
+            .map_err(|_| Error::InternalError)
+            .map(u64::from_be_bytes)
+            .map(Self)
+    }
+}
+
 #[derive(Clone)]
 pub struct SharedContext {
     _db: sled::Db,
     tags: sled::Tree,
     entries: sled::Tree,
+    tag_updates: sled::Tree,
 }
 
 impl SharedContext {
     fn new(db: sled::Db) -> Result<Self, Error> {
         let tags = db.open_tree("tags")?;
         let entries = db.open_tree("entries")?;
+        let tag_updates = db.open_tree("tag_updates")?;
 
         Ok(Self {
             _db: db,
             tags,
             entries,
+            tag_updates,
         })
     }
 
     #[tracing::instrument(skip(self))]
     pub fn get_voters_info(
         &self,
-        tag: &str,
+        tag_str: &str,
         id: &Identifier,
-    ) -> Result<Option<Vec<VoterInfo>>, Error> {
-        let tag = if let Some(tag) = self.tags.get(tag)? {
+    ) -> Result<Option<VotersInfo>, Error> {
+        let tag = if let Some(tag) = self.tags.get(tag_str)? {
             tag
         } else {
             return Ok(None);
@@ -113,7 +142,7 @@ impl SharedContext {
                 break;
             }
 
-            let group = String::from_utf8(k[key_prefix.len()..].to_vec())
+            let voting_group = String::from_utf8(k[key_prefix.len()..].to_vec())
                 .map_err(|_| Error::InternalError)?;
 
             let mut codec = Codec::<&[u8]>::new(v.as_ref());
@@ -122,14 +151,24 @@ impl SharedContext {
             let delegations_count = codec.get_be_u64().unwrap();
 
             result.push(VoterInfo {
-                group,
+                voting_group,
                 voting_power,
                 delegations_power,
                 delegations_count,
             });
         }
 
-        Ok(Some(result))
+        let last_update = LastUpdate::from_be_bytes(
+            &self
+                .tag_updates
+                .get(tag_str.as_bytes())?
+                .ok_or(Error::InternalError)?,
+        )?;
+
+        Ok(Some(VotersInfo {
+            voter_info: result,
+            last_updated: last_update.0,
+        }))
     }
 
     pub fn get_tags(&self) -> Result<Vec<Tag>, Error> {
@@ -150,6 +189,7 @@ pub struct UpdateHandle {
     tags: sled::Tree,
     entries: sled::Tree,
     seqs: sled::Tree,
+    tag_updates: sled::Tree,
 }
 
 const TAG_SEQ_KEY: &str = "TID";
@@ -159,6 +199,7 @@ impl UpdateHandle {
         let tags = db.open_tree("tags")?;
         let entries = db.open_tree("entries")?;
         let seqs = db.open_tree("seqs")?;
+        let tag_updates = db.open_tree("tag_updates")?;
 
         if seqs.get(TAG_SEQ_KEY)?.is_none() {
             seqs.insert(TAG_SEQ_KEY, &TagId::MIN.to_be_bytes())?;
@@ -169,6 +210,7 @@ impl UpdateHandle {
             tags,
             entries,
             seqs,
+            tag_updates,
         })
     }
 
@@ -176,6 +218,7 @@ impl UpdateHandle {
         &mut self,
         tag: &str,
         snapshot: RawSnapshot,
+        update_timestamp: u64,
         min_stake_threshold: Value,
         voting_power_cap: Fraction,
         direct_voters_group: Option<String>,
@@ -193,7 +236,8 @@ impl UpdateHandle {
         )?
         .to_full_snapshot_info();
 
-        self.update_from_shanpshot_info(tag, snapshot).await
+        self.update_from_shanpshot_info(tag, snapshot, update_timestamp)
+            .await
     }
 
     #[tracing::instrument(skip(self, snapshot))]
@@ -201,6 +245,7 @@ impl UpdateHandle {
         &mut self,
         tag: &str,
         snapshot: impl IntoIterator<Item = SnapshotInfo>,
+        update_timestamp: u64,
     ) -> Result<(), Error> {
         let mut batch = sled::Batch::default();
 
@@ -279,24 +324,30 @@ impl UpdateHandle {
             let tags = self.tags.clone();
             let entries = self.entries.clone();
             let seqs = self.seqs.clone();
+            let tag_updates = self.tag_updates.clone();
 
             tokio::task::spawn_blocking(move || {
-                (&tags, &entries, &seqs).transaction(move |(tags, entries, seqs)| {
-                    if let Tag::New(id) = &tag_id {
-                        tags.insert(tag.as_bytes(), id)?;
-                        seqs.insert(
-                            TAG_SEQ_KEY,
-                            &TagId::from_be_bytes(id.as_ref())
-                                .unwrap()
-                                .next()
-                                .to_be_bytes(),
-                        )?;
-                    }
+                (&tags, &entries, &seqs, &tag_updates).transaction(
+                    move |(tags, entries, seqs, tag_updates)| {
+                        if let Tag::New(id) = &tag_id {
+                            tags.insert(tag.as_bytes(), id)?;
+                            seqs.insert(
+                                TAG_SEQ_KEY,
+                                &TagId::from_be_bytes(id.as_ref())
+                                    .unwrap()
+                                    .next()
+                                    .to_be_bytes(),
+                            )?;
+                        }
 
-                    entries.apply_batch(&batch)?;
+                        entries.apply_batch(&batch)?;
 
-                    Ok(())
-                })?;
+                        // add timestamp for this tag update regardless if it is new or not
+                        tag_updates.insert(tag.as_bytes(), &update_timestamp.to_be_bytes())?;
+
+                        Ok(())
+                    },
+                )?;
 
                 Ok(())
             })
@@ -342,15 +393,18 @@ mod tests {
         const TAG1: &str = "tag1";
         const TAG2: &str = "tag2";
 
+        const UPDATE_TIME1: u64 = 0;
+        const UPDATE_TIME2: u64 = 1;
+
         let key_0_values = [
             VoterInfo {
-                group: GROUP1.to_string(),
+                voting_group: GROUP1.to_string(),
                 voting_power: Value::from(1),
                 delegations_power: 0,
                 delegations_count: 0,
             },
             VoterInfo {
-                group: GROUP2.to_string(),
+                voting_group: GROUP2.to_string(),
                 voting_power: Value::from(2),
                 delegations_power: 0,
                 delegations_count: 0,
@@ -364,7 +418,7 @@ mod tests {
                 |(
                     voting_key,
                     VoterInfo {
-                        group: voting_group,
+                        voting_group,
                         voting_power,
                         delegations_power: _,
                         delegations_count: _,
@@ -380,12 +434,12 @@ mod tests {
             )
             .collect::<Vec<_>>();
 
-        tx.update_from_shanpshot_info(TAG1, content_a.clone())
+        tx.update_from_shanpshot_info(TAG1, content_a.clone(), UPDATE_TIME1)
             .await
             .unwrap();
 
         let key_1_values = [VoterInfo {
-            group: GROUP1.to_string(),
+            voting_group: GROUP1.to_string(),
             voting_power: Value::from(3),
             delegations_power: 0,
             delegations_count: 0,
@@ -398,7 +452,7 @@ mod tests {
                 |(
                     voting_key,
                     VoterInfo {
-                        group: voting_group,
+                        voting_group,
                         voting_power,
                         delegations_power: _,
                         delegations_count: _,
@@ -414,24 +468,31 @@ mod tests {
             )
             .collect::<Vec<_>>();
 
-        tx.update_from_shanpshot_info(TAG2, [content_a, content_b].concat())
+        tx.update_from_shanpshot_info(TAG2, [content_a, content_b].concat(), UPDATE_TIME2)
             .await
             .unwrap();
 
         assert_eq!(
             &key_0_values[..],
-            &rx.get_voters_info(TAG1, &keys[0]).unwrap().unwrap()[..],
+            &rx.get_voters_info(TAG1, &keys[0])
+                .unwrap()
+                .unwrap()
+                .voter_info[..],
         );
 
         assert!(&rx
             .get_voters_info(TAG1, &keys[1])
             .unwrap()
             .unwrap()
+            .voter_info
             .is_empty(),);
 
         assert_eq!(
             &key_1_values[..],
-            &rx.get_voters_info(TAG2, &keys[1]).unwrap().unwrap()[..],
+            &rx.get_voters_info(TAG2, &keys[1])
+                .unwrap()
+                .unwrap()
+                .voter_info[..],
         );
     }
 
@@ -439,6 +500,8 @@ mod tests {
     pub async fn test_snapshot_previous_entries_get_deleted() {
         const TAG1: &str = "tag1";
         const TAG2: &str = "tag2";
+
+        const UPDATE_TIME1: u64 = 0;
 
         let (rx, mut tx) = new_context().unwrap();
 
@@ -466,20 +529,23 @@ mod tests {
             },
         ];
 
-        tx.update_from_shanpshot_info(TAG1, inputs.clone())
+        tx.update_from_shanpshot_info(TAG1, inputs.clone(), UPDATE_TIME1)
             .await
             .unwrap();
-        tx.update_from_shanpshot_info(TAG2, inputs.clone())
+        tx.update_from_shanpshot_info(TAG2, inputs.clone(), UPDATE_TIME1)
             .await
             .unwrap();
 
         assert_eq!(
-            rx.get_voters_info(TAG1, &voting_key).unwrap().unwrap(),
+            rx.get_voters_info(TAG1, &voting_key)
+                .unwrap()
+                .unwrap()
+                .voter_info,
             inputs
                 .iter()
                 .cloned()
                 .map(|snapshot| VoterInfo {
-                    group: snapshot.hir.voting_group,
+                    voting_group: snapshot.hir.voting_group,
                     voting_power: snapshot.hir.voting_power,
                     delegations_power: snapshot
                         .contributions
@@ -496,17 +562,20 @@ mod tests {
                 .collect::<Vec<_>>()
         );
 
-        tx.update_from_shanpshot_info(TAG1, inputs[0..1].to_vec())
+        tx.update_from_shanpshot_info(TAG1, inputs[0..1].to_vec(), UPDATE_TIME1)
             .await
             .unwrap();
 
         assert_eq!(
-            rx.get_voters_info(TAG1, &voting_key).unwrap().unwrap(),
+            rx.get_voters_info(TAG1, &voting_key)
+                .unwrap()
+                .unwrap()
+                .voter_info,
             inputs[0..1]
                 .iter()
                 .cloned()
                 .map(|snapshot| VoterInfo {
-                    group: snapshot.hir.voting_group,
+                    voting_group: snapshot.hir.voting_group,
                     voting_power: snapshot.hir.voting_power,
                     delegations_power: snapshot
                         .contributions
@@ -525,12 +594,15 @@ mod tests {
 
         // asserting that TAG2 is untouched, just in case
         assert_eq!(
-            rx.get_voters_info(TAG2, &voting_key).unwrap().unwrap(),
+            rx.get_voters_info(TAG2, &voting_key)
+                .unwrap()
+                .unwrap()
+                .voter_info,
             inputs
                 .iter()
                 .cloned()
                 .map(|snapshot| VoterInfo {
-                    group: snapshot.hir.voting_group,
+                    voting_group: snapshot.hir.voting_group,
                     voting_power: snapshot.hir.voting_power,
                     delegations_power: snapshot
                         .contributions

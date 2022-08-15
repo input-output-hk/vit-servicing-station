@@ -6,6 +6,7 @@ use jormungandr_lib::interfaces::Value;
 use serde::Deserialize;
 use serde_json::json;
 use snapshot_lib::{Fraction, RawSnapshot, SnapshotInfo};
+use time::OffsetDateTime;
 use tokio::sync::Mutex;
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
@@ -30,11 +31,21 @@ pub async fn get_voters_info(
         .await
         .unwrap()
     {
-        Ok(Some(entries)) => {
-            let results: Vec<_> = entries.into_iter().map(|VoterInfo{group: voting_group, voting_power,delegations_power, delegations_count}| {
+        Ok(Some(snapshot)) => {
+            let voting_info: Vec<_> = snapshot.voter_info.into_iter().map(|VoterInfo{voting_group, voting_power,delegations_power, delegations_count}| {
             json!({"voting_power": voting_power, "voting_group": voting_group, "delegations_power": delegations_power, "delegations_count": delegations_count})
         }).collect();
-            Ok(warp::reply::json(&results).into_response())
+            if let Ok(last_update) =
+                OffsetDateTime::from_unix_timestamp(snapshot.last_updated.try_into().unwrap())
+            {
+                let results = json!({"voter_info": voting_info, "last_updated": last_update.unix_timestamp()});
+                Ok(warp::reply::json(&results).into_response())
+            } else {
+                Ok(
+                    warp::reply::with_status("Invalid time", StatusCode::UNPROCESSABLE_ENTITY)
+                        .into_response(),
+                )
+            }
         }
         Ok(None) => Err(warp::reject::not_found()),
         Err(_) => Ok(
@@ -56,9 +67,17 @@ pub async fn get_tags(context: SharedContext) -> Result<impl Reply, Rejection> {
     }
 }
 
+/// Snapshot information update with timestamp.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct SnapshotInfoInput {
+    snapshot: Vec<SnapshotInfo>,
+    update_timestamp: u64,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct RawSnapshotInput {
     snapshot: RawSnapshot,
+    update_timestamp: u64,
     min_stake_threshold: Value,
     voting_power_cap: Fraction,
     direct_voters_group: Option<String>,
@@ -68,7 +87,7 @@ pub struct RawSnapshotInput {
 #[tracing::instrument(skip(context))]
 pub async fn put_raw_snapshot(
     tag: String,
-    snapshot_input: RawSnapshotInput,
+    input: RawSnapshotInput,
     context: Arc<Mutex<UpdateHandle>>,
 ) -> Result<impl Reply, Rejection> {
     let mut handle = context.lock().await;
@@ -76,11 +95,12 @@ pub async fn put_raw_snapshot(
     match handle
         .update_from_raw_snapshot(
             &tag,
-            snapshot_input.snapshot,
-            snapshot_input.min_stake_threshold,
-            snapshot_input.voting_power_cap,
-            snapshot_input.direct_voters_group,
-            snapshot_input.representatives_group,
+            input.snapshot,
+            input.update_timestamp,
+            input.min_stake_threshold,
+            input.voting_power_cap,
+            input.direct_voters_group,
+            input.representatives_group,
         )
         .await
     {
@@ -100,12 +120,15 @@ pub async fn put_raw_snapshot(
 #[tracing::instrument(skip(context))]
 pub async fn put_snapshot_info(
     tag: String,
-    snapshot: Vec<SnapshotInfo>,
+    input: SnapshotInfoInput,
     context: Arc<Mutex<UpdateHandle>>,
 ) -> Result<impl Reply, Rejection> {
     let mut handle = context.lock().await;
 
-    match handle.update_from_shanpshot_info(&tag, snapshot).await {
+    match handle
+        .update_from_shanpshot_info(&tag, input.snapshot, input.update_timestamp)
+        .await
+    {
         Err(crate::Error::InternalError) => Ok(warp::reply::with_status(
             "Consistency error",
             StatusCode::INTERNAL_SERVER_ERROR,
