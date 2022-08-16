@@ -6,6 +6,7 @@ use snapshot_lib::{SnapshotInfo, VoterHIR};
 #[derive(Debug, Clone)]
 pub struct Snapshot {
     pub tag: String,
+    pub content_2: SnapshotInfoInput,
     pub content: Vec<SnapshotInfo>,
 }
 

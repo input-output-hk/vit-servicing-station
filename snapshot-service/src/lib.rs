@@ -2,6 +2,7 @@ mod handlers;
 mod routes;
 
 use chain_ser::packer::Codec;
+pub use handlers::{RawSnapshotInput, SnapshotInfoInput};
 use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
 pub use routes::{filter, update_filter};
 use serde::{Deserialize, Serialize};

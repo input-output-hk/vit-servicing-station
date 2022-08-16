@@ -2,6 +2,7 @@
 mod test {
     use jormungandr_lib::crypto::account::Identifier;
     use snapshot_lib::{KeyContribution, SnapshotInfo, VoterHIR};
+    use snapshot_service::SnapshotInfoInput;
     use tracing::Level;
     use warp::hyper::StatusCode;
     use warp::{Filter, Reply};
@@ -59,7 +60,7 @@ mod test {
             "1111111111111111111111111111111111111111111111111111111111111111",
         ];
 
-        let content_a = serde_json::to_string(&snapshot_service::SnapshotInfoUpdate {
+        let content_a = serde_json::to_string(&SnapshotInfoInput {
             snapshot: vec![
                 SnapshotInfo {
                     contributions: vec![
@@ -94,7 +95,7 @@ mod test {
         })
         .unwrap();
 
-        let content_b = serde_json::to_string(&snapshot_service::SnapshotInfoUpdate {
+        let content_b = serde_json::to_string(&SnapshotInfoInput {
             snapshot: vec![SnapshotInfo {
                 contributions: vec![],
                 hir: VoterHIR {

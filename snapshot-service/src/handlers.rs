@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{SharedContext, UpdateHandle, VoterInfo};
 use jormungandr_lib::crypto::account::Identifier;
 use jormungandr_lib::interfaces::Value;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use snapshot_lib::{Fraction, RawSnapshot, SnapshotInfo};
 use time::OffsetDateTime;
@@ -68,12 +68,13 @@ pub async fn get_tags(context: SharedContext) -> Result<impl Reply, Rejection> {
 }
 
 /// Snapshot information update with timestamp.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct SnapshotInfoInput {
-    snapshot: Vec<SnapshotInfo>,
-    update_timestamp: u64,
+    pub snapshot: Vec<SnapshotInfo>,
+    pub update_timestamp: u64,
 }
 
+/// Raw Snapshot information update with timestamp.
 #[derive(Debug, Deserialize)]
 pub struct RawSnapshotInput {
     snapshot: RawSnapshot,
