@@ -215,6 +215,7 @@ impl UpdateHandle {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_from_raw_snapshot(
         &mut self,
         tag: &str,

@@ -38,7 +38,8 @@ pub async fn get_voters_info(
             if let Ok(last_update) =
                 OffsetDateTime::from_unix_timestamp(snapshot.last_updated.try_into().unwrap())
             {
-                let results = json!({"voter_info": voter_info, "last_updated": last_update.unix_timestamp()});
+                let results =
+                    json!({"voter_info": voter_info, "last_updated": last_update.unix_timestamp()});
                 Ok(warp::reply::json(&results).into_response())
             } else {
                 Ok(
