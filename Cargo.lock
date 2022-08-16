@@ -3439,7 +3439,7 @@ checksum = "2fd0db749597d91ff862fd1d55ea87f7855a744a8425a64695b6fca237d1dad1"
 [[package]]
 name = "snapshot-lib"
 version = "0.1.0"
-source = "git+https://github.com/input-output-hk/catalyst-toolbox?branch=feature/npg-2640-update-snapshot-lib#fdf8c0c6662b98c6aaea9cd3a68c86711f1f4836"
+source = "git+https://github.com/input-output-hk/catalyst-toolbox?branch=main#bc5239a60aba0ffd00f1638d0a694e2e721491b0"
 dependencies = [
  "bech32",
  "chain-crypto",
