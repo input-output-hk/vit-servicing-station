@@ -53,11 +53,11 @@ impl RestClient {
             .map_err(Error::RequestError)
     }
 
-    pub fn voting_power_and_delegations(&self, tag: &str, key: &str) -> Result<Response, Error> {
+    pub fn voter_info(&self, tag: &str, key: &str) -> Result<Response, Error> {
         self.get(
             &self
                 .path_builder
-                .snapshot_voting_power_and_delegations(tag, key),
+                .snapshot_voter_info(tag, key),
         )
         .map_err(Error::RequestError)
     }
