@@ -116,7 +116,7 @@ mod test {
 
         assert_eq!(
             warp::test::request()
-                .path(format!("/snapshot/snapshot_info/{}", "tag_a").as_ref())
+                .path("/snapshot/snapshot_info/tag_a")
                 .method("PUT")
                 .body(content_a)
                 .reply(&put_filter)
@@ -127,7 +127,7 @@ mod test {
 
         assert_eq!(
             warp::test::request()
-                .path(format!("/snapshot/snapshot_info/{}", "tag_b").as_ref())
+                .path("/snapshot/snapshot_info/tag_b")
                 .method("PUT")
                 .body(content_b)
                 .reply(&put_filter)
