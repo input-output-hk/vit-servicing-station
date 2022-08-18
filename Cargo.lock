@@ -466,7 +466,7 @@ name = "chain-vote"
 version = "0.1.0"
 source = "git+https://github.com/input-output-hk/chain-libs?branch=master#4876be80441bed5c2796428d6b96739526b016a2"
 dependencies = [
- "cfg-if 0.1.10",
+ "cfg-if 1.0.0",
  "chain-core",
  "chain-crypto",
  "const_format",
@@ -3439,7 +3439,7 @@ checksum = "2fd0db749597d91ff862fd1d55ea87f7855a744a8425a64695b6fca237d1dad1"
 [[package]]
 name = "snapshot-lib"
 version = "0.1.0"
-source = "git+https://github.com/input-output-hk/catalyst-toolbox?branch=main#bc5239a60aba0ffd00f1638d0a694e2e721491b0"
+source = "git+https://github.com/input-output-hk/catalyst-toolbox?branch=feature/update_snapshot_structs#6df46db279c4b51cb167329ea97b5216729e7c9e"
 dependencies = [
  "bech32",
  "chain-crypto",

@@ -69,21 +69,21 @@ pub async fn get_tags(context: SharedContext) -> Result<impl Reply, Rejection> {
 }
 
 /// Snapshot information update with timestamp.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct SnapshotInfoInput {
     pub snapshot: Vec<SnapshotInfo>,
     pub update_timestamp: u64,
 }
 
 /// Raw Snapshot information update with timestamp.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RawSnapshotInput {
-    snapshot: RawSnapshot,
-    update_timestamp: u64,
-    min_stake_threshold: Value,
-    voting_power_cap: Fraction,
-    direct_voters_group: Option<String>,
-    representatives_group: Option<String>,
+    pub snapshot: RawSnapshot,
+    pub update_timestamp: u64,
+    pub min_stake_threshold: Value,
+    pub voting_power_cap: Fraction,
+    pub direct_voters_group: Option<String>,
+    pub representatives_group: Option<String>,
 }
 
 #[tracing::instrument(skip(context))]
