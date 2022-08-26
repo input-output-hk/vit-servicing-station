@@ -3,7 +3,7 @@ mod path;
 mod raw;
 
 use crate::common::clients::rest::path::RestPathBuilder;
-use crate::common::snapshot::{Snapshot, VoterInfo};
+use crate::common::snapshot::{Snapshot, VoterInfoUpdate};
 use hyper::StatusCode;
 use logger::RestClientLogger;
 pub use raw::RestClient as RawRestClient;
@@ -116,7 +116,7 @@ impl RestClient {
         serde_json::from_str(&content).map_err(Error::CannotDeserialize)
     }
 
-    pub fn voter_info(&self, tag: &str, key: &str) -> Result<Vec<VoterInfo>, Error> {
+    pub fn voter_info(&self, tag: &str, key: &str) -> Result<VoterInfoUpdate, Error> {
         let response = self.raw.voter_info(tag, key)?;
         self.verify_status_code(&response)?;
         let content = response.text()?;

@@ -3,10 +3,12 @@ use itertools::Itertools;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use snapshot_lib::{KeyContribution, SnapshotInfo, VoterHIR};
+use time::OffsetDateTime;
+
 #[derive(Debug, Clone)]
 pub struct Snapshot {
     pub tag: String,
-    pub content: Vec<SnapshotInfo>,
+    pub content: SnapshotInfoUpdate,
 }
 
 impl Default for Snapshot {
@@ -15,12 +17,19 @@ impl Default for Snapshot {
     }
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct SnapshotInfoUpdate {
+    pub snapshot: Vec<SnapshotInfo>,
+    pub update_timestamp: i64,
+}
+
 #[derive(Debug)]
 pub struct SnapshotBuilder {
     tag: String,
     groups: Vec<String>,
     voters_count: usize,
     contributions_count: usize,
+    update_timestamp: i64,
 }
 
 impl Default for SnapshotBuilder {
@@ -30,6 +39,7 @@ impl Default for SnapshotBuilder {
             groups: vec!["direct".to_string(), "dreps".to_string()],
             voters_count: 3,
             contributions_count: 5,
+            update_timestamp: OffsetDateTime::now_utc().unix_timestamp(),
         }
     }
 }
@@ -55,6 +65,11 @@ impl SnapshotBuilder {
         self
     }
 
+    pub fn with_timestamp(mut self, timestamp: i64) -> Self {
+        self.update_timestamp = timestamp;
+        self
+    }
+
     pub fn build(self) -> Snapshot {
         let mut rng = rand::rngs::OsRng;
 
@@ -68,25 +83,32 @@ impl SnapshotBuilder {
 
         Snapshot {
             tag: self.tag.clone(),
-            content: std::iter::from_fn(|| {
-                Some(SnapshotInfo {
-                    contributions: std::iter::from_fn(|| {
-                        Some(KeyContribution {
-                            reward_address: format!("address_{:?}", rng.gen_range(1u64, 1_000u64)),
-                            value: rng.gen_range(1u64, 1_000u64),
+            content: SnapshotInfoUpdate {
+                snapshot: std::iter::from_fn(|| {
+                    Some(SnapshotInfo {
+                        contributions: std::iter::from_fn(|| {
+                            Some(KeyContribution {
+                                reward_address: format!(
+                                    "address_{:?}",
+                                    rng.gen_range(1u64, 1_000u64)
+                                ),
+                                value: rng.gen_range(1u64, 1_000u64),
+                            })
                         })
+                        .take(self.contributions_count)
+                        .collect(),
+                        hir: VoterHIR {
+                            voting_key: TestGen::identifier().into(),
+                            voting_group: self.groups[rng.gen_range(0, self.groups.len())]
+                                .to_string(),
+                            voting_power: rng.gen_range(1u64, 1_000u64).into(),
+                        },
                     })
-                    .take(self.contributions_count)
-                    .collect(),
-                    hir: VoterHIR {
-                        voting_key: TestGen::identifier().into(),
-                        voting_group: self.groups[rng.gen_range(0, self.groups.len())].to_string(),
-                        voting_power: rng.gen_range(1u64, 1_000u64).into(),
-                    },
                 })
-            })
-            .take(voters_count)
-            .collect(),
+                .take(voters_count)
+                .collect(),
+                update_timestamp: self.update_timestamp,
+            },
         }
     }
 }
@@ -97,6 +119,12 @@ pub struct VoterInfo {
     pub voting_group: String,
     pub delegations_power: u64,
     pub delegations_count: u64,
+}
+
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
+pub struct VoterInfoUpdate {
+    pub voter_info: Vec<VoterInfo>,
+    pub last_updated: i64,
 }
 
 impl From<SnapshotInfo> for VoterInfo {
@@ -142,6 +170,7 @@ impl SnapshotUpdater {
             .with_groups(
                 self.snapshot
                     .content
+                    .snapshot
                     .iter()
                     .map(|x| x.hir.voting_group.clone())
                     .unique()
@@ -151,13 +180,14 @@ impl SnapshotUpdater {
 
         self.snapshot
             .content
-            .extend(extra_snapshot.content.iter().cloned());
+            .snapshot
+            .extend(extra_snapshot.content.snapshot.iter().cloned());
         self
     }
 
     pub fn update_voting_power(mut self) -> Self {
         let mut rng = rand::rngs::OsRng;
-        for entry in self.snapshot.content.iter_mut() {
+        for entry in self.snapshot.content.snapshot.iter_mut() {
             let mut voting_power: u64 = entry.hir.voting_power.into();
             voting_power += rng.gen_range(1u64, 1_000u64);
             entry.hir.voting_power = voting_power.into();
