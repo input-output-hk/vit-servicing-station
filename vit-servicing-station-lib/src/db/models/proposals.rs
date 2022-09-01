@@ -316,9 +316,11 @@ impl Queryable<full_proposals_info::SqlType, Db> for FullProposalInfo {
         // It should be safe to unwrap this values here if DB is sanitized and hence tables have data
         // relative to the challenge type.
         let challenge_info = match challenge_type {
-            ChallengeType::Simple | ChallengeType::Native => ProposalChallengeInfo::Simple(simple::ChallengeInfo {
-                proposal_solution: row.25.clone().unwrap(),
-            }),
+            ChallengeType::Simple | ChallengeType::Native => {
+                ProposalChallengeInfo::Simple(simple::ChallengeInfo {
+                    proposal_solution: row.25.clone().unwrap(),
+                })
+            }
             ChallengeType::CommunityChoice => {
                 ProposalChallengeInfo::CommunityChoice(community_choice::ChallengeInfo {
                     proposal_brief: row.26.clone().unwrap(),

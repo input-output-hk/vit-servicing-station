@@ -1,0 +1,1 @@
+ALTER TABLE community_advisors_reviews ADD COLUMN ranking INTEGER NOT NULL;

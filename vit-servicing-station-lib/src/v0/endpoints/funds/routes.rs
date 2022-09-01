@@ -19,7 +19,7 @@ pub async fn filter(
         .and(with_context.clone())
         .and_then(get_fund_by_id);
 
-    let all_funds = warp::path::end()
+    let all_funds = warp::path!("all")
         .and(warp::get())
         .and(with_context)
         .and_then(get_all_funds);

@@ -1,10 +1,12 @@
 use crate::db_utils::{backup_db_file, restore_db_file};
 use crate::{db_utils::db_file_exists, task::ExecTask};
 use csv::Trim;
+use diesel::Insertable;
 use serde::de::DeserializeOwned;
 use std::convert::TryInto;
-use std::io;
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
+use std::{fs, io};
 use structopt::StructOpt;
 use thiserror::Error;
 use vit_servicing_station_lib::db::models::goals::InsertGoal;
@@ -12,6 +14,7 @@ use vit_servicing_station_lib::db::models::groups::Group;
 use vit_servicing_station_lib::db::models::proposals::{
     community_choice, simple, ProposalChallengeInfo, ProposalVotePlan,
 };
+use vit_servicing_station_lib::db::models::vote::Vote;
 use vit_servicing_station_lib::db::{
     load_db_connection_pool,
     models::{funds::Fund, proposals::Proposal, voteplans::Voteplan},
@@ -25,15 +28,15 @@ pub enum Error {
     #[error("Invalid Fund Data: {0}")]
     InvalidFundData(String),
 }
+#[derive(Debug, Eq, PartialEq, StructOpt)]
+pub enum Load {
+    Votes {
+        #[structopt(long = "folder")]
+        folder: PathBuf,
+    },
 
-#[derive(Debug, PartialEq, Eq, StructOpt)]
-pub enum CsvDataCmd {
     /// Load Funds, Voteplans and Proposals information into a SQLite3 ready file DB.
-    Load {
-        /// URL of the vit-servicing-station database to interact with
-        #[structopt(long = "db-url")]
-        db_url: String,
-
+    All {
         /// Path to the csv containing funds information
         /// At the moment, it's required these are ordered.
         ///
@@ -70,6 +73,16 @@ pub enum CsvDataCmd {
         #[structopt(long = "groups")]
         groups: PathBuf,
     },
+}
+
+#[derive(Debug, Eq, PartialEq, StructOpt)]
+pub struct CsvDataCmd {
+    /// URL of the vit-servicing-station database to interact with
+    #[structopt(long = "db-url")]
+    db_url: String,
+
+    #[structopt(subcommand)]
+    command: Load,
 }
 
 impl CsvDataCmd {
@@ -254,8 +267,46 @@ impl CsvDataCmd {
 
         Ok(())
     }
+
+    fn list_of_csv_paths<P: AsRef<Path>>(root: P) -> io::Result<Vec<PathBuf>> {
+        let mut result = vec![];
+
+        for path in fs::read_dir(root)? {
+            let path = path?.path();
+            if let Some("csv") = path.extension().and_then(OsStr::to_str) {
+                result.push(path.to_owned());
+            }
+        }
+        Ok(result)
+    }
+
+    fn handle_votes_load(db_url: &str, votes_path: &Path) -> Result<(), Error> {
+        db_file_exists(db_url)?;
+
+        let mut votes = vec![];
+
+        for csv_file in Self::list_of_csv_paths(votes_path)? {
+            votes.extend(CsvDataCmd::load_from_csv::<Vote>(&csv_file)?);
+        }
+
+        // start db connection
+        let pool = load_db_connection_pool(db_url)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, format!("{}", e)))?;
+        let db_conn = pool
+            .get()
+            .map_err(|e| io::Error::new(io::ErrorKind::NotConnected, format!("{}", e)))?;
+
+        vit_servicing_station_lib::db::queries::votes::batch_insert_votes_data(
+            &votes.into_iter().map(|c| c.values()).collect::<Vec<_>>(),
+            &db_conn,
+        )
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e)))?;
+        Ok(())
+    }
+
     fn handle_load_with_db_backup(db_url: &str, csvs: CsvPaths) -> Result<(), Error> {
         let backup_file = backup_db_file(db_url)?;
+
         if let Err(e) = Self::handle_load(db_url, csvs) {
             restore_db_file(backup_file, db_url)?;
             Err(e)
@@ -269,9 +320,8 @@ impl ExecTask for CsvDataCmd {
     type ResultValue = ();
     type Error = Error;
     fn exec(&self) -> Result<(), Error> {
-        match self {
-            CsvDataCmd::Load {
-                db_url,
+        match &self.command {
+            Load::All {
                 funds,
                 voteplans,
                 proposals,
@@ -281,7 +331,7 @@ impl ExecTask for CsvDataCmd {
                 proposals_voteplans,
                 groups,
             } => Self::handle_load_with_db_backup(
-                db_url,
+                &self.db_url,
                 CsvPaths {
                     funds,
                     voteplans,
@@ -293,6 +343,7 @@ impl ExecTask for CsvDataCmd {
                     groups,
                 },
             ),
+            Load::Votes { folder } => Self::handle_votes_load(&self.db_url, folder),
         }
     }
 }
