@@ -18,6 +18,8 @@ tags:
     description: Information on reviews.
   - name: snapshot
     description: Continuous snapshot related information.
+  - name: vote
+    description: Historic votes related information.
 
 servers:
   - url: "http://localhost"
@@ -362,6 +364,27 @@ paths:
         "400":
           description: The input is malformed.
 
+  /api/v0/votes:
+    post:
+      summary: Get voted by chain id
+      operationId: getProposalsByChainInfo
+      tags: [ proposal ]
+      description: |
+        Retrieves queried proposals.
+      requestBody:
+        description: List of votes by voteplan id and caster (wallet)
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VotesByVoteCasterAndVoteplanId'
+      responses:
+        "200":
+          description: Valid response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoteInfo"
 
 components:
   schemas:
@@ -794,6 +817,48 @@ components:
           items:
               type: integer
               format: i64
+
+    VotesByVoteCasterAndVoteplanId:
+      properties:
+        vote_plan_id:
+          type: string
+          format: hash
+          description: Blockchain ID of the vote plan transaction.
+        caster:
+          type: string
+          format: hash
+          description: public key of caster wallet
+
+    Vote:
+      properties:
+        fragment_id:
+          type: string
+          format: hash
+          description: Blockchain ID of the vote plan transaction
+        caster:
+          type: string
+          format: hash
+          description: public key of caster wallet
+        proposal:
+          type: integer
+          format: int32
+          description: proposal index within voteplan
+        voteplan_id:
+          type: string
+          format: hash
+          description: Blockchain ID of the vote plan transaction
+        time:
+          type: float
+          format: hash
+          description: block date in format epoch.slot_no
+        choice:
+          type: string
+          format: byte
+          description: vote choice (only visible for public voting)
+        raw_fragment:
+          type: string
+          format: hash
+          description: raw bytes of transaction
 
     SearchQuery:
       properties:

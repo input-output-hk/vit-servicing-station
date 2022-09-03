@@ -7,3 +7,4 @@ pub mod proposals;
 pub mod search;
 pub mod voteplans;
 pub mod votes;
+pub mod groups;
