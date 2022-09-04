@@ -24,7 +24,7 @@ mod test {
     use warp::Filter;
 
     #[tokio::test]
-    async fn get_proposal_by_voteplan_id_and_index() {
+    async fn get_vote_by_voteplan_id_and_caster() {
         // build context
         let shared_context = new_in_memmory_db_test_shared_context();
         let filter_context = shared_context.clone();
@@ -51,7 +51,7 @@ mod test {
 
         let result = warp::test::request()
             .method("POST")
-            .json(&vec![request])
+            .json(&request)
             .reply(&filter)
             .await;
 

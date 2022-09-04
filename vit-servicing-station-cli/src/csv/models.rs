@@ -1,6 +1,6 @@
-use std::collections::BTreeSet;
 use diesel::{ExpressionMethods, Insertable};
 use serde::Deserialize;
+use std::collections::BTreeSet;
 use std::convert::TryInto;
 use vit_servicing_station_lib::db;
 use vit_servicing_station_lib::db::models::challenges::{
@@ -14,7 +14,6 @@ use vit_servicing_station_lib::db::models::proposals::{
 };
 use vit_servicing_station_lib::db::models::vote_options::VoteOptions;
 use vit_servicing_station_lib::db::schema::challenges;
-
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Default)]
 pub struct Fund {
@@ -34,7 +33,7 @@ pub struct Fund {
     pub chain_vote_plans: Vec<Voteplan>,
     #[serde(default = "Vec::new")]
     pub challenges: Vec<Challenge>,
-    #[serde(flatten,default)]
+    #[serde(flatten, default)]
     pub stage_dates: FundStageDates,
     #[serde(default = "Vec::new")]
     pub goals: Vec<Goal>,
@@ -70,7 +69,6 @@ pub struct FundStageDates {
     pub tallying_end: i64,
 }
 
-
 impl TryInto<db::models::funds::FundStageDates> for FundStageDates {
     type Error = std::io::Error;
 
@@ -85,7 +83,7 @@ impl TryInto<db::models::funds::FundStageDates> for FundStageDates {
             snapshot_start: self.snapshot_start,
             voting_start: self.voting_start,
             voting_end: self.voting_end,
-            tallying_end: self.tallying_end
+            tallying_end: self.tallying_end,
         })
     }
 }
@@ -103,8 +101,16 @@ impl TryInto<db::models::funds::Fund> for Fund {
             next_fund_start_time: self.next_fund_start_time,
             registration_snapshot_time: self.registration_snapshot_time,
             next_registration_snapshot_time: self.next_registration_snapshot_time,
-            chain_vote_plans: self.chain_vote_plans.into_iter().map(|x| x.try_into().unwrap()).collect(),
-            challenges: self.challenges.into_iter().map(|x| x.try_into().unwrap()).collect(),
+            chain_vote_plans: self
+                .chain_vote_plans
+                .into_iter()
+                .map(|x| x.try_into().unwrap())
+                .collect(),
+            challenges: self
+                .challenges
+                .into_iter()
+                .map(|x| x.try_into().unwrap())
+                .collect(),
             stage_dates: self.stage_dates.try_into().unwrap(),
             goals: self.goals,
             results_url: self.results_url,
@@ -113,7 +119,6 @@ impl TryInto<db::models::funds::Fund> for Fund {
         })
     }
 }
-
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Voteplan {
@@ -144,16 +149,14 @@ impl TryInto<db::models::voteplans::Voteplan> for Voteplan {
             fund_id: self.fund_id,
             token_identifier: {
                 if self.token_identifier.is_empty() {
-                    self.chain_voteplan_id.clone() + "_token"
+                    self.chain_voteplan_id + "_token"
                 } else {
-                    self.token_identifier.to_string()
+                    self.token_identifier
                 }
-            }
+            },
         })
     }
 }
-
-
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Challenge {
@@ -279,7 +282,7 @@ impl TryInto<db::models::challenges::Challenge> for Challenge {
     fn try_into(self) -> Result<db::models::challenges::Challenge, Self::Error> {
         Ok(db::models::challenges::Challenge {
             internal_id: self.internal_id,
-            id:self.id,
+            id: self.id,
             challenge_type: self.challenge_type,
             title: self.title,
             description: self.description,
@@ -287,7 +290,7 @@ impl TryInto<db::models::challenges::Challenge> for Challenge {
             proposers_rewards: self.proposers_rewards,
             fund_id: self.fund_id,
             challenge_url: self.challenge_url,
-            highlights: self.highlights
+            highlights: self.highlights,
         })
     }
 }
@@ -354,9 +357,9 @@ impl Proposal {
                 Some(proposal_solution) => {
                     ProposalChallengeInfo::Simple(simple::ChallengeInfo { proposal_solution })
                 }
-                None => {
-                    ProposalChallengeInfo::Simple(simple::ChallengeInfo{ proposal_solution: self.proposal_summary})
-                }
+                None => ProposalChallengeInfo::Simple(simple::ChallengeInfo {
+                    proposal_solution: self.proposal_summary,
+                }),
             },
             ChallengeType::CommunityChoice => {
                 match (
@@ -438,48 +441,42 @@ impl TryInto<community_advisors_reviews::AdvisorReview> for AdvisorReview {
         if self.rating_given.is_some() {
             //legacy
             match self.tag.unwrap().as_str() {
-                "Impact" => {
-                    Ok(community_advisors_reviews::AdvisorReview {
-                        id: self.id,
-                        proposal_id: self.proposal_id,
-                        assessor: self.assessor,
-                        feasibility_note: "".to_string(),
-                        feasibility_rating_given: 0,
-                        impact_alignment_note: self.note.as_ref().unwrap().to_string(),
-                        impact_alignment_rating_given: self.rating_given.as_ref().unwrap().clone(),
-                        auditability_note: "".to_string(),
-                        auditability_rating_given: 0,
-                        ranking: ReviewRanking::NA,
-                    })
-                },
-                "Feasibility" => {
-                    Ok(community_advisors_reviews::AdvisorReview {
-                        id: self.id,
-                        proposal_id: self.proposal_id,
-                        assessor: self.assessor,
-                        feasibility_note: self.note.as_ref().unwrap().to_string(),
-                        feasibility_rating_given: self.rating_given.as_ref().unwrap().clone(),
-                        impact_alignment_note: "".to_string(),
-                        impact_alignment_rating_given: 0,
-                        auditability_note: "".to_string(),
-                        auditability_rating_given: 0,
-                        ranking: ReviewRanking::NA,
-                    })
-                },
-                "Auditability" => {
-                    Ok(community_advisors_reviews::AdvisorReview {
-                        id: self.id,
-                        proposal_id: self.proposal_id,
-                        assessor: self.assessor,
-                        feasibility_note: "".to_string(),
-                        feasibility_rating_given: 0,
-                        impact_alignment_note: "".to_string(),
-                        impact_alignment_rating_given: 0,
-                        auditability_note: self.note.as_ref().unwrap().to_string(),
-                        auditability_rating_given: self.rating_given.as_ref().unwrap().clone(),
-                        ranking: ReviewRanking::NA,
-                    })
-                },
+                "Impact" => Ok(community_advisors_reviews::AdvisorReview {
+                    id: self.id,
+                    proposal_id: self.proposal_id,
+                    assessor: self.assessor,
+                    feasibility_note: "".to_string(),
+                    feasibility_rating_given: 0,
+                    impact_alignment_note: self.note.as_ref().unwrap().to_string(),
+                    impact_alignment_rating_given: *self.rating_given.as_ref().unwrap(),
+                    auditability_note: "".to_string(),
+                    auditability_rating_given: 0,
+                    ranking: ReviewRanking::NA,
+                }),
+                "Feasibility" => Ok(community_advisors_reviews::AdvisorReview {
+                    id: self.id,
+                    proposal_id: self.proposal_id,
+                    assessor: self.assessor,
+                    feasibility_note: self.note.as_ref().unwrap().to_string(),
+                    feasibility_rating_given: *self.rating_given.as_ref().unwrap(),
+                    impact_alignment_note: "".to_string(),
+                    impact_alignment_rating_given: 0,
+                    auditability_note: "".to_string(),
+                    auditability_rating_given: 0,
+                    ranking: ReviewRanking::NA,
+                }),
+                "Auditability" => Ok(community_advisors_reviews::AdvisorReview {
+                    id: self.id,
+                    proposal_id: self.proposal_id,
+                    assessor: self.assessor,
+                    feasibility_note: "".to_string(),
+                    feasibility_rating_given: 0,
+                    impact_alignment_note: "".to_string(),
+                    impact_alignment_rating_given: 0,
+                    auditability_note: self.note.as_ref().unwrap().to_string(),
+                    auditability_rating_given: *self.rating_given.as_ref().unwrap(),
+                    ranking: ReviewRanking::NA,
+                }),
                 _ => unreachable!(),
             }
         } else {
