@@ -22,12 +22,32 @@ pub struct Fund {
     pub fund_name: String,
     pub fund_goal: String,
     pub voting_power_threshold: i64,
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub fund_start_time: i64,
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub fund_end_time: i64,
     #[serde(default)]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub next_fund_start_time: i64,
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub registration_snapshot_time: i64,
     #[serde(default)]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub next_registration_snapshot_time: i64,
     #[serde(default = "Vec::new")]
     pub chain_vote_plans: Vec<Voteplan>,
@@ -48,24 +68,64 @@ pub struct Fund {
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Default)]
 pub struct FundStageDates {
     #[serde(default)]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub insight_sharing_start: i64,
     #[serde(default)]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub proposal_submission_start: i64,
     #[serde(default)]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub refine_proposals_start: i64,
     #[serde(default)]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub finalize_proposals_start: i64,
     #[serde(default)]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub proposal_assessment_start: i64,
     #[serde(default)]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub assessment_qa_start: i64,
     #[serde(default)]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub snapshot_start: i64,
     #[serde(default)]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub voting_start: i64,
     #[serde(default)]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub voting_end: i64,
     #[serde(default)]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub tallying_end: i64,
 }
 
@@ -124,8 +184,20 @@ impl TryInto<db::models::funds::Fund> for Fund {
 pub struct Voteplan {
     pub id: i32,
     pub chain_voteplan_id: String,
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub chain_vote_start_time: i64,
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub chain_vote_end_time: i64,
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(
+        serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
+    )]
     pub chain_committee_end_time: i64,
     pub chain_voteplan_payload: String,
     pub chain_vote_encryption_key: String,
@@ -226,25 +298,19 @@ pub struct Proposal {
     #[serde(
         serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
     )]
-    #[serde(
-        deserialize_with = "vit_servicing_station_lib::utils::serde::deserialize_unix_timestamp_from_rfc3339"
-    )]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
     pub chain_vote_start_time: i64,
     #[serde(alias = "chainVoteEndTime", default = "Default::default")]
     #[serde(
         serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
     )]
-    #[serde(
-        deserialize_with = "vit_servicing_station_lib::utils::serde::deserialize_unix_timestamp_from_rfc3339"
-    )]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
     pub chain_vote_end_time: i64,
     #[serde(alias = "chainCommitteeEndTime", default = "Default::default")]
     #[serde(
         serialize_with = "vit_servicing_station_lib::utils::serde::serialize_unix_timestamp_as_rfc3339"
     )]
-    #[serde(
-        deserialize_with = "vit_servicing_station_lib::utils::serde::deserialize_unix_timestamp_from_rfc3339"
-    )]
+    #[serde(deserialize_with = "crate::csv::deser::deserialize_unix_timestamp_from_rfc3339")]
     pub chain_committee_end_time: i64,
     #[serde(alias = "chainVoteplanPayload", default = "Default::default")]
     pub chain_voteplan_payload: String,
