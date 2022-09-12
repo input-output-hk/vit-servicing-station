@@ -1117,7 +1117,7 @@ components:
           items: 
             description: Voting group id (the same as voting token id)
             type: string
-            pattern: '[0-9a-f]{64}.[0-9a-f]+'
+            pattern: '[0-9a-f]{56}.[0-9a-f]+'
       example: 
         {
           is_voter: true,
