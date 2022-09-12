@@ -1104,11 +1104,11 @@ components:
         is_voter:
           type: boolean
           description: Is this user an active voter (representative) or delegator
-        delegators:
+        dreps:
           type: array
-          description: List of delegated delegators for the current user
+          description: List of delegated representatives for the current user
           items:
-            description: Hex encoded delegator's address id
+            description: Hex encoded representative's address id
             type: string
             pattern: '[0-9a-f]{64}'
         voting_groups:
