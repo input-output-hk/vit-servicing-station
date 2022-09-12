@@ -1095,26 +1095,33 @@ components:
           description: Date and time for the latest update to this snapshot information.
     UserInfo:
       type: object
-      description: >-
-        User information about the user an active voter (delegator) or delegated
-        its voting power, delegators list and assigned voter groups
+      description: User info
       required:
         - is_voter
         - delegators
-        - voter_groups
+        - voting_groups
       properties:
         is_voter:
           type: boolean
-          description: is this user an active voter (representative) or delegator
+          description: Is this user an active voter (representative) or delegator
         delegators:
           type: array
-          description: list of delegated delegators for the current user
+          description: List of delegated delegators for the current user
           items:
             description: Hex encoded delegator's address id
             type: string
-            pattern: '[0-9a-f]+'
-        voter_groups:
-          description: Hex encoded voter group id
-          type: string
-          pattern: '[0-9a-f]+'
+            pattern: '[0-9a-f]{64}'
+        voting_groups:
+          description: List of the assigned voting groups
+          type: array
+          items: 
+            description: Voting group id (the same as voting token id)
+            type: string
+            pattern: '[0-9a-f]{64}.[0-9a-f]+'
+      example: 
+        {
+          is_voter: true,
+          delegators: ["f5285eeead8b5885a1420800de14b0d1960db1a990a6c2f7b517125bedc000db", "7ef044ba437057d6d944ace679b7f811335639a689064cd969dffc8b55a7cc19"],
+          voting_groups: ["00000000000000000000000000000000000000000000000000000000.6c1e8abc"]
+        }
           
