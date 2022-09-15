@@ -24,24 +24,6 @@ use snapshot_lib::{
     Fraction, RawSnapshot, Snapshot, SnapshotInfo,
 };
 
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error(transparent)]
-    DbError(#[from] sled::Error),
-
-    #[error(transparent)]
-    DbTxError(#[from] sled::transaction::TransactionError),
-
-    #[error(transparent)]
-    SnapshotError(#[from] snapshot_lib::Error),
-
-    #[error("internal error")]
-    InternalError,
-
-    #[error("invalid timestamp error")]
-    InvalidTimestampError,
-}
-
 pub type Tag = String;
 pub type Group = String;
 
