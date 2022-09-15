@@ -1,14 +1,12 @@
-use super::{SharedContext, UpdateHandle, VoterInfo};
-use crate::v0::context::SharedContext as SharedContext_;
+use super::VoterInfo;
+use crate::v0::context::SharedContext;
 use crate::v0::result::HandlerResult;
 use jormungandr_lib::crypto::account::Identifier;
 use jormungandr_lib::interfaces::Value;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use snapshot_lib::{Fraction, RawSnapshot, SnapshotInfo};
-use std::sync::Arc;
 use time::OffsetDateTime;
-use tokio::sync::Mutex;
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
@@ -16,7 +14,7 @@ use warp::{Rejection, Reply};
 pub async fn get_voters_info(
     tag: String,
     voting_key: String,
-    context: (SharedContext, SharedContext_),
+    context: SharedContext,
 ) -> Result<impl Reply, Rejection> {
     let key = if let Ok(key) = Identifier::from_hex(&voting_key) {
         key
@@ -28,7 +26,7 @@ pub async fn get_voters_info(
         .into_response());
     };
 
-    match context.0.get_voters_info(&tag, &key, context.1).await {
+    match super::get_voters_info(&tag, &key, context).await {
         Ok(snapshot) => {
             let voter_info: Vec<_> = snapshot.voter_info.into_iter().map(|VoterInfo{voting_group, voting_power,delegations_power, delegations_count}| {
             json!({"voting_power": voting_power, "voting_group": voting_group, "delegations_power": delegations_power, "delegations_count": delegations_count})
@@ -51,10 +49,8 @@ pub async fn get_voters_info(
 }
 
 #[tracing::instrument(skip(context))]
-pub async fn get_tags(context: (SharedContext, SharedContext_)) -> Result<impl Reply, Rejection> {
-    match context
-        .0
-        .get_tags(context.1)
+pub async fn get_tags(context: SharedContext) -> Result<impl Reply, Rejection> {
+    match super::get_tags(context)
         .await
         .map(|tags| warp::reply::json(&tags))
     {
@@ -85,23 +81,20 @@ pub struct RawSnapshotInput {
 pub async fn put_raw_snapshot(
     tag: String,
     input: RawSnapshotInput,
-    context: (Arc<Mutex<UpdateHandle>>, SharedContext_),
+    context: SharedContext,
 ) -> Result<impl Reply, Rejection> {
-    let mut handle = context.0.lock().await;
-
     Ok(HandlerResult(
-        handle
-            .update_from_raw_snapshot(
-                &tag,
-                input.snapshot,
-                input.update_timestamp,
-                input.min_stake_threshold,
-                input.voting_power_cap,
-                input.direct_voters_group,
-                input.representatives_group,
-                context.1,
-            )
-            .await,
+        super::update_from_raw_snapshot(
+            &tag,
+            input.snapshot,
+            input.update_timestamp,
+            input.min_stake_threshold,
+            input.voting_power_cap,
+            input.direct_voters_group,
+            input.representatives_group,
+            context,
+        )
+        .await,
     ))
 }
 
@@ -109,13 +102,10 @@ pub async fn put_raw_snapshot(
 pub async fn put_snapshot_info(
     tag: String,
     input: SnapshotInfoInput,
-    context: (Arc<Mutex<UpdateHandle>>, SharedContext_),
+    context: SharedContext,
 ) -> Result<impl Reply, Rejection> {
-    let mut handle = context.0.lock().await;
-
     Ok(HandlerResult(
-        handle
-            .update_from_shanpshot_info(&tag, input.snapshot, input.update_timestamp, context.1)
+        super::update_from_shanpshot_info(&tag, input.snapshot, input.update_timestamp, context)
             .await,
     ))
 }
