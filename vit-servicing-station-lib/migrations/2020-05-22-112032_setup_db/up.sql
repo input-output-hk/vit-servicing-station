@@ -151,17 +151,20 @@ create table snapshots (
 );
 
 create table voters (
-    voting_key TEXT NOT NULL primary key,
+    voting_key TEXT NOT NULL,
     voting_power BIGINT NOT NULL,
     voting_group TEXT NOT NULL,
-    snapshot_tag TEXT NOT NULL
+    snapshot_tag TEXT NOT NULL,
+    PRIMARY KEY(voting_key, voting_group)
 );
 
-create table contributions (
-    reward_address TEXT NOT NULL primary key,
+create table contributors (
+    reward_address TEXT NOT NULL,
     value BIGINT NOT NULL,
     voting_key TEXT NOT NULL,
-    snapshot_tag TEXT NOT NULL
+    voting_group TEXT NOT NULL,
+    snapshot_tag TEXT NOT NULL,
+    PRIMARY KEY(reward_address, voting_key, voting_group)
 );
 
 CREATE VIEW full_proposals_info

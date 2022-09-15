@@ -1,22 +1,20 @@
 use crate::{
     db::{
-        models::snapshot::{Snapshot, Voter},
-        schema::{snapshots, voters},
-        DbConnection, DbConnectionPool,
+        models::snapshot::{Contributor, Snapshot, Voter},
+        schema::{contributors, snapshots, voters},
+        DbConnectionPool,
     },
     v0::errors::HandleError,
 };
-use diesel::{ExpressionMethods, Insertable, QueryDsl, QueryResult, RunQueryDsl};
+use diesel::{ExpressionMethods, Insertable, QueryDsl, RunQueryDsl};
 
 pub async fn query_all_snapshots(pool: &DbConnectionPool) -> Result<Vec<Snapshot>, HandleError> {
     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
     tokio::task::spawn_blocking(move || {
-        diesel::QueryDsl::order_by(
-            snapshots::dsl::snapshots,
-            snapshots::dsl::last_updated.asc(),
-        )
-        .load(&db_conn)
-        .map_err(|e| HandleError::InternalError(format!("Error retrieving challenges: {}", e)))
+        snapshots::dsl::snapshots
+            .order_by(snapshots::dsl::last_updated.asc())
+            .load(&db_conn)
+            .map_err(|e| HandleError::InternalError(format!("Error retrieving snapshot: {}", e)))
     })
     .await
     .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?
@@ -28,9 +26,10 @@ pub async fn query_snapshot_by_tag(
 ) -> Result<Snapshot, HandleError> {
     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
     tokio::task::spawn_blocking(move || {
-        diesel::QueryDsl::filter(snapshots::dsl::snapshots, snapshots::dsl::tag.eq(tag))
+        snapshots::dsl::snapshots
+            .filter(snapshots::dsl::tag.eq(tag))
             .first(&db_conn)
-            .map_err(|e| HandleError::NotFound(format!("Error loading challenge: {}", e)))
+            .map_err(|e| HandleError::NotFound(format!("Error loading snapshot: {}", e)))
     })
     .await
     .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?
@@ -45,57 +44,61 @@ pub fn put_snapshot(snapshot: Snapshot, pool: &DbConnectionPool) -> Result<(), H
     Ok(())
 }
 
-// pub async fn query_voting_registrations_by_snapshot_tag(
-//     tag: String,
-//     pool: &DbConnectionPool,
-// ) -> Result<Vec<VotingRegistration>, HandleError> {
-//     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
-//     tokio::task::spawn_blocking(move || {
-//         diesel::QueryDsl::filter(
-//             voting_registration::dsl::voting_registration,
-//             voting_registration::dsl::snapshot_tag.eq(tag),
-//         )
-//         .order_by(voting_registration::dsl::voting_power.asc())
-//         .load(&db_conn)
-//         .map_err(|e| HandleError::NotFound(format!("Error loading challenge: {}", e)))
-//     })
-//     .await
-//     .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?
-// }
+pub async fn query_voters_by_voting_key_and_snapshot_tag(
+    voting_key: String,
+    tag: String,
+    pool: &DbConnectionPool,
+) -> Result<Vec<Voter>, HandleError> {
+    let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
+    tokio::task::spawn_blocking(move || {
+        voters::dsl::voters
+            .filter(voters::dsl::voting_key.eq(voting_key))
+            .filter(voters::dsl::snapshot_tag.eq(tag))
+            .load(&db_conn)
+            .map_err(|e| HandleError::NotFound(format!("Error loading voters: {}", e)))
+    })
+    .await
+    .map_err(|e| HandleError::InternalError(format!("Error executing voters: {}", e)))?
+}
 
-// pub fn batch_insert_voting_registrations(
-//     snapshots: &[<VotingRegistration as Insertable<voting_registration::table>>::Values],
-//     db_conn: &DbConnection,
-// ) -> QueryResult<usize> {
-//     diesel::insert_into(voting_registration::table)
-//         .values(snapshots)
-//         .execute(db_conn)
-// }
+pub fn put_voter(voter: Voter, pool: &DbConnectionPool) -> Result<(), HandleError> {
+    let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
+    diesel::replace_into(voters::table)
+        .values(voter.values())
+        .execute(&db_conn)
+        .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?;
+    Ok(())
+}
 
-// pub async fn query_delegations_by_snapshot_tag_and_delegator(
-//     tag: String,
-//     delegator: String,
-//     pool: &DbConnectionPool,
-// ) -> Result<Vec<Voter>, HandleError> {
-//     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
-//     tokio::task::spawn_blocking(move || {
-//         diesel::QueryDsl::filter(
-//             delegation::dsl::delegation,
-//             delegation::dsl::snapshot_tag.eq(tag),
-//         )
-//         .filter(delegation::dsl::delegator.eq(delegator))
-//         .load(&db_conn)
-//         .map_err(|e| HandleError::NotFound(format!("Error loading challenge: {}", e)))
-//     })
-//     .await
-//     .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?
-// }
+pub async fn query_contributors_by_voting_key_and_voter_group_and_snapshot_tag(
+    voting_key: String,
+    voting_group: String,
+    tag: String,
+    pool: &DbConnectionPool,
+) -> Result<Vec<Contributor>, HandleError> {
+    let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
+    tokio::task::spawn_blocking(move || {
+        contributors::dsl::contributors
+            .filter(contributors::dsl::voting_key.eq(voting_key))
+            .filter(contributors::dsl::voting_group.eq(voting_group))
+            .filter(contributors::dsl::snapshot_tag.eq(tag))
+            .load(&db_conn)
+            .map_err(|e| HandleError::NotFound(format!("Error loading contributions: {}", e)))
+    })
+    .await
+    .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?
+}
 
-// pub fn batch_insert_delegations(
-//     delegations: &[<Voter as Insertable<delegation::table>>::Values],
-//     db_conn: &DbConnection,
-// ) -> QueryResult<usize> {
-//     diesel::insert_into(delegation::table)
-//         .values(delegations)
-//         .execute(db_conn)
-// }
+pub fn put_contributions(
+    contributions: &[Contributor],
+    pool: &DbConnectionPool,
+) -> Result<(), HandleError> {
+    let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
+    for contribution in contributions {
+        diesel::replace_into(contributors::table)
+            .values(contribution.clone().values())
+            .execute(&db_conn)
+            .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?;
+    }
+    Ok(())
+}

@@ -3,8 +3,15 @@ mod routes;
 
 use crate::{
     db::{
-        models,
-        queries::snapshot::{put_snapshot, query_all_snapshots},
+        models::{
+            self,
+            snapshot::{Contributor, Voter},
+        },
+        queries::snapshot::{
+            put_contributions, put_snapshot, put_voter, query_all_snapshots,
+            query_contributors_by_voting_key_and_voter_group_and_snapshot_tag,
+            query_snapshot_by_tag, query_voters_by_voting_key_and_snapshot_tag,
+        },
     },
     v0::{context::SharedContext as SharedContext_, errors::HandleError},
 };
@@ -18,7 +25,7 @@ use snapshot_lib::{
     voting_group::{RepsVotersAssigner, DEFAULT_DIRECT_VOTER_GROUP, DEFAULT_REPRESENTATIVE_GROUP},
     Fraction, KeyContribution, RawSnapshot, Snapshot, SnapshotInfo, VoterHIR,
 };
-use std::mem::size_of;
+use std::{convert::TryInto, mem::size_of};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -55,7 +62,7 @@ pub struct VotersInfo {
     /// A listing of voter information in the current snapshot
     pub voter_info: Vec<VoterInfo>,
     /// Timestamp for the latest update in voter info in the current snapshot
-    pub last_updated: u64,
+    pub last_updated: i64,
 }
 
 #[repr(transparent)]
@@ -81,19 +88,6 @@ impl TagId {
     }
 }
 
-#[repr(transparent)]
-struct LastUpdate(u64);
-
-impl LastUpdate {
-    fn from_be_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        bytes
-            .try_into()
-            .map_err(|_| Error::InternalError)
-            .map(u64::from_be_bytes)
-            .map(Self)
-    }
-}
-
 #[derive(Clone)]
 pub struct SharedContext {
     _db: sled::Db,
@@ -116,67 +110,42 @@ impl SharedContext {
         })
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn get_voters_info(
+    #[tracing::instrument(skip(self, context))]
+    pub async fn get_voters_info(
         &self,
-        tag_str: &str,
+        tag: &str,
         id: &Identifier,
-    ) -> Result<Option<VotersInfo>, Error> {
-        let tag = if let Some(tag) = self.tags.get(tag_str)? {
-            tag
-        } else {
-            return Ok(None);
-        };
+        context: SharedContext_,
+    ) -> Result<VotersInfo, HandleError> {
+        let pool = &context.read().await.db_connection_pool;
 
-        // the fixed part of the key, tag + user, not including the group (or using the empty
-        // group, which is the min, depending on the point of view).
-        let key_prefix = {
-            let mut key = [0u8; size_of::<TagId>() + 32usize];
-
-            let (tag_part, id_part) = key.split_at_mut(size_of::<TagId>());
-            tag_part.copy_from_slice(&*tag);
-            id_part.copy_from_slice(id.as_ref().as_ref());
-
-            key
-        };
-
-        let mut result = vec![];
-
-        for entries in self.entries.range(key_prefix..) {
-            let (k, v) = entries?;
-
-            // we are using only a prefix of the actual key, so we want to compare that part only
-            if k[0..key_prefix.len()] > key_prefix[..] {
-                break;
-            }
-
-            let voting_group = String::from_utf8(k[key_prefix.len()..].to_vec())
-                .map_err(|_| Error::InternalError)?;
-
-            let mut codec = Codec::<&[u8]>::new(v.as_ref());
-            let voting_power = codec.get_be_u64().unwrap().into();
-            let delegations_power = codec.get_be_u64().unwrap();
-            let delegations_count = codec.get_be_u64().unwrap();
-
-            result.push(VoterInfo {
-                voting_group,
-                voting_power,
-                delegations_power,
-                delegations_count,
-            });
+        let snapshot = query_snapshot_by_tag(tag.to_string(), pool).await?;
+        let mut voter_info = Vec::new();
+        let voters =
+            query_voters_by_voting_key_and_snapshot_tag(id.to_hex(), tag.to_string(), pool).await?;
+        for voter in voters {
+            let contributors = query_contributors_by_voting_key_and_voter_group_and_snapshot_tag(
+                id.to_hex(),
+                voter.voting_group.clone(),
+                tag.to_string(),
+                pool,
+            )
+            .await?;
+            voter_info.push(VoterInfo {
+                voting_power: Value::from(voter.voting_power as u64),
+                delegations_count: contributors.len() as u64,
+                delegations_power: contributors
+                    .iter()
+                    .map(|contributor| contributor.value as u64)
+                    .sum(),
+                voting_group: voter.voting_group,
+            })
         }
 
-        let last_update = LastUpdate::from_be_bytes(
-            &self
-                .tag_updates
-                .get(tag_str.as_bytes())?
-                .ok_or(Error::InternalError)?,
-        )?;
-
-        Ok(Some(VotersInfo {
-            voter_info: result,
-            last_updated: last_update.0,
-        }))
+        Ok(VotersInfo {
+            voter_info,
+            last_updated: snapshot.last_updated,
+        })
     }
 
     pub async fn get_tags(&self, context: SharedContext_) -> Result<Vec<Tag>, HandleError> {
@@ -261,10 +230,40 @@ impl UpdateHandle {
         put_snapshot(
             models::snapshot::Snapshot {
                 tag: tag.to_string(),
-                last_updated: update_timestamp as i64,
+                last_updated: update_timestamp
+                    .try_into()
+                    .expect("value should not exceed i64 limit"),
             },
             pool,
         )?;
+
+        // for entry in snapshot.into_iter() {
+        //     let contributions: Vec<_> = entry
+        //         .contributions
+        //         .into_iter()
+        //         .map(|contribution| Contribution {
+        //             reward_address: contribution.reward_address,
+        //             value: contribution
+        //                 .value
+        //                 .try_into()
+        //                 .expect("value should not exceed i64 limit"),
+        //             voting_key: entry.hir.voting_key.clone(),
+        //             snapshot_tag: tag.to_string(),
+        //         })
+        //         .collect();
+        //     put_voter(
+        //         Voter {
+        //             voting_key: entry.hir.voting_key.clone(),
+        //             voting_group: entry.hir.voting_group.clone(),
+        //             voting_power: Into::<u64>::into(entry.hir.voting_power)
+        //                 .try_into()
+        //                 .expect("value should not exceed i64 limit"),
+        //             snapshot_tag: tag.to_string(),
+        //         },
+        //         pool,
+        //     )?;
+        //     put_contributions(&contributions, pool);
+        // }
 
         let mut batch = sled::Batch::default();
 
@@ -309,6 +308,33 @@ impl UpdateHandle {
         };
 
         for entry in snapshot.into_iter() {
+            let contributions: Vec<_> = entry
+                .contributions
+                .iter()
+                .map(|contribution| Contributor {
+                    reward_address: contribution.reward_address.clone(),
+                    value: contribution
+                        .value
+                        .try_into()
+                        .expect("value should not exceed i64 limit"),
+                    voting_key: entry.hir.voting_key.to_hex(),
+                    voting_group: entry.hir.voting_group.clone(),
+                    snapshot_tag: tag.to_string(),
+                })
+                .collect();
+            put_contributions(&contributions, pool)?;
+            put_voter(
+                Voter {
+                    voting_key: entry.hir.voting_key.clone(),
+                    voting_group: entry.hir.voting_group.clone(),
+                    voting_power: Into::<u64>::into(entry.hir.voting_power)
+                        .try_into()
+                        .expect("value should not exceed i64 limit"),
+                    snapshot_tag: tag.to_string(),
+                },
+                pool,
+            )?;
+
             let VoterHIR {
                 voting_key,
                 voting_group,
@@ -507,29 +533,34 @@ mod test {
             )
             .collect::<Vec<_>>();
 
-        tx.update_from_shanpshot_info(TAG2, [content_a, content_b].concat(), UPDATE_TIME2, context)
-            .await
-            .unwrap();
+        tx.update_from_shanpshot_info(
+            TAG2,
+            [content_a, content_b].concat(),
+            UPDATE_TIME2,
+            context.clone(),
+        )
+        .await
+        .unwrap();
 
         assert_eq!(
             &key_0_values[..],
-            &rx.get_voters_info(TAG1, &keys[0])
-                .unwrap()
+            &rx.get_voters_info(TAG1, &keys[0], context.clone())
+                .await
                 .unwrap()
                 .voter_info[..],
         );
 
         assert!(&rx
-            .get_voters_info(TAG1, &keys[1])
-            .unwrap()
+            .get_voters_info(TAG1, &keys[1], context.clone())
+            .await
             .unwrap()
             .voter_info
             .is_empty(),);
 
         assert_eq!(
             &key_1_values[..],
-            &rx.get_voters_info(TAG2, &keys[1])
-                .unwrap()
+            &rx.get_voters_info(TAG2, &keys[1], context)
+                .await
                 .unwrap()
                 .voter_info[..],
         );
@@ -579,8 +610,8 @@ mod test {
             .unwrap();
 
         assert_eq!(
-            rx.get_voters_info(TAG1, &voting_key)
-                .unwrap()
+            rx.get_voters_info(TAG1, &voting_key, context.clone())
+                .await
                 .unwrap()
                 .voter_info,
             inputs
@@ -604,13 +635,13 @@ mod test {
                 .collect::<Vec<_>>()
         );
 
-        tx.update_from_shanpshot_info(TAG1, inputs[0..1].to_vec(), UPDATE_TIME1, context)
+        tx.update_from_shanpshot_info(TAG1, inputs[0..1].to_vec(), UPDATE_TIME1, context.clone())
             .await
             .unwrap();
 
         assert_eq!(
-            rx.get_voters_info(TAG1, &voting_key)
-                .unwrap()
+            rx.get_voters_info(TAG1, &voting_key, context.clone())
+                .await
                 .unwrap()
                 .voter_info,
             inputs[0..1]
@@ -636,8 +667,8 @@ mod test {
 
         // asserting that TAG2 is untouched, just in case
         assert_eq!(
-            rx.get_voters_info(TAG2, &voting_key)
-                .unwrap()
+            rx.get_voters_info(TAG2, &voting_key, context.clone())
+                .await
                 .unwrap()
                 .voter_info,
             inputs

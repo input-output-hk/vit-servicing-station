@@ -28,11 +28,8 @@ pub async fn get_voters_info(
         .into_response());
     };
 
-    match tokio::task::spawn_blocking(move || context.0.get_voters_info(&tag, &key))
-        .await
-        .unwrap()
-    {
-        Ok(Some(snapshot)) => {
+    match context.0.get_voters_info(&tag, &key, context.1).await {
+        Ok(snapshot) => {
             let voter_info: Vec<_> = snapshot.voter_info.into_iter().map(|VoterInfo{voting_group, voting_power,delegations_power, delegations_count}| {
             json!({"voting_power": voting_power, "voting_group": voting_group, "delegations_power": delegations_power, "delegations_count": delegations_count})
         }).collect();
@@ -49,11 +46,7 @@ pub async fn get_voters_info(
                 )
             }
         }
-        Ok(None) => Err(warp::reject::not_found()),
-        Err(_) => Ok(
-            warp::reply::with_status("Database error", StatusCode::INTERNAL_SERVER_ERROR)
-                .into_response(),
-        ),
+        Err(err) => Ok(err.into_response()),
     }
 }
 

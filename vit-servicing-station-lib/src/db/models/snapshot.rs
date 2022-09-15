@@ -1,5 +1,5 @@
 use crate::db::{
-    schema::{contributions, snapshots, voters},
+    schema::{contributors, snapshots, voters},
     Db,
 };
 use diesel::{ExpressionMethods, Insertable, Queryable};
@@ -100,17 +100,19 @@ impl Insertable<voters::table> for Voter {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Contribution {
+pub struct Contributor {
     #[serde(alias = "rewardAddress")]
     pub reward_address: String,
     pub value: i64,
     #[serde(alias = "votingKey")]
-    pub voting_key: Identifier,
+    pub voting_key: String,
+    #[serde(alias = "votingGroup")]
+    pub voting_group: String,
     #[serde(alias = "snapshotTag")]
     pub snapshot_tag: String,
 }
 
-impl Queryable<contributions::SqlType, Db> for Contribution {
+impl Queryable<contributors::SqlType, Db> for Contributor {
     type Row = (
         // 0 -> reward_address
         String,
@@ -118,7 +120,9 @@ impl Queryable<contributions::SqlType, Db> for Contribution {
         i64,
         // 2 -> voting_key
         String,
-        // 3 -> snapshot_tag
+        // 2 -> voting_group
+        String,
+        // 4 -> snapshot_tag
         String,
     );
 
@@ -126,26 +130,29 @@ impl Queryable<contributions::SqlType, Db> for Contribution {
         Self {
             reward_address: row.0,
             value: row.1,
-            voting_key: Identifier::from_hex(&row.2).expect("should hex decoded Identifier"),
-            snapshot_tag: row.3,
+            voting_key: row.2,
+            voting_group: row.3,
+            snapshot_tag: row.4,
         }
     }
 }
 
-impl Insertable<contributions::table> for Contribution {
+impl Insertable<contributors::table> for Contributor {
     type Values = (
-        diesel::dsl::Eq<contributions::reward_address, String>,
-        diesel::dsl::Eq<contributions::value, i64>,
-        diesel::dsl::Eq<contributions::voting_key, String>,
-        diesel::dsl::Eq<contributions::snapshot_tag, String>,
+        diesel::dsl::Eq<contributors::reward_address, String>,
+        diesel::dsl::Eq<contributors::value, i64>,
+        diesel::dsl::Eq<contributors::voting_key, String>,
+        diesel::dsl::Eq<contributors::voting_group, String>,
+        diesel::dsl::Eq<contributors::snapshot_tag, String>,
     );
 
     fn values(self) -> Self::Values {
         (
-            contributions::reward_address.eq(self.reward_address),
-            contributions::value.eq(self.value),
-            contributions::voting_key.eq(self.voting_key.to_hex()),
-            contributions::snapshot_tag.eq(self.snapshot_tag),
+            contributors::reward_address.eq(self.reward_address),
+            contributors::value.eq(self.value),
+            contributors::voting_key.eq(self.voting_key),
+            contributors::voting_group.eq(self.voting_group),
+            contributors::snapshot_tag.eq(self.snapshot_tag),
         )
     }
 }
