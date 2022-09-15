@@ -44,6 +44,15 @@ table! {
 }
 
 table! {
+    voting_registration (stake_public_key) {
+        stake_public_key -> Text,
+        voting_power -> BigInt,
+        reward_address -> Text,
+        voting_purpose -> BigInt,
+    }
+}
+
+table! {
     funds (id) {
         id -> Integer,
         fund_name -> Text,
