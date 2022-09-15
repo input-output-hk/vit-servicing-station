@@ -49,6 +49,7 @@ table! {
         voting_power -> BigInt,
         reward_address -> Text,
         voting_purpose -> BigInt,
+        snapshot_tag -> Text,
     }
 }
 

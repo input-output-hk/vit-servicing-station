@@ -56,6 +56,8 @@ pub struct VotingRegistration {
     pub reward_address: String,
     #[serde(alias = "votingPurpose")]
     pub voting_purpose: i64,
+    #[serde(alias = "snapshotTag")]
+    pub snapshot_tag: String,
 }
 
 impl Queryable<voting_registration::SqlType, Db> for VotingRegistration {
@@ -68,6 +70,8 @@ impl Queryable<voting_registration::SqlType, Db> for VotingRegistration {
         String,
         // 3 -> voting_purpose
         i64,
+        // 4 -> snapshot_tag
+        String,
     );
 
     fn build(row: Self::Row) -> Self {
@@ -76,6 +80,7 @@ impl Queryable<voting_registration::SqlType, Db> for VotingRegistration {
             voting_power: row.1,
             reward_address: row.2,
             voting_purpose: row.3,
+            snapshot_tag: row.4,
         }
     }
 }
@@ -86,6 +91,7 @@ impl Insertable<voting_registration::table> for VotingRegistration {
         diesel::dsl::Eq<voting_registration::voting_power, i64>,
         diesel::dsl::Eq<voting_registration::reward_address, String>,
         diesel::dsl::Eq<voting_registration::voting_purpose, i64>,
+        diesel::dsl::Eq<voting_registration::snapshot_tag, String>,
     );
 
     fn values(self) -> Self::Values {
@@ -94,6 +100,7 @@ impl Insertable<voting_registration::table> for VotingRegistration {
             voting_registration::voting_power.eq(self.voting_power),
             voting_registration::reward_address.eq(self.reward_address),
             voting_registration::voting_purpose.eq(self.voting_purpose),
+            voting_registration::snapshot_tag.eq(self.snapshot_tag),
         )
     }
 }
