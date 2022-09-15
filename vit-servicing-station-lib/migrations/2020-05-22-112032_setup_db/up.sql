@@ -150,6 +150,20 @@ create table snapshots (
     last_updated BIGINT NOT NULL
 );
 
+create table voters (
+    voting_key TEXT NOT NULL primary key,
+    voting_power BIGINT NOT NULL,
+    voting_group TEXT NOT NULL,
+    snapshot_tag TEXT NOT NULL
+);
+
+create table contributions (
+    reward_address TEXT NOT NULL primary key,
+    value BIGINT NOT NULL,
+    voting_key TEXT NOT NULL,
+    snapshot_tag TEXT NOT NULL
+);
+
 CREATE VIEW full_proposals_info
 AS
 SELECT
