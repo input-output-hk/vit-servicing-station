@@ -37,6 +37,13 @@ table! {
 }
 
 table! {
+    snapshot (tag) {
+        tag -> Text,
+        last_updated -> BigInt,
+    }
+}
+
+table! {
     funds (id) {
         id -> Integer,
         fund_name -> Text,
