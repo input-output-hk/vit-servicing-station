@@ -37,7 +37,7 @@ table! {
 }
 
 table! {
-    snapshot (tag) {
+    snapshots (tag) {
         tag -> Text,
         last_updated -> BigInt,
     }

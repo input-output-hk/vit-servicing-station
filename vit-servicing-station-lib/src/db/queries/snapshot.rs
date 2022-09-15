@@ -1,7 +1,7 @@
 use crate::{
     db::{
         models::snapshot::{Delegation, Snapshot, VotingRegistration},
-        schema::{delegation, snapshot, voting_registration},
+        schema::{delegation, snapshots, voting_registration},
         DbConnection, DbConnectionPool,
     },
     v0::errors::HandleError,
@@ -11,12 +11,15 @@ use diesel::{ExpressionMethods, Insertable, QueryDsl, QueryResult, RunQueryDsl};
 pub async fn query_all_snapshots(pool: &DbConnectionPool) -> Result<Vec<Snapshot>, HandleError> {
     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
     tokio::task::spawn_blocking(move || {
-        diesel::QueryDsl::order_by(snapshot::dsl::snapshot, snapshot::dsl::last_updated.asc())
-            .load(&db_conn)
-            .map_err(|_| HandleError::InternalError("Error retrieving challenges".to_string()))
+        diesel::QueryDsl::order_by(
+            snapshots::dsl::snapshots,
+            snapshots::dsl::last_updated.asc(),
+        )
+        .load(&db_conn)
+        .map_err(|e| HandleError::InternalError(format!("Error retrieving challenges: {}", e)))
     })
     .await
-    .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))?
+    .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?
 }
 
 pub async fn query_snapshot_by_tag(
@@ -25,20 +28,20 @@ pub async fn query_snapshot_by_tag(
 ) -> Result<Snapshot, HandleError> {
     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
     tokio::task::spawn_blocking(move || {
-        diesel::QueryDsl::filter(snapshot::dsl::snapshot, snapshot::dsl::tag.eq(tag))
+        diesel::QueryDsl::filter(snapshots::dsl::snapshots, snapshots::dsl::tag.eq(tag))
             .first(&db_conn)
-            .map_err(|_e| HandleError::NotFound("Error loading challenge".to_string()))
+            .map_err(|e| HandleError::NotFound(format!("Error loading challenge: {}", e)))
     })
     .await
-    .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))?
+    .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?
 }
 
 pub fn put_snapshot(snapshot: Snapshot, pool: &DbConnectionPool) -> Result<(), HandleError> {
     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
-    diesel::insert_into(snapshot::table)
+    diesel::replace_into(snapshots::table)
         .values(snapshot.values())
         .execute(&db_conn)
-        .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))?;
+        .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?;
     Ok(())
 }
 
@@ -54,10 +57,10 @@ pub async fn query_voting_registrations_by_snapshot_tag(
         )
         .order_by(voting_registration::dsl::voting_power.asc())
         .load(&db_conn)
-        .map_err(|_e| HandleError::NotFound("Error loading challenge".to_string()))
+        .map_err(|e| HandleError::NotFound(format!("Error loading challenge: {}", e)))
     })
     .await
-    .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))?
+    .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?
 }
 
 pub fn batch_insert_voting_registrations(
@@ -82,10 +85,10 @@ pub async fn query_delegations_by_snapshot_tag_and_delegator(
         )
         .filter(delegation::dsl::delegator.eq(delegator))
         .load(&db_conn)
-        .map_err(|_e| HandleError::NotFound("Error loading challenge".to_string()))
+        .map_err(|e| HandleError::NotFound(format!("Error loading challenge: {}", e)))
     })
     .await
-    .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))?
+    .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?
 }
 
 pub fn batch_insert_delegations(

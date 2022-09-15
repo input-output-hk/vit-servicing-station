@@ -145,6 +145,11 @@ create table votes (
     PRIMARY KEY("fragment_id")
 );
 
+create table snapshots (
+    tag TEXT NOT NULL primary key,
+    last_updated BIGINT NOT NULL
+);
+
 CREATE VIEW full_proposals_info
 AS
 SELECT

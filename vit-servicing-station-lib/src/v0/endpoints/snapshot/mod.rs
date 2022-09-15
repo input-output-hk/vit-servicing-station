@@ -182,18 +182,11 @@ impl SharedContext {
     pub async fn get_tags(&self, context: SharedContext_) -> Result<Vec<Tag>, HandleError> {
         let pool = &context.read().await.db_connection_pool;
 
-        // let res = query_all_snapshots(&pool).await;
-
-        let mut result = vec![];
-        for entries in self.tags.iter() {
-            let (tag, _) = entries.map_err(|e| HandleError::InternalError(e.to_string()))?;
-            result.push(
-                String::from_utf8(tag.to_vec())
-                    .map_err(|e| HandleError::InternalError(e.to_string()))?,
-            );
-        }
-
-        Ok(result)
+        Ok(query_all_snapshots(&pool)
+            .await?
+            .into_iter()
+            .map(|snapshot| snapshot.tag)
+            .collect())
     }
 }
 
@@ -265,14 +258,13 @@ impl UpdateHandle {
     ) -> Result<(), HandleError> {
         let pool = &context.read().await.db_connection_pool;
 
-        // put_snapshot(
-        //     models::snapshot::Snapshot {
-        //         tag: tag.to_string(),
-        //         last_updated: update_timestamp as i64,
-        //     },
-        //     pool,
-        // )
-        // .unwrap();
+        put_snapshot(
+            models::snapshot::Snapshot {
+                tag: tag.to_string(),
+                last_updated: update_timestamp as i64,
+            },
+            pool,
+        )?;
 
         let mut batch = sled::Batch::default();
 
@@ -407,6 +399,7 @@ pub fn new_context() -> Result<(SharedContext, UpdateHandle), Error> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::db::migrations::initialize_db_with_migration;
     use crate::v0::context::test::new_in_memmory_db_test_shared_context;
     use jormungandr_lib::crypto::account::Identifier;
     use snapshot_lib::registration::{Delegations, VotingRegistration};
@@ -419,6 +412,8 @@ mod test {
     pub async fn test_snapshot() {
         let (rx, mut tx) = new_context().unwrap();
         let context = new_in_memmory_db_test_shared_context();
+        let db_conn = &context.read().await.db_connection_pool.get().unwrap();
+        initialize_db_with_migration(db_conn);
 
         let keys = [
             Identifier::from_hex(
@@ -549,6 +544,8 @@ mod test {
 
         let (rx, mut tx) = new_context().unwrap();
         let context = new_in_memmory_db_test_shared_context();
+        let db_conn = &context.read().await.db_connection_pool.get().unwrap();
+        initialize_db_with_migration(db_conn);
 
         let voting_key = Identifier::from_hex(
             "0000000000000000000000000000000000000000000000000000000000000000",
@@ -768,6 +765,8 @@ mod test {
 
         let (shared_context, update_handler) = new_context().unwrap();
         let context = new_in_memmory_db_test_shared_context();
+        let db_conn = &context.read().await.db_connection_pool.get().unwrap();
+        initialize_db_with_migration(db_conn);
 
         let snapshot_root = warp::path!("snapshot" / ..).boxed();
         let filter = filter(
@@ -908,6 +907,8 @@ mod test {
 
         let (shared_context, update_handler) = new_context().unwrap();
         let context = new_in_memmory_db_test_shared_context();
+        let db_conn = &context.read().await.db_connection_pool.get().unwrap();
+        initialize_db_with_migration(db_conn);
 
         let snapshot_root = warp::path!("snapshot" / ..).boxed();
         let filter = filter(

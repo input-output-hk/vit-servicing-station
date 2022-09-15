@@ -1,5 +1,5 @@
 use crate::db::{
-    schema::{delegation, snapshot, voting_registration},
+    schema::{delegation, snapshots, voting_registration},
     Db,
 };
 use diesel::{ExpressionMethods, Insertable, Queryable};
@@ -17,7 +17,7 @@ pub struct Snapshot {
     pub last_updated: i64,
 }
 
-impl Queryable<snapshot::SqlType, Db> for Snapshot {
+impl Queryable<snapshots::SqlType, Db> for Snapshot {
     type Row = (
         // 0 -> tag
         String,
@@ -33,16 +33,16 @@ impl Queryable<snapshot::SqlType, Db> for Snapshot {
     }
 }
 
-impl Insertable<snapshot::table> for Snapshot {
+impl Insertable<snapshots::table> for Snapshot {
     type Values = (
-        diesel::dsl::Eq<snapshot::tag, String>,
-        diesel::dsl::Eq<snapshot::last_updated, i64>,
+        diesel::dsl::Eq<snapshots::tag, String>,
+        diesel::dsl::Eq<snapshots::last_updated, i64>,
     );
 
     fn values(self) -> Self::Values {
         (
-            snapshot::tag.eq(self.tag),
-            snapshot::last_updated.eq(self.last_updated),
+            snapshots::tag.eq(self.tag),
+            snapshots::last_updated.eq(self.last_updated),
         )
     }
 }
