@@ -1,6 +1,13 @@
 mod handlers;
 mod routes;
 
+use crate::{
+    db::{
+        models,
+        queries::snapshot::{put_snapshot, query_all_snapshots},
+    },
+    v0::{context::SharedContext as SharedContext_, errors::HandleError},
+};
 use chain_ser::packer::Codec;
 pub use handlers::{RawSnapshotInput, SnapshotInfoInput};
 use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
@@ -172,11 +179,18 @@ impl SharedContext {
         }))
     }
 
-    pub fn get_tags(&self) -> Result<Vec<Tag>, Error> {
+    pub async fn get_tags(&self, context: SharedContext_) -> Result<Vec<Tag>, HandleError> {
+        let pool = &context.read().await.db_connection_pool;
+
+        // let res = query_all_snapshots(&pool).await;
+
         let mut result = vec![];
         for entries in self.tags.iter() {
-            let (tag, _) = entries?;
-            result.push(String::from_utf8(tag.to_vec()).map_err(|_| Error::InternalError)?);
+            let (tag, _) = entries.map_err(|e| HandleError::InternalError(e.to_string()))?;
+            result.push(
+                String::from_utf8(tag.to_vec())
+                    .map_err(|e| HandleError::InternalError(e.to_string()))?,
+            );
         }
 
         Ok(result)
@@ -216,6 +230,7 @@ impl UpdateHandle {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(skip(self, snapshot, context))]
     pub async fn update_from_raw_snapshot(
         &mut self,
         tag: &str,
@@ -225,30 +240,40 @@ impl UpdateHandle {
         voting_power_cap: Fraction,
         direct_voters_group: Option<String>,
         representatives_group: Option<String>,
-    ) -> Result<(), Error> {
+        context: SharedContext_,
+    ) -> Result<(), HandleError> {
         let direct_voter = direct_voters_group.unwrap_or_else(|| DEFAULT_DIRECT_VOTER_GROUP.into());
         let representative =
             representatives_group.unwrap_or_else(|| DEFAULT_REPRESENTATIVE_GROUP.into());
         let assigner = RepsVotersAssigner::new(direct_voter, representative);
-        let snapshot = Snapshot::from_raw_snapshot(
-            snapshot,
-            min_stake_threshold,
-            voting_power_cap,
-            &assigner,
-        )?
-        .to_full_snapshot_info();
+        let snapshot =
+            Snapshot::from_raw_snapshot(snapshot, min_stake_threshold, voting_power_cap, &assigner)
+                .map_err(|e| HandleError::InternalError(e.to_string()))?
+                .to_full_snapshot_info();
 
-        self.update_from_shanpshot_info(tag, snapshot, update_timestamp)
+        self.update_from_shanpshot_info(tag, snapshot, update_timestamp, context)
             .await
     }
 
-    #[tracing::instrument(skip(self, snapshot))]
+    #[tracing::instrument(skip(self, snapshot, context))]
     pub async fn update_from_shanpshot_info(
         &mut self,
         tag: &str,
         snapshot: impl IntoIterator<Item = SnapshotInfo>,
         update_timestamp: u64,
-    ) -> Result<(), Error> {
+        context: SharedContext_,
+    ) -> Result<(), HandleError> {
+        let pool = &context.read().await.db_connection_pool;
+
+        // put_snapshot(
+        //     models::snapshot::Snapshot {
+        //         tag: tag.to_string(),
+        //         last_updated: update_timestamp as i64,
+        //     },
+        //     pool,
+        // )
+        // .unwrap();
+
         let mut batch = sled::Batch::default();
 
         enum Tag {
@@ -256,11 +281,15 @@ impl UpdateHandle {
             New(IVec),
         }
 
-        let tag_id = if let Some(existing) = self.tags.get(tag)? {
+        let tag_id = if let Some(existing) = self
+            .tags
+            .get(tag)
+            .map_err(|e| HandleError::InternalError(e.to_string()))?
+        {
             // remove all existing entries for this tag so the ones that are not present in the new
             // input get deleted
             for entry in self.entries.range(&*existing..) {
-                let (k, _) = entry?;
+                let (k, _) = entry.map_err(|e| HandleError::InternalError(e.to_string()))?;
 
                 // `existing` here is a prefix of the tree's key, since we are going to remove
                 // everything that starts with this tag, we don't need neither the public key nor
@@ -279,7 +308,12 @@ impl UpdateHandle {
             Tag::Existing(existing)
         } else {
             // unwrapping here is fine because the constructor initializes this entry to 0
-            Tag::New(self.seqs.get(TAG_SEQ_KEY)?.unwrap())
+            Tag::New(
+                self.seqs
+                    .get(TAG_SEQ_KEY)
+                    .map_err(|e| HandleError::InternalError(e.to_string()))?
+                    .unwrap(),
+            )
         };
 
         for entry in snapshot.into_iter() {
@@ -355,7 +389,9 @@ impl UpdateHandle {
             })
             .await
             .unwrap()
-            .map_err(Error::DbTxError)?;
+            .map_err(|e: sled::transaction::TransactionError| {
+                HandleError::InternalError(e.to_string())
+            })?;
         }
 
         Ok(())
@@ -371,6 +407,7 @@ pub fn new_context() -> Result<(SharedContext, UpdateHandle), Error> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::v0::context::test::new_in_memmory_db_test_shared_context;
     use jormungandr_lib::crypto::account::Identifier;
     use snapshot_lib::registration::{Delegations, VotingRegistration};
     use snapshot_lib::{KeyContribution, SnapshotInfo, VoterHIR};
@@ -381,6 +418,7 @@ mod test {
     #[tokio::test]
     pub async fn test_snapshot() {
         let (rx, mut tx) = new_context().unwrap();
+        let context = new_in_memmory_db_test_shared_context();
 
         let keys = [
             Identifier::from_hex(
@@ -440,7 +478,7 @@ mod test {
             )
             .collect::<Vec<_>>();
 
-        tx.update_from_shanpshot_info(TAG1, content_a.clone(), UPDATE_TIME1)
+        tx.update_from_shanpshot_info(TAG1, content_a.clone(), UPDATE_TIME1, context.clone())
             .await
             .unwrap();
 
@@ -474,7 +512,7 @@ mod test {
             )
             .collect::<Vec<_>>();
 
-        tx.update_from_shanpshot_info(TAG2, [content_a, content_b].concat(), UPDATE_TIME2)
+        tx.update_from_shanpshot_info(TAG2, [content_a, content_b].concat(), UPDATE_TIME2, context)
             .await
             .unwrap();
 
@@ -510,6 +548,7 @@ mod test {
         const UPDATE_TIME1: u64 = 0;
 
         let (rx, mut tx) = new_context().unwrap();
+        let context = new_in_memmory_db_test_shared_context();
 
         let voting_key = Identifier::from_hex(
             "0000000000000000000000000000000000000000000000000000000000000000",
@@ -535,10 +574,10 @@ mod test {
             },
         ];
 
-        tx.update_from_shanpshot_info(TAG1, inputs.clone(), UPDATE_TIME1)
+        tx.update_from_shanpshot_info(TAG1, inputs.clone(), UPDATE_TIME1, context.clone())
             .await
             .unwrap();
-        tx.update_from_shanpshot_info(TAG2, inputs.clone(), UPDATE_TIME1)
+        tx.update_from_shanpshot_info(TAG2, inputs.clone(), UPDATE_TIME1, context.clone())
             .await
             .unwrap();
 
@@ -568,7 +607,7 @@ mod test {
                 .collect::<Vec<_>>()
         );
 
-        tx.update_from_shanpshot_info(TAG1, inputs[0..1].to_vec(), UPDATE_TIME1)
+        tx.update_from_shanpshot_info(TAG1, inputs[0..1].to_vec(), UPDATE_TIME1, context)
             .await
             .unwrap();
 
@@ -728,10 +767,15 @@ mod test {
         .unwrap();
 
         let (shared_context, update_handler) = new_context().unwrap();
+        let context = new_in_memmory_db_test_shared_context();
 
         let snapshot_root = warp::path!("snapshot" / ..).boxed();
-        let filter = filter(snapshot_root.clone(), shared_context.clone());
-        let put_filter = snapshot_root.and(update_filter(update_handler));
+        let filter = filter(
+            snapshot_root.clone(),
+            context.clone(),
+            shared_context.clone(),
+        );
+        let put_filter = snapshot_root.and(update_filter(context, update_handler));
 
         assert_eq!(
             warp::test::request()
@@ -863,10 +907,15 @@ mod test {
         .unwrap();
 
         let (shared_context, update_handler) = new_context().unwrap();
+        let context = new_in_memmory_db_test_shared_context();
 
         let snapshot_root = warp::path!("snapshot" / ..).boxed();
-        let filter = filter(snapshot_root.clone(), shared_context.clone());
-        let put_filter = snapshot_root.and(update_filter(update_handler));
+        let filter = filter(
+            snapshot_root.clone(),
+            context.clone(),
+            shared_context.clone(),
+        );
+        let put_filter = snapshot_root.and(update_filter(context, update_handler));
 
         assert_eq!(
             warp::test::request()

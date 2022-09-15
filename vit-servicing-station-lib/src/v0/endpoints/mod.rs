@@ -61,13 +61,14 @@ pub async fn filter(
         search::search_count_filter(search_count_root.boxed(), context.clone()).await;
 
     let snapshot_root = warp::path!("snapshot" / ..);
-    let snapshot_rx_filter = snapshot::filter(snapshot_root.boxed(), snapshot_rx.clone());
+    let snapshot_rx_filter =
+        snapshot::filter(snapshot_root.boxed(), context.clone(), snapshot_rx.clone());
 
     let admin_filter = {
         let base = warp::path!("admin" / ..);
 
-        let snapshot_tx_filter =
-            warp::path!("snapshot" / ..).and(snapshot::update_filter(snapshot_tx).boxed());
+        let snapshot_tx_filter = warp::path!("snapshot" / ..)
+            .and(snapshot::update_filter(context.clone(), snapshot_tx).boxed());
 
         let fund_filter = warp::path!("fund" / ..).and(funds::admin_filter(context.clone()));
 

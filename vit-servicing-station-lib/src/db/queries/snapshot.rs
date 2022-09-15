@@ -33,13 +33,13 @@ pub async fn query_snapshot_by_tag(
     .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))?
 }
 
-pub fn batch_insert_snapshots(
-    snapshots: &[<Snapshot as Insertable<snapshot::table>>::Values],
-    db_conn: &DbConnection,
-) -> QueryResult<usize> {
+pub fn put_snapshot(snapshot: Snapshot, pool: &DbConnectionPool) -> Result<(), HandleError> {
+    let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
     diesel::insert_into(snapshot::table)
-        .values(snapshots)
-        .execute(db_conn)
+        .values(snapshot.values())
+        .execute(&db_conn)
+        .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))?;
+    Ok(())
 }
 
 pub async fn query_voting_registrations_by_snapshot_tag(

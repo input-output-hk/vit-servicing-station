@@ -1,5 +1,7 @@
+use crate::v0::context::SharedContext;
+
 use super::handlers::{get_tags, get_voters_info, put_raw_snapshot, put_snapshot_info};
-use super::{SharedContext, UpdateHandle};
+use super::{SharedContext as SnapshotSharedContext, UpdateHandle};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use warp::filters::BoxedFilter;
@@ -7,9 +9,10 @@ use warp::{Filter, Rejection, Reply};
 
 pub fn filter(
     root: BoxedFilter<()>,
-    context: SharedContext,
+    context_: SharedContext,
+    context: SnapshotSharedContext,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    let with_context = warp::any().map(move || context.clone());
+    let with_context = warp::any().map(move || (context.clone(), context_.clone()));
 
     let get_voters_info = warp::path!(String / String)
         .and(warp::get())
@@ -25,10 +28,11 @@ pub fn filter(
 }
 
 pub fn update_filter(
+    context_: SharedContext,
     context: UpdateHandle,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     let ctx = Arc::new(Mutex::new(context));
-    let with_context = warp::any().map(move || Arc::clone(&ctx));
+    let with_context = warp::any().map(move || (Arc::clone(&ctx), context_.clone()));
 
     let snapshot_info = warp::path!("snapshot_info" / String)
         .and(warp::put())

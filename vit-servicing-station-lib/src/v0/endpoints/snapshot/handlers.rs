@@ -1,4 +1,6 @@
 use super::{SharedContext, UpdateHandle, VoterInfo};
+use crate::v0::context::SharedContext as SharedContext_;
+use crate::v0::result::HandlerResult;
 use jormungandr_lib::crypto::account::Identifier;
 use jormungandr_lib::interfaces::Value;
 use serde::{Deserialize, Serialize};
@@ -14,7 +16,7 @@ use warp::{Rejection, Reply};
 pub async fn get_voters_info(
     tag: String,
     voting_key: String,
-    context: SharedContext,
+    context: (SharedContext, SharedContext_),
 ) -> Result<impl Reply, Rejection> {
     let key = if let Ok(key) = Identifier::from_hex(&voting_key) {
         key
@@ -26,7 +28,7 @@ pub async fn get_voters_info(
         .into_response());
     };
 
-    match tokio::task::spawn_blocking(move || context.get_voters_info(&tag, &key))
+    match tokio::task::spawn_blocking(move || context.0.get_voters_info(&tag, &key))
         .await
         .unwrap()
     {
@@ -56,14 +58,15 @@ pub async fn get_voters_info(
 }
 
 #[tracing::instrument(skip(context))]
-pub async fn get_tags(context: SharedContext) -> Result<impl Reply, Rejection> {
-    match context.get_tags().map(|tags| warp::reply::json(&tags)) {
+pub async fn get_tags(context: (SharedContext, SharedContext_)) -> Result<impl Reply, Rejection> {
+    match context
+        .0
+        .get_tags(context.1)
+        .await
+        .map(|tags| warp::reply::json(&tags))
+    {
         Ok(tags) => Ok(tags.into_response()),
-        Err(_) => Ok(warp::reply::with_status(
-            "Failed to get tags from database",
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )
-        .into_response()),
+        Err(err) => Ok(err.into_response()),
     }
 }
 
@@ -89,56 +92,37 @@ pub struct RawSnapshotInput {
 pub async fn put_raw_snapshot(
     tag: String,
     input: RawSnapshotInput,
-    context: Arc<Mutex<UpdateHandle>>,
+    context: (Arc<Mutex<UpdateHandle>>, SharedContext_),
 ) -> Result<impl Reply, Rejection> {
-    let mut handle = context.lock().await;
+    let mut handle = context.0.lock().await;
 
-    match handle
-        .update_from_raw_snapshot(
-            &tag,
-            input.snapshot,
-            input.update_timestamp,
-            input.min_stake_threshold,
-            input.voting_power_cap,
-            input.direct_voters_group,
-            input.representatives_group,
-        )
-        .await
-    {
-        Err(super::Error::InternalError) => Ok(warp::reply::with_status(
-            "Consistency error",
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )
-        .into_response()),
-        Err(e) => Ok(
-            warp::reply::with_status(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR)
-                .into_response(),
-        ),
-        Ok(_) => Ok(warp::reply().into_response()),
-    }
+    Ok(HandlerResult(
+        handle
+            .update_from_raw_snapshot(
+                &tag,
+                input.snapshot,
+                input.update_timestamp,
+                input.min_stake_threshold,
+                input.voting_power_cap,
+                input.direct_voters_group,
+                input.representatives_group,
+                context.1,
+            )
+            .await,
+    ))
 }
 
 #[tracing::instrument(skip(context))]
 pub async fn put_snapshot_info(
     tag: String,
     input: SnapshotInfoInput,
-    context: Arc<Mutex<UpdateHandle>>,
+    context: (Arc<Mutex<UpdateHandle>>, SharedContext_),
 ) -> Result<impl Reply, Rejection> {
-    let mut handle = context.lock().await;
+    let mut handle = context.0.lock().await;
 
-    match handle
-        .update_from_shanpshot_info(&tag, input.snapshot, input.update_timestamp)
-        .await
-    {
-        Err(super::Error::InternalError) => Ok(warp::reply::with_status(
-            "Consistency error",
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )
-        .into_response()),
-        Err(e) => Ok(
-            warp::reply::with_status(e.to_string(), StatusCode::INTERNAL_SERVER_ERROR)
-                .into_response(),
-        ),
-        Ok(_) => Ok(warp::reply().into_response()),
-    }
+    Ok(HandlerResult(
+        handle
+            .update_from_shanpshot_info(&tag, input.snapshot, input.update_timestamp, context.1)
+            .await,
+    ))
 }
