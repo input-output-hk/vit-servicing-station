@@ -1,7 +1,7 @@
 use crate::{
     db::{
-        models::snapshot::{Snapshot, VotingRegistration},
-        schema::{snapshot, voting_registration},
+        models::snapshot::{Delegation, Snapshot, VotingRegistration},
+        schema::{delegation, snapshot, voting_registration},
         DbConnection, DbConnectionPool,
     },
     v0::errors::HandleError,
@@ -66,5 +66,33 @@ pub fn batch_insert_voting_registrations(
 ) -> QueryResult<usize> {
     diesel::insert_into(voting_registration::table)
         .values(snapshots)
+        .execute(db_conn)
+}
+
+pub async fn query_delegations_by_snapshot_tag_and_delegator(
+    tag: String,
+    delegator: String,
+    pool: &DbConnectionPool,
+) -> Result<Vec<Delegation>, HandleError> {
+    let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
+    tokio::task::spawn_blocking(move || {
+        diesel::QueryDsl::filter(
+            delegation::dsl::delegation,
+            delegation::dsl::snapshot_tag.eq(tag),
+        )
+        .filter(delegation::dsl::delegator.eq(delegator))
+        .load(&db_conn)
+        .map_err(|_e| HandleError::NotFound("Error loading challenge".to_string()))
+    })
+    .await
+    .map_err(|_e| HandleError::InternalError("Error executing request".to_string()))?
+}
+
+pub fn batch_insert_delegations(
+    delegations: &[<Delegation as Insertable<delegation::table>>::Values],
+    db_conn: &DbConnection,
+) -> QueryResult<usize> {
+    diesel::insert_into(delegation::table)
+        .values(delegations)
         .execute(db_conn)
 }
