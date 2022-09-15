@@ -44,22 +44,21 @@ table! {
 }
 
 table! {
-    voting_registration (stake_public_key) {
-        stake_public_key -> Text,
+    voters (voting_key) {
+        voting_key -> Text,
         voting_power -> BigInt,
-        reward_address -> Text,
-        voting_purpose -> BigInt,
+        voting_group -> Text,
         // should corresponds to the snapshot::tag,
         snapshot_tag -> Text,
     }
 }
 
 table! {
-    delegation (representative) {
-        representative -> Text,
-        weight -> Integer,
-        // should corresponds to the voting_registration::stake_public_key,
-        delegator -> Text,
+    contributions (reward_address) {
+        reward_address -> Text,
+        value -> BigInt,
+        // should corresponds to the voters::tag,
+        voting_key -> Text,
         // should corresponds to the snapshot::tag,
         snapshot_tag -> Text,
     }

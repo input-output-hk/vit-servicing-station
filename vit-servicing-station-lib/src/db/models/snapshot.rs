@@ -1,5 +1,5 @@
 use crate::db::{
-    schema::{delegation, snapshots, voting_registration},
+    schema::{contributions, snapshots, voters},
     Db,
 };
 use diesel::{ExpressionMethods, Insertable, Queryable};
@@ -48,80 +48,24 @@ impl Insertable<snapshots::table> for Snapshot {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct VotingRegistration {
-    #[serde(alias = "stakePublicKey")]
-    pub stake_public_key: String,
+pub struct Voter {
+    #[serde(alias = "votingKey")]
+    pub voting_key: Identifier,
     #[serde(alias = "votingPower")]
     pub voting_power: i64,
-    #[serde(alias = "rewardAddress")]
-    pub reward_address: String,
-    #[serde(alias = "votingPurpose")]
-    pub voting_purpose: i64,
+    #[serde(alias = "votingGroup")]
+    pub voting_group: String,
     #[serde(alias = "snapshotTag")]
     pub snapshot_tag: String,
 }
 
-impl Queryable<voting_registration::SqlType, Db> for VotingRegistration {
+impl Queryable<voters::SqlType, Db> for Voter {
     type Row = (
-        // 0 -> stake_public_key
+        // 0 -> voting_key
         String,
         // 1 -> voting_power
         i64,
-        // 2 -> reward_address
-        String,
-        // 3 -> voting_purpose
-        i64,
-        // 4 -> snapshot_tag
-        String,
-    );
-
-    fn build(row: Self::Row) -> Self {
-        Self {
-            stake_public_key: row.0,
-            voting_power: row.1,
-            reward_address: row.2,
-            voting_purpose: row.3,
-            snapshot_tag: row.4,
-        }
-    }
-}
-
-impl Insertable<voting_registration::table> for VotingRegistration {
-    type Values = (
-        diesel::dsl::Eq<voting_registration::stake_public_key, String>,
-        diesel::dsl::Eq<voting_registration::voting_power, i64>,
-        diesel::dsl::Eq<voting_registration::reward_address, String>,
-        diesel::dsl::Eq<voting_registration::voting_purpose, i64>,
-        diesel::dsl::Eq<voting_registration::snapshot_tag, String>,
-    );
-
-    fn values(self) -> Self::Values {
-        (
-            voting_registration::stake_public_key.eq(self.stake_public_key),
-            voting_registration::voting_power.eq(self.voting_power),
-            voting_registration::reward_address.eq(self.reward_address),
-            voting_registration::voting_purpose.eq(self.voting_purpose),
-            voting_registration::snapshot_tag.eq(self.snapshot_tag),
-        )
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Delegation {
-    pub representative: Identifier,
-    pub weight: i32,
-    pub delegator: String,
-    #[serde(alias = "snapshotTag")]
-    pub snapshot_tag: String,
-}
-
-impl Queryable<delegation::SqlType, Db> for Delegation {
-    type Row = (
-        // 0 -> representative
-        String,
-        // 1 -> weight
-        i32,
-        // 2 -> delegator
+        // 2 -> voting_group
         String,
         // 3 -> snapshot_tag
         String,
@@ -129,28 +73,79 @@ impl Queryable<delegation::SqlType, Db> for Delegation {
 
     fn build(row: Self::Row) -> Self {
         Self {
-            representative: Identifier::from_hex(&row.0).expect("should hex decoded Identifier"),
-            weight: row.1,
-            delegator: row.2,
+            voting_key: Identifier::from_hex(&row.0).expect("should hex decoded Identifier"),
+            voting_power: row.1,
+            voting_group: row.2,
             snapshot_tag: row.3,
         }
     }
 }
 
-impl Insertable<delegation::table> for Delegation {
+impl Insertable<voters::table> for Voter {
     type Values = (
-        diesel::dsl::Eq<delegation::representative, String>,
-        diesel::dsl::Eq<delegation::weight, i32>,
-        diesel::dsl::Eq<delegation::delegator, String>,
-        diesel::dsl::Eq<delegation::snapshot_tag, String>,
+        diesel::dsl::Eq<voters::voting_key, String>,
+        diesel::dsl::Eq<voters::voting_power, i64>,
+        diesel::dsl::Eq<voters::voting_group, String>,
+        diesel::dsl::Eq<voters::snapshot_tag, String>,
     );
 
     fn values(self) -> Self::Values {
         (
-            delegation::representative.eq(self.representative.to_hex()),
-            delegation::weight.eq(self.weight),
-            delegation::delegator.eq(self.delegator),
-            delegation::snapshot_tag.eq(self.snapshot_tag),
+            voters::voting_key.eq(self.voting_key.to_hex()),
+            voters::voting_power.eq(self.voting_power),
+            voters::voting_group.eq(self.voting_group),
+            voters::snapshot_tag.eq(self.snapshot_tag),
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Contribution {
+    #[serde(alias = "rewardAddress")]
+    pub reward_address: String,
+    pub value: i64,
+    #[serde(alias = "votingKey")]
+    pub voting_key: Identifier,
+    #[serde(alias = "snapshotTag")]
+    pub snapshot_tag: String,
+}
+
+impl Queryable<contributions::SqlType, Db> for Contribution {
+    type Row = (
+        // 0 -> reward_address
+        String,
+        // 1 -> value
+        i64,
+        // 2 -> voting_key
+        String,
+        // 3 -> snapshot_tag
+        String,
+    );
+
+    fn build(row: Self::Row) -> Self {
+        Self {
+            reward_address: row.0,
+            value: row.1,
+            voting_key: Identifier::from_hex(&row.2).expect("should hex decoded Identifier"),
+            snapshot_tag: row.3,
+        }
+    }
+}
+
+impl Insertable<contributions::table> for Contribution {
+    type Values = (
+        diesel::dsl::Eq<contributions::reward_address, String>,
+        diesel::dsl::Eq<contributions::value, i64>,
+        diesel::dsl::Eq<contributions::voting_key, String>,
+        diesel::dsl::Eq<contributions::snapshot_tag, String>,
+    );
+
+    fn values(self) -> Self::Values {
+        (
+            contributions::reward_address.eq(self.reward_address),
+            contributions::value.eq(self.value),
+            contributions::voting_key.eq(self.voting_key.to_hex()),
+            contributions::snapshot_tag.eq(self.snapshot_tag),
         )
     }
 }
