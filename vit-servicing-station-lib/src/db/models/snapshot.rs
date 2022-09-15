@@ -1,8 +1,9 @@
 use crate::db::{
-    schema::{snapshot, voting_registration},
+    schema::{delegation, snapshot, voting_registration},
     Db,
 };
 use diesel::{ExpressionMethods, Insertable, Queryable};
+use jormungandr_lib::crypto::account::Identifier;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -101,6 +102,55 @@ impl Insertable<voting_registration::table> for VotingRegistration {
             voting_registration::reward_address.eq(self.reward_address),
             voting_registration::voting_purpose.eq(self.voting_purpose),
             voting_registration::snapshot_tag.eq(self.snapshot_tag),
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Delegation {
+    pub representative: Identifier,
+    pub weight: i32,
+    pub delegator: String,
+    #[serde(alias = "snapshotTag")]
+    pub snapshot_tag: String,
+}
+
+impl Queryable<delegation::SqlType, Db> for Delegation {
+    type Row = (
+        // 0 -> representative
+        String,
+        // 1 -> weight
+        i32,
+        // 2 -> delegator
+        String,
+        // 3 -> snapshot_tag
+        String,
+    );
+
+    fn build(row: Self::Row) -> Self {
+        Self {
+            representative: Identifier::from_hex(&row.0).expect("should hex decoded Identifier"),
+            weight: row.1,
+            delegator: row.2,
+            snapshot_tag: row.3,
+        }
+    }
+}
+
+impl Insertable<delegation::table> for Delegation {
+    type Values = (
+        diesel::dsl::Eq<delegation::representative, String>,
+        diesel::dsl::Eq<delegation::weight, i32>,
+        diesel::dsl::Eq<delegation::delegator, String>,
+        diesel::dsl::Eq<delegation::snapshot_tag, String>,
+    );
+
+    fn values(self) -> Self::Values {
+        (
+            delegation::representative.eq(self.representative.to_hex()),
+            delegation::weight.eq(self.weight),
+            delegation::delegator.eq(self.delegator),
+            delegation::snapshot_tag.eq(self.snapshot_tag),
         )
     }
 }

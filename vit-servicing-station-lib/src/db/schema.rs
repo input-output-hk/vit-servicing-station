@@ -49,6 +49,18 @@ table! {
         voting_power -> BigInt,
         reward_address -> Text,
         voting_purpose -> BigInt,
+        // should corresponds to the snapshot::tag,
+        snapshot_tag -> Text,
+    }
+}
+
+table! {
+    delegation (representative) {
+        representative -> Text,
+        weight -> Integer,
+        // should corresponds to the voting_registration::stake_public_key,
+        delegator -> Text,
+        // should corresponds to the snapshot::tag,
         snapshot_tag -> Text,
     }
 }
