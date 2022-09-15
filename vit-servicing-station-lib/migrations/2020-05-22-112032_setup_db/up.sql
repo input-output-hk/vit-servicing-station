@@ -155,7 +155,8 @@ create table voters (
     voting_power BIGINT NOT NULL,
     voting_group TEXT NOT NULL,
     snapshot_tag TEXT NOT NULL,
-    PRIMARY KEY(voting_key, voting_group)
+    PRIMARY KEY(voting_key, voting_group, snapshot_tag)
+    FOREIGN KEY(snapshot_tag) REFERENCES snapshots(tag) ON DELETE CASCADE
 );
 
 create table contributors (
@@ -164,7 +165,8 @@ create table contributors (
     voting_key TEXT NOT NULL,
     voting_group TEXT NOT NULL,
     snapshot_tag TEXT NOT NULL,
-    PRIMARY KEY(reward_address, voting_key, voting_group)
+    PRIMARY KEY(reward_address, voting_key, voting_group, snapshot_tag),
+    FOREIGN KEY(snapshot_tag) REFERENCES snapshots(tag) ON DELETE CASCADE
 );
 
 CREATE VIEW full_proposals_info
