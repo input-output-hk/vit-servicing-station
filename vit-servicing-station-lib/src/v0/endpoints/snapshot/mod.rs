@@ -8,8 +8,8 @@ use crate::{
             snapshot::{Contributor, Voter},
         },
         queries::snapshot::{
-            batch_put_contributions, batch_put_voters, put_snapshot,
-            query_all_snapshots, query_contributors_by_voting_key_and_voter_group_and_snapshot_tag,
+            batch_put_contributions, batch_put_voters, put_snapshot, query_all_snapshots,
+            query_contributors_by_voting_key_and_voter_group_and_snapshot_tag,
             query_snapshot_by_tag, query_voters_by_voting_key_and_snapshot_tag,
         },
     },
@@ -85,7 +85,7 @@ pub async fn get_voters_info(
 pub async fn get_tags(context: SharedContext_) -> Result<Vec<Tag>, HandleError> {
     let pool = &context.read().await.db_connection_pool;
 
-    Ok(query_all_snapshots(&pool)
+    Ok(query_all_snapshots(pool)
         .await?
         .into_iter()
         .map(|snapshot| snapshot.tag)
