@@ -140,6 +140,7 @@ pub async fn update_from_shanpshot_info(
     for entry in snapshot.into_iter() {
         contributions.extend(entry.contributions.into_iter().map(|contribution| {
             Contributor {
+                stake_public_key: contribution.stake_public_key,
                 reward_address: contribution.reward_address,
                 value: contribution
                     .value

@@ -101,6 +101,8 @@ impl Insertable<voters::table> for Voter {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Contributor {
+    #[serde(alias = "stakePublicKey")]
+    pub stake_public_key: String,
     #[serde(alias = "rewardAddress")]
     pub reward_address: String,
     pub value: i64,
@@ -114,31 +116,35 @@ pub struct Contributor {
 
 impl Queryable<contributors::SqlType, Db> for Contributor {
     type Row = (
-        // 0 -> reward_address
+        // 1 -> reward_address
         String,
-        // 1 -> value
+        // 1 -> reward_address
+        String,
+        // 2 -> value
         i64,
-        // 2 -> voting_key
+        // 3 -> voting_key
         String,
-        // 2 -> voting_group
+        // 4 -> voting_group
         String,
-        // 4 -> snapshot_tag
+        // 5 -> snapshot_tag
         String,
     );
 
     fn build(row: Self::Row) -> Self {
         Self {
-            reward_address: row.0,
-            value: row.1,
-            voting_key: row.2,
-            voting_group: row.3,
-            snapshot_tag: row.4,
+            stake_public_key: row.0,
+            reward_address: row.1,
+            value: row.2,
+            voting_key: row.3,
+            voting_group: row.4,
+            snapshot_tag: row.5,
         }
     }
 }
 
 impl Insertable<contributors::table> for Contributor {
     type Values = (
+        diesel::dsl::Eq<contributors::stake_public_key, String>,
         diesel::dsl::Eq<contributors::reward_address, String>,
         diesel::dsl::Eq<contributors::value, i64>,
         diesel::dsl::Eq<contributors::voting_key, String>,
@@ -148,6 +154,7 @@ impl Insertable<contributors::table> for Contributor {
 
     fn values(self) -> Self::Values {
         (
+            contributors::stake_public_key.eq(self.stake_public_key),
             contributors::reward_address.eq(self.reward_address),
             contributors::value.eq(self.value),
             contributors::voting_key.eq(self.voting_key),

@@ -54,7 +54,8 @@ table! {
 }
 
 table! {
-    contributors (reward_address, voting_key, voting_group, snapshot_tag) {
+    contributors (stake_public_key, voting_key, voting_group, snapshot_tag) {
+        stake_public_key -> Text,
         reward_address -> Text,
         value -> BigInt,
         // should corresponds to the voters::tag,

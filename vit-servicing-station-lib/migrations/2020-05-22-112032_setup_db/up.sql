@@ -160,12 +160,13 @@ create table voters (
 );
 
 create table contributors (
+    stake_public_key TEXT NOT NULL,
     reward_address TEXT NOT NULL,
     value BIGINT NOT NULL,
     voting_key TEXT NOT NULL,
     voting_group TEXT NOT NULL,
     snapshot_tag TEXT NOT NULL,
-    PRIMARY KEY(reward_address, voting_key, voting_group, snapshot_tag),
+    PRIMARY KEY(stake_public_key, voting_key, voting_group, snapshot_tag),
     FOREIGN KEY(snapshot_tag) REFERENCES snapshots(tag) ON DELETE CASCADE
 );
 
