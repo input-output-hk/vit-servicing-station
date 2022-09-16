@@ -31,9 +31,7 @@ pub async fn get_voters_info(
             let voter_info: Vec<_> = snapshot.voter_info.into_iter().map(|VoterInfo{voting_group, voting_power,delegations_power, delegations_count}| {
             json!({"voting_power": voting_power, "voting_group": voting_group, "delegations_power": delegations_power, "delegations_count": delegations_count})
         }).collect();
-            if let Ok(last_update) =
-                OffsetDateTime::from_unix_timestamp(snapshot.last_updated.try_into().unwrap())
-            {
+            if let Ok(last_update) = OffsetDateTime::from_unix_timestamp(snapshot.last_updated) {
                 let results =
                     json!({"voter_info": voter_info, "last_updated": last_update.unix_timestamp()});
                 Ok(warp::reply::json(&results).into_response())
