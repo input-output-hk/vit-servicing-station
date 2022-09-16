@@ -131,12 +131,7 @@ impl From<SnapshotInfo> for VotingPower {
         let delegations_power: u64 = snapshot_info
             .contributions
             .iter()
-            .map(
-                |KeyContribution {
-                     value,
-                     ..
-                 }| value,
-            )
+            .map(|KeyContribution { value, .. }| value)
             .sum();
         Self {
             voting_power: snapshot_info.hir.voting_power.into(),

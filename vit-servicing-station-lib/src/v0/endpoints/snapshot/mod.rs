@@ -369,12 +369,7 @@ mod test {
                     delegations_power: snapshot
                         .contributions
                         .iter()
-                        .map(
-                            |KeyContribution {
-                                 value,
-                                 ..
-                             }| value
-                        )
+                        .map(|KeyContribution { value, .. }| value)
                         .sum(),
                     delegations_count: snapshot.contributions.len() as u64
                 })
@@ -404,12 +399,7 @@ mod test {
                     delegations_power: snapshot
                         .contributions
                         .iter()
-                        .map(
-                            |KeyContribution {
-                                 value,
-                                 ..
-                             }| value
-                        )
+                        .map(|KeyContribution { value, .. }| value)
                         .sum(),
                     delegations_count: snapshot.contributions.len() as u64
                 })
@@ -431,12 +421,7 @@ mod test {
                     delegations_power: snapshot
                         .contributions
                         .iter()
-                        .map(
-                            |KeyContribution {
-                                 value,
-                                 ..
-                             }| value
-                        )
+                        .map(|KeyContribution { value, .. }| value)
                         .sum(),
                     delegations_count: snapshot.contributions.len() as u64
                 })
