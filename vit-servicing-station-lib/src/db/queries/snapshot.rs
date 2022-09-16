@@ -2,7 +2,7 @@ use crate::{
     db::{
         models::snapshot::{Contributor, Snapshot, Voter},
         schema::{contributors, snapshots, voters},
-        DbConnectionPool,
+        DbConnection, DbConnectionPool,
     },
     v0::errors::HandleError,
 };
@@ -61,11 +61,13 @@ pub async fn query_voters_by_voting_key_and_snapshot_tag(
     .map_err(|e| HandleError::InternalError(format!("Error executing voters: {}", e)))?
 }
 
-pub fn put_voter(voter: Voter, pool: &DbConnectionPool) -> Result<(), HandleError> {
-    let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
+pub fn batch_put_voters(
+    voters: &[<Voter as Insertable<voters::table>>::Values],
+    db_conn: &DbConnection,
+) -> Result<(), HandleError> {
     diesel::replace_into(voters::table)
-        .values(voter.values())
-        .execute(&db_conn)
+        .values(voters)
+        .execute(db_conn)
         .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?;
     Ok(())
 }
@@ -89,16 +91,13 @@ pub async fn query_contributors_by_voting_key_and_voter_group_and_snapshot_tag(
     .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?
 }
 
-pub fn put_contributions(
-    contributions: &[Contributor],
-    pool: &DbConnectionPool,
+pub fn batch_put_contributions(
+    contributions: &[<Contributor as Insertable<contributors::table>>::Values],
+    db_conn: &DbConnection,
 ) -> Result<(), HandleError> {
-    let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
-    for contribution in contributions {
-        diesel::replace_into(contributors::table)
-            .values(contribution.clone().values())
-            .execute(&db_conn)
-            .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?;
-    }
+    diesel::replace_into(contributors::table)
+        .values(contributions)
+        .execute(db_conn)
+        .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?;
     Ok(())
 }

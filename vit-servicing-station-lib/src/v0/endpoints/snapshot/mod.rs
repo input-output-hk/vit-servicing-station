@@ -8,13 +8,14 @@ use crate::{
             snapshot::{Contributor, Voter},
         },
         queries::snapshot::{
-            put_contributions, put_snapshot, put_voter, query_all_snapshots,
-            query_contributors_by_voting_key_and_voter_group_and_snapshot_tag,
+            batch_put_contributions, batch_put_voters, put_snapshot,
+            query_all_snapshots, query_contributors_by_voting_key_and_voter_group_and_snapshot_tag,
             query_snapshot_by_tag, query_voters_by_voting_key_and_snapshot_tag,
         },
     },
     v0::{context::SharedContext as SharedContext_, errors::HandleError},
 };
+use diesel::Insertable;
 pub use handlers::{RawSnapshotInput, SnapshotInfoInput};
 use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
 pub use routes::{filter, update_filter};
@@ -134,11 +135,11 @@ pub async fn update_from_shanpshot_info(
         pool,
     )?;
 
+    let mut contributions = Vec::new();
+    let mut voters = Vec::new();
     for entry in snapshot.into_iter() {
-        let contributions: Vec<_> = entry
-            .contributions
-            .into_iter()
-            .map(|contribution| Contributor {
+        contributions.extend(entry.contributions.into_iter().map(|contribution| {
+            Contributor {
                 reward_address: contribution.reward_address,
                 value: contribution
                     .value
@@ -147,10 +148,11 @@ pub async fn update_from_shanpshot_info(
                 voting_key: entry.hir.voting_key.to_hex(),
                 voting_group: entry.hir.voting_group.clone(),
                 snapshot_tag: tag.to_string(),
-            })
-            .collect();
+            }
+            .values()
+        }));
 
-        put_voter(
+        voters.push(
             Voter {
                 voting_key: entry.hir.voting_key.clone(),
                 voting_group: entry.hir.voting_group.clone(),
@@ -158,11 +160,13 @@ pub async fn update_from_shanpshot_info(
                     .try_into()
                     .expect("value should not exceed i64 limit"),
                 snapshot_tag: tag.to_string(),
-            },
-            pool,
-        )?;
-        put_contributions(&contributions, pool)?;
+            }
+            .values(),
+        );
     }
+    let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
+    batch_put_voters(&voters, &db_conn)?;
+    batch_put_contributions(&contributions, &db_conn)?;
     Ok(())
 }
 
