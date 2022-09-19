@@ -183,7 +183,7 @@ impl RestClient {
             res = res.header(ORIGIN, origin.to_string());
         }
         if let Some(timeout) = self.timeout {
-            res = res.timeout(timeout.clone());
+            res = res.timeout(timeout);
         }
         let response = res.send()?;
         self.logger.log_response(&response);
