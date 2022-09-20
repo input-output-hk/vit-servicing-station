@@ -91,6 +91,23 @@ pub async fn query_contributors_by_voting_key_and_voter_group_and_snapshot_tag(
     .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?
 }
 
+pub async fn query_contributors_by_stake_public_key_and_snapshot_tag(
+    stake_public_key: String,
+    tag: String,
+    pool: &DbConnectionPool,
+) -> Result<Vec<Contributor>, HandleError> {
+    let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
+    tokio::task::spawn_blocking(move || {
+        contributors::dsl::contributors
+            .filter(contributors::dsl::stake_public_key.eq(stake_public_key))
+            .filter(contributors::dsl::snapshot_tag.eq(tag))
+            .load(&db_conn)
+            .map_err(|e| HandleError::NotFound(format!("Error loading contributions: {}", e)))
+    })
+    .await
+    .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?
+}
+
 pub fn batch_put_contributions(
     contributions: &[<Contributor as Insertable<contributors::table>>::Values],
     db_conn: &DbConnection,

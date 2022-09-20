@@ -9,11 +9,12 @@ use crate::{
         },
         queries::snapshot::{
             batch_put_contributions, batch_put_voters, put_snapshot, query_all_snapshots,
+            query_contributors_by_stake_public_key_and_snapshot_tag,
             query_contributors_by_voting_key_and_voter_group_and_snapshot_tag,
             query_snapshot_by_tag, query_voters_by_voting_key_and_snapshot_tag,
         },
     },
-    v0::{context::SharedContext as SharedContext_, errors::HandleError},
+    v0::{context::SharedContext, errors::HandleError},
 };
 use diesel::Insertable;
 pub use handlers::{RawSnapshotInput, SnapshotInfoInput};
@@ -49,7 +50,7 @@ pub struct VotersInfo {
 pub async fn get_voters_info(
     tag: &str,
     id: &Identifier,
-    context: SharedContext_,
+    context: SharedContext,
 ) -> Result<VotersInfo, HandleError> {
     let pool = &context.read().await.db_connection_pool;
 
@@ -82,7 +83,32 @@ pub async fn get_voters_info(
     })
 }
 
-pub async fn get_tags(context: SharedContext_) -> Result<Vec<Tag>, HandleError> {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UserInfo {
+    is_voter: bool,
+    dreps: Vec<String>,
+    voting_groups: Vec<String>,
+}
+
+#[tracing::instrument(skip(context))]
+pub async fn get_users_info(
+    tag: String,
+    id: String,
+    context: SharedContext,
+) -> Result<UserInfo, HandleError> {
+    let pool = &context.read().await.db_connection_pool;
+
+    let _contributors =
+        query_contributors_by_stake_public_key_and_snapshot_tag(id, tag, pool).await?;
+    Ok(UserInfo {
+        is_voter: true,
+        dreps: Vec::new(),
+        voting_groups: Vec::new(),
+    })
+}
+
+#[tracing::instrument(skip(context))]
+pub async fn get_tags(context: SharedContext) -> Result<Vec<Tag>, HandleError> {
     let pool = &context.read().await.db_connection_pool;
 
     Ok(query_all_snapshots(pool)
@@ -102,7 +128,7 @@ pub async fn update_from_raw_snapshot(
     voting_power_cap: Fraction,
     direct_voters_group: Option<String>,
     representatives_group: Option<String>,
-    context: SharedContext_,
+    context: SharedContext,
 ) -> Result<(), HandleError> {
     let direct_voter = direct_voters_group.unwrap_or_else(|| DEFAULT_DIRECT_VOTER_GROUP.into());
     let representative =
@@ -121,7 +147,7 @@ pub async fn update_from_shanpshot_info(
     tag: &str,
     snapshot: impl IntoIterator<Item = SnapshotInfo>,
     update_timestamp: u64,
-    context: SharedContext_,
+    context: SharedContext,
 ) -> Result<(), HandleError> {
     let pool = &context.read().await.db_connection_pool;
 
@@ -439,7 +465,7 @@ mod test {
         F::Extract: Reply + Send,
     {
         let result = warp::test::request()
-            .path(format!("/snapshot/{}/{}", tag, voting_key).as_ref())
+            .path(format!("/snapshot/voter/{}/{}", tag, voting_key).as_ref())
             .reply(filter)
             .await;
 

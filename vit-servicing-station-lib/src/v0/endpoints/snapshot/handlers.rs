@@ -1,4 +1,3 @@
-use super::VoterInfo;
 use crate::v0::context::SharedContext;
 use crate::v0::result::HandlerResult;
 use jormungandr_lib::crypto::account::Identifier;
@@ -28,9 +27,11 @@ pub async fn get_voters_info(
 
     match super::get_voters_info(&tag, &key, context).await {
         Ok(snapshot) => {
-            let voter_info: Vec<_> = snapshot.voter_info.into_iter().map(|VoterInfo{voting_group, voting_power,delegations_power, delegations_count}| {
-            json!({"voting_power": voting_power, "voting_group": voting_group, "delegations_power": delegations_power, "delegations_count": delegations_count})
-        }).collect();
+            let voter_info: Vec<_> = snapshot
+                .voter_info
+                .into_iter()
+                .map(|voter_info| json!(voter_info))
+                .collect();
             if let Ok(last_update) = OffsetDateTime::from_unix_timestamp(snapshot.last_updated) {
                 let results =
                     json!({"voter_info": voter_info, "last_updated": last_update.unix_timestamp()});
@@ -42,6 +43,21 @@ pub async fn get_voters_info(
                 )
             }
         }
+        Err(err) => Ok(err.into_response()),
+    }
+}
+
+#[tracing::instrument(skip(context))]
+pub async fn get_users_info(
+    tag: String,
+    id: String,
+    context: SharedContext,
+) -> Result<impl Reply, Rejection> {
+    match super::get_users_info(tag, id, context)
+        .await
+        .map(|user_info| warp::reply::json(&user_info))
+    {
+        Ok(user_info) => Ok(user_info.into_response()),
         Err(err) => Ok(err.into_response()),
     }
 }
