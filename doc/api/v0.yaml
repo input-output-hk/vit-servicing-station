@@ -10,8 +10,6 @@ info:
 tags:
   - name: fund
     description: Information on treasury fund campaigns.
-  - name: user
-    description: Information about the user
   - name: challenge
     description: Information on challenges, structuring proposals within a fund.
   - name: proposal
@@ -91,40 +89,6 @@ paths:
                       description: Identifier of the fund campaign.
         "404":
           description: The requested fund was not found
-
-  /api/v0/user/{tag}/{id}:
-    description: Manages Cardano user information by the provided user id
-    get:
-      operationId: getUserById
-      tags:
-        - user
-        - snapshot
-      description: Retrieves user info
-      summary: get user info by id
-      parameters:
-        - name: tag
-          in: path
-          required: true
-          deprecated: false
-          schema:
-            type: string
-          description: snapshot tag
-        - name: id
-          in: path
-          required: true
-          deprecated: false
-          schema:
-            type: string
-          description: user's id
-      responses:
-        "200":
-          description: user's info
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserInfo'
-        "404":
-          description: The requested user was not found
 
   /api/v0/proposals:
     post:
@@ -319,11 +283,13 @@ paths:
       description: |
         Get voting power by voting key
       parameters:
-        - in: path
-          name: tag
+        - name: tag
+          in: path
+          required: true
+          deprecated: false
           schema:
             type: string
-          required: true
+          description: snapshot tag
         - in: path
           name: voting_key
           schema:
