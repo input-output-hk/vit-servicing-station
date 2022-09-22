@@ -488,12 +488,12 @@ mod test {
                     contributions: vec![
                         KeyContribution {
                             reward_address: "address_1".to_string(),
-                            stake_public_key: "address_1".to_string(),
+                            stake_public_key: "stake_public_key_1".to_string(),
                             value: 2,
                         },
                         KeyContribution {
                             reward_address: "address_2".to_string(),
-                            stake_public_key: "address_2".to_string(),
+                            stake_public_key: "stake_public_key_2".to_string(),
                             value: 2,
                         },
                     ],
@@ -506,7 +506,7 @@ mod test {
                 SnapshotInfo {
                     contributions: vec![KeyContribution {
                         reward_address: "address_3".to_string(),
-                        stake_public_key: "address_3".to_string(),
+                        stake_public_key: "stake_public_key_3".to_string(),
                         value: 3,
                     }],
                     hir: VoterHIR {
