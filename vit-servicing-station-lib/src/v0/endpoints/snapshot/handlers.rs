@@ -1,17 +1,14 @@
-use super::VoterInfo;
 use crate::v0::context::SharedContext;
 use crate::v0::result::HandlerResult;
 use jormungandr_lib::crypto::account::Identifier;
 use jormungandr_lib::interfaces::Value;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use snapshot_lib::{Fraction, RawSnapshot, SnapshotInfo};
-use time::OffsetDateTime;
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
 #[tracing::instrument(skip(context))]
-pub async fn get_voters_info(
+pub async fn get_voters_info_by_jor_id(
     tag: String,
     voting_key: String,
     context: SharedContext,
@@ -26,24 +23,7 @@ pub async fn get_voters_info(
         .into_response());
     };
 
-    match super::get_voters_info(&tag, &key, context).await {
-        Ok(snapshot) => {
-            let voter_info: Vec<_> = snapshot.voter_info.into_iter().map(|VoterInfo{voting_group, voting_power,delegations_power, delegations_count}| {
-            json!({"voting_power": voting_power, "voting_group": voting_group, "delegations_power": delegations_power, "delegations_count": delegations_count})
-        }).collect();
-            if let Ok(last_update) = OffsetDateTime::from_unix_timestamp(snapshot.last_updated) {
-                let results =
-                    json!({"voter_info": voter_info, "last_updated": last_update.unix_timestamp()});
-                Ok(warp::reply::json(&results).into_response())
-            } else {
-                Ok(
-                    warp::reply::with_status("Invalid time", StatusCode::UNPROCESSABLE_ENTITY)
-                        .into_response(),
-                )
-            }
-        }
-        Err(err) => Ok(err.into_response()),
-    }
+    Ok(HandlerResult(super::get_voters_info_by_jor_id(&tag, &key, context).await).into_response())
 }
 
 #[tracing::instrument(skip(context))]
@@ -55,14 +35,18 @@ pub async fn get_tags(context: SharedContext) -> Result<impl Reply, Rejection> {
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct SnapshotInfoInput {
     pub snapshot: Vec<SnapshotInfo>,
-    pub update_timestamp: u64,
+    #[serde(deserialize_with = "crate::utils::serde::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(serialize_with = "crate::utils::serde::serialize_unix_timestamp_as_rfc3339")]
+    pub update_timestamp: i64,
 }
 
 /// Raw Snapshot information update with timestamp.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RawSnapshotInput {
     pub snapshot: RawSnapshot,
-    pub update_timestamp: u64,
+    #[serde(deserialize_with = "crate::utils::serde::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(serialize_with = "crate::utils::serde::serialize_unix_timestamp_as_rfc3339")]
+    pub update_timestamp: i64,
     pub min_stake_threshold: Value,
     pub voting_power_cap: Fraction,
     pub direct_voters_group: Option<String>,

@@ -42,11 +42,13 @@ pub struct VotersInfo {
     /// A listing of voter information in the current snapshot
     pub voter_info: Vec<VoterInfo>,
     /// Timestamp for the latest update in voter info in the current snapshot
+    #[serde(deserialize_with = "crate::utils::serde::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(serialize_with = "crate::utils::serde::serialize_unix_timestamp_as_rfc3339")]
     pub last_updated: i64,
 }
 
 #[tracing::instrument(skip(context))]
-pub async fn get_voters_info(
+pub async fn get_voters_info_by_jor_id(
     tag: &str,
     id: &Identifier,
     context: SharedContext_,
@@ -97,7 +99,7 @@ pub async fn get_tags(context: SharedContext_) -> Result<Vec<Tag>, HandleError> 
 pub async fn update_from_raw_snapshot(
     tag: &str,
     snapshot: RawSnapshot,
-    update_timestamp: u64,
+    update_timestamp: i64,
     min_stake_threshold: Value,
     voting_power_cap: Fraction,
     direct_voters_group: Option<String>,
@@ -120,7 +122,7 @@ pub async fn update_from_raw_snapshot(
 pub async fn update_from_shanpshot_info(
     tag: &str,
     snapshot: impl IntoIterator<Item = SnapshotInfo>,
-    update_timestamp: u64,
+    update_timestamp: i64,
     context: SharedContext_,
 ) -> Result<(), HandleError> {
     let pool = &context.read().await.db_connection_pool;
@@ -128,9 +130,7 @@ pub async fn update_from_shanpshot_info(
     put_snapshot(
         models::snapshot::Snapshot {
             tag: tag.to_string(),
-            last_updated: update_timestamp
-                .try_into()
-                .expect("value should not exceed i64 limit"),
+            last_updated: update_timestamp,
         },
         pool,
     )?;
@@ -206,8 +206,8 @@ mod test {
         const TAG1: &str = "tag1";
         const TAG2: &str = "tag2";
 
-        const UPDATE_TIME1: u64 = 0;
-        const UPDATE_TIME2: u64 = 1;
+        const UPDATE_TIME1: i64 = 0;
+        const UPDATE_TIME2: i64 = 1;
 
         let key_0_values = [
             VoterInfo {
@@ -292,21 +292,23 @@ mod test {
 
         assert_eq!(
             &key_0_values[..],
-            &super::get_voters_info(TAG1, &keys[0], context.clone())
+            &super::get_voters_info_by_jor_id(TAG1, &keys[0], context.clone())
                 .await
                 .unwrap()
                 .voter_info[..],
         );
 
-        assert!(&super::get_voters_info(TAG1, &keys[1], context.clone())
-            .await
-            .unwrap()
-            .voter_info
-            .is_empty(),);
+        assert!(
+            &super::get_voters_info_by_jor_id(TAG1, &keys[1], context.clone())
+                .await
+                .unwrap()
+                .voter_info
+                .is_empty(),
+        );
 
         assert_eq!(
             &key_1_values[..],
-            &super::get_voters_info(TAG2, &keys[1], context)
+            &super::get_voters_info_by_jor_id(TAG2, &keys[1], context)
                 .await
                 .unwrap()
                 .voter_info[..],
@@ -318,7 +320,7 @@ mod test {
         const TAG1: &str = "tag1";
         const TAG2: &str = "tag2";
 
-        const UPDATE_TIME1: u64 = 0;
+        const UPDATE_TIME1: i64 = 0;
 
         let context = new_in_memmory_db_test_shared_context();
         let db_conn = &context.read().await.db_connection_pool.get().unwrap();
@@ -356,7 +358,7 @@ mod test {
             .unwrap();
 
         assert_eq!(
-            super::get_voters_info(TAG1, &voting_key, context.clone())
+            super::get_voters_info_by_jor_id(TAG1, &voting_key, context.clone())
                 .await
                 .unwrap()
                 .voter_info,
@@ -386,7 +388,7 @@ mod test {
         .unwrap();
 
         assert_eq!(
-            super::get_voters_info(TAG1, &voting_key, context.clone())
+            super::get_voters_info_by_jor_id(TAG1, &voting_key, context.clone())
                 .await
                 .unwrap()
                 .voter_info,
@@ -408,7 +410,7 @@ mod test {
 
         // asserting that TAG2 is untouched, just in case
         assert_eq!(
-            super::get_voters_info(TAG2, &voting_key, context.clone())
+            super::get_voters_info_by_jor_id(TAG2, &voting_key, context.clone())
                 .await
                 .unwrap()
                 .voter_info,
