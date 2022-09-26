@@ -48,13 +48,7 @@ pub async fn get_voters_info(
 
 #[tracing::instrument(skip(context))]
 pub async fn get_tags(context: SharedContext) -> Result<impl Reply, Rejection> {
-    match super::get_tags(context)
-        .await
-        .map(|tags| warp::reply::json(&tags))
-    {
-        Ok(tags) => Ok(tags.into_response()),
-        Err(err) => Ok(err.into_response()),
-    }
+    Ok(HandlerResult(super::get_tags(context).await))
 }
 
 /// Snapshot information update with timestamp.
