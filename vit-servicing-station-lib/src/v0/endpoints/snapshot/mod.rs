@@ -48,7 +48,7 @@ pub struct VotersInfo {
 }
 
 #[tracing::instrument(skip(context))]
-pub async fn get_voters_info_by_jor_id(
+pub async fn get_voters_info(
     tag: &str,
     id: &Identifier,
     context: SharedContext_,
@@ -77,6 +77,23 @@ pub async fn get_voters_info_by_jor_id(
             voting_group: voter.voting_group,
         })
     }
+
+    Ok(VotersInfo {
+        voter_info,
+        last_updated: snapshot.last_updated,
+    })
+}
+
+#[tracing::instrument(skip(context))]
+pub async fn get_voters_info_by_cardano_id(
+    tag: &str,
+    id: &str,
+    context: SharedContext_,
+) -> Result<VotersInfo, HandleError> {
+    let pool = &context.read().await.db_connection_pool;
+
+    let snapshot = query_snapshot_by_tag(tag.to_string(), pool).await?;
+    let voter_info = Vec::new();
 
     Ok(VotersInfo {
         voter_info,
@@ -292,23 +309,21 @@ mod test {
 
         assert_eq!(
             &key_0_values[..],
-            &super::get_voters_info_by_jor_id(TAG1, &keys[0], context.clone())
+            &super::get_voters_info(TAG1, &keys[0], context.clone())
                 .await
                 .unwrap()
                 .voter_info[..],
         );
 
-        assert!(
-            &super::get_voters_info_by_jor_id(TAG1, &keys[1], context.clone())
-                .await
-                .unwrap()
-                .voter_info
-                .is_empty(),
-        );
+        assert!(&super::get_voters_info(TAG1, &keys[1], context.clone())
+            .await
+            .unwrap()
+            .voter_info
+            .is_empty(),);
 
         assert_eq!(
             &key_1_values[..],
-            &super::get_voters_info_by_jor_id(TAG2, &keys[1], context)
+            &super::get_voters_info(TAG2, &keys[1], context)
                 .await
                 .unwrap()
                 .voter_info[..],
@@ -358,7 +373,7 @@ mod test {
             .unwrap();
 
         assert_eq!(
-            super::get_voters_info_by_jor_id(TAG1, &voting_key, context.clone())
+            super::get_voters_info(TAG1, &voting_key, context.clone())
                 .await
                 .unwrap()
                 .voter_info,
@@ -388,7 +403,7 @@ mod test {
         .unwrap();
 
         assert_eq!(
-            super::get_voters_info_by_jor_id(TAG1, &voting_key, context.clone())
+            super::get_voters_info(TAG1, &voting_key, context.clone())
                 .await
                 .unwrap()
                 .voter_info,
@@ -410,7 +425,7 @@ mod test {
 
         // asserting that TAG2 is untouched, just in case
         assert_eq!(
-            super::get_voters_info_by_jor_id(TAG2, &voting_key, context.clone())
+            super::get_voters_info(TAG2, &voting_key, context.clone())
                 .await
                 .unwrap()
                 .voter_info,

@@ -8,7 +8,7 @@ use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
 #[tracing::instrument(skip(context))]
-pub async fn get_voters_info_by_jor_id(
+pub async fn get_voters_info(
     tag: String,
     voting_key: String,
     context: SharedContext,
@@ -23,7 +23,7 @@ pub async fn get_voters_info_by_jor_id(
         .into_response());
     };
 
-    Ok(HandlerResult(super::get_voters_info_by_jor_id(&tag, &key, context).await).into_response())
+    Ok(HandlerResult(super::get_voters_info(&tag, &key, context).await).into_response())
 }
 
 #[tracing::instrument(skip(context))]
