@@ -1,4 +1,4 @@
-use crate::db::schema::{contributors, snapshots, voters};
+use crate::db::schema::{contributions, snapshots, voters};
 use diesel::{ExpressionMethods, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 
@@ -56,7 +56,7 @@ impl Insertable<voters::table> for Voter {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Queryable)]
 #[serde(rename_all = "camelCase")]
-pub struct Contributor {
+pub struct Contribution {
     pub stake_public_key: String,
     pub reward_address: String,
     pub value: i64,
@@ -65,24 +65,24 @@ pub struct Contributor {
     pub snapshot_tag: String,
 }
 
-impl Insertable<contributors::table> for Contributor {
+impl Insertable<contributions::table> for Contribution {
     type Values = (
-        diesel::dsl::Eq<contributors::stake_public_key, String>,
-        diesel::dsl::Eq<contributors::reward_address, String>,
-        diesel::dsl::Eq<contributors::value, i64>,
-        diesel::dsl::Eq<contributors::voting_key, String>,
-        diesel::dsl::Eq<contributors::voting_group, String>,
-        diesel::dsl::Eq<contributors::snapshot_tag, String>,
+        diesel::dsl::Eq<contributions::stake_public_key, String>,
+        diesel::dsl::Eq<contributions::reward_address, String>,
+        diesel::dsl::Eq<contributions::value, i64>,
+        diesel::dsl::Eq<contributions::voting_key, String>,
+        diesel::dsl::Eq<contributions::voting_group, String>,
+        diesel::dsl::Eq<contributions::snapshot_tag, String>,
     );
 
     fn values(self) -> Self::Values {
         (
-            contributors::stake_public_key.eq(self.stake_public_key),
-            contributors::reward_address.eq(self.reward_address),
-            contributors::value.eq(self.value),
-            contributors::voting_key.eq(self.voting_key),
-            contributors::voting_group.eq(self.voting_group),
-            contributors::snapshot_tag.eq(self.snapshot_tag),
+            contributions::stake_public_key.eq(self.stake_public_key),
+            contributions::reward_address.eq(self.reward_address),
+            contributions::value.eq(self.value),
+            contributions::voting_key.eq(self.voting_key),
+            contributions::voting_group.eq(self.voting_group),
+            contributions::snapshot_tag.eq(self.snapshot_tag),
         )
     }
 }

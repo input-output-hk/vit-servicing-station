@@ -5,11 +5,12 @@ use crate::{
     db::{
         models::{
             self,
-            snapshot::{Contributor, Voter},
+            snapshot::{Contribution, Voter},
         },
         queries::snapshot::{
             batch_put_contributions, batch_put_voters, put_snapshot, query_all_snapshots,
-            query_contributors_by_voting_key_and_voter_group_and_snapshot_tag,
+            query_contributions_by_stake_public_key_and_snapshot_tag,
+            query_contributions_by_voting_key_and_voter_group_and_snapshot_tag,
             query_snapshot_by_tag, query_voters_by_voting_key_and_snapshot_tag,
         },
     },
@@ -17,7 +18,8 @@ use crate::{
 };
 use diesel::Insertable;
 pub use handlers::{RawSnapshotInput, SnapshotInfoInput};
-use jormungandr_lib::{crypto::account::Identifier, interfaces::Value};
+use itertools::Itertools;
+use jormungandr_lib::interfaces::Value;
 pub use routes::{filter, update_filter};
 use serde::{Deserialize, Serialize};
 use snapshot_lib::{
@@ -49,21 +51,20 @@ pub struct VotersInfo {
 
 #[tracing::instrument(skip(context))]
 pub async fn get_voters_info(
-    tag: &str,
-    id: &Identifier,
+    tag: String,
+    id: String,
     context: SharedContext_,
 ) -> Result<VotersInfo, HandleError> {
     let pool = &context.read().await.db_connection_pool;
 
-    let snapshot = query_snapshot_by_tag(tag.to_string(), pool).await?;
+    let snapshot = query_snapshot_by_tag(tag.clone(), pool).await?;
     let mut voter_info = Vec::new();
-    let voters =
-        query_voters_by_voting_key_and_snapshot_tag(id.to_hex(), tag.to_string(), pool).await?;
+    let voters = query_voters_by_voting_key_and_snapshot_tag(id.clone(), tag.clone(), pool).await?;
     for voter in voters {
-        let contributors = query_contributors_by_voting_key_and_voter_group_and_snapshot_tag(
-            id.to_hex(),
+        let contributors = query_contributions_by_voting_key_and_voter_group_and_snapshot_tag(
+            id.clone(),
             voter.voting_group.clone(),
-            tag.to_string(),
+            tag.clone(),
             pool,
         )
         .await?;
@@ -84,19 +85,40 @@ pub async fn get_voters_info(
     })
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DelegatorInfo {
+    pub dreps: Vec<String>,
+    pub voting_groups: Vec<String>,
+    /// Timestamp for the latest update in voter info in the current snapshot
+    #[serde(deserialize_with = "crate::utils::serde::deserialize_unix_timestamp_from_rfc3339")]
+    #[serde(serialize_with = "crate::utils::serde::serialize_unix_timestamp_as_rfc3339")]
+    pub last_updated: i64,
+}
+
 #[tracing::instrument(skip(context))]
-pub async fn get_voters_info_by_cardano_id(
-    tag: &str,
-    id: &str,
+pub async fn get_delegator_info(
+    tag: String,
+    id: String,
     context: SharedContext_,
-) -> Result<VotersInfo, HandleError> {
+) -> Result<DelegatorInfo, HandleError> {
     let pool = &context.read().await.db_connection_pool;
 
-    let snapshot = query_snapshot_by_tag(tag.to_string(), pool).await?;
-    let voter_info = Vec::new();
+    let snapshot = query_snapshot_by_tag(tag.clone(), pool).await?;
 
-    Ok(VotersInfo {
-        voter_info,
+    let contributions =
+        query_contributions_by_stake_public_key_and_snapshot_tag(id, tag, pool).await?;
+
+    Ok(DelegatorInfo {
+        dreps: contributions
+            .iter()
+            .map(|contribution| contribution.voting_key.clone())
+            .unique()
+            .collect(),
+        voting_groups: contributions
+            .iter()
+            .map(|contribution| contribution.voting_group.clone())
+            .unique()
+            .collect(),
         last_updated: snapshot.last_updated,
     })
 }
@@ -114,7 +136,7 @@ pub async fn get_tags(context: SharedContext_) -> Result<Vec<Tag>, HandleError> 
 #[allow(clippy::too_many_arguments)]
 #[tracing::instrument(skip(snapshot, context))]
 pub async fn update_from_raw_snapshot(
-    tag: &str,
+    tag: String,
     snapshot: RawSnapshot,
     update_timestamp: i64,
     min_stake_threshold: Value,
@@ -137,7 +159,7 @@ pub async fn update_from_raw_snapshot(
 
 #[tracing::instrument(skip(snapshot, context))]
 pub async fn update_from_shanpshot_info(
-    tag: &str,
+    tag: String,
     snapshot: impl IntoIterator<Item = SnapshotInfo>,
     update_timestamp: i64,
     context: SharedContext_,
@@ -146,7 +168,7 @@ pub async fn update_from_shanpshot_info(
 
     put_snapshot(
         models::snapshot::Snapshot {
-            tag: tag.to_string(),
+            tag: tag.clone(),
             last_updated: update_timestamp,
         },
         pool,
@@ -156,7 +178,7 @@ pub async fn update_from_shanpshot_info(
     let mut voters = Vec::new();
     for entry in snapshot.into_iter() {
         contributions.extend(entry.contributions.into_iter().map(|contribution| {
-            Contributor {
+            Contribution {
                 stake_public_key: contribution.stake_public_key,
                 reward_address: contribution.reward_address,
                 value: contribution
@@ -165,7 +187,7 @@ pub async fn update_from_shanpshot_info(
                     .expect("value should not exceed i64 limit"),
                 voting_key: entry.hir.voting_key.to_hex(),
                 voting_group: entry.hir.voting_group.clone(),
-                snapshot_tag: tag.to_string(),
+                snapshot_tag: tag.clone(),
             }
             .values()
         }));
@@ -177,7 +199,7 @@ pub async fn update_from_shanpshot_info(
                 voting_power: Into::<u64>::into(entry.hir.voting_power)
                     .try_into()
                     .expect("value should not exceed i64 limit"),
-                snapshot_tag: tag.to_string(),
+                snapshot_tag: tag.clone(),
             }
             .values(),
         );
@@ -264,9 +286,14 @@ mod test {
             )
             .collect::<Vec<_>>();
 
-        update_from_shanpshot_info(TAG1, content_a.clone(), UPDATE_TIME1, context.clone())
-            .await
-            .unwrap();
+        update_from_shanpshot_info(
+            TAG1.to_string(),
+            content_a.clone(),
+            UPDATE_TIME1,
+            context.clone(),
+        )
+        .await
+        .unwrap();
 
         let key_1_values = [VoterInfo {
             voting_group: GROUP1.to_string(),
@@ -299,7 +326,7 @@ mod test {
             .collect::<Vec<_>>();
 
         update_from_shanpshot_info(
-            TAG2,
+            TAG2.to_string(),
             [content_a, content_b].concat(),
             UPDATE_TIME2,
             context.clone(),
@@ -309,21 +336,23 @@ mod test {
 
         assert_eq!(
             &key_0_values[..],
-            &super::get_voters_info(TAG1, &keys[0], context.clone())
+            &super::get_voters_info(TAG1.to_string(), keys[0].to_hex(), context.clone())
                 .await
                 .unwrap()
                 .voter_info[..],
         );
 
-        assert!(&super::get_voters_info(TAG1, &keys[1], context.clone())
-            .await
-            .unwrap()
-            .voter_info
-            .is_empty(),);
+        assert!(
+            &super::get_voters_info(TAG1.to_string(), keys[1].to_hex(), context.clone())
+                .await
+                .unwrap()
+                .voter_info
+                .is_empty(),
+        );
 
         assert_eq!(
             &key_1_values[..],
-            &super::get_voters_info(TAG2, &keys[1], context)
+            &super::get_voters_info(TAG2.to_string(), keys[1].to_hex(), context)
                 .await
                 .unwrap()
                 .voter_info[..],
@@ -365,15 +394,25 @@ mod test {
             },
         ];
 
-        update_from_shanpshot_info(TAG1, inputs.clone(), UPDATE_TIME1, context.clone())
-            .await
-            .unwrap();
-        update_from_shanpshot_info(TAG2, inputs.clone(), UPDATE_TIME1, context.clone())
-            .await
-            .unwrap();
+        update_from_shanpshot_info(
+            TAG1.to_string(),
+            inputs.clone(),
+            UPDATE_TIME1,
+            context.clone(),
+        )
+        .await
+        .unwrap();
+        update_from_shanpshot_info(
+            TAG2.to_string(),
+            inputs.clone(),
+            UPDATE_TIME1,
+            context.clone(),
+        )
+        .await
+        .unwrap();
 
         assert_eq!(
-            super::get_voters_info(TAG1, &voting_key, context.clone())
+            super::get_voters_info(TAG1.to_string(), voting_key.to_hex(), context.clone())
                 .await
                 .unwrap()
                 .voter_info,
@@ -394,7 +433,7 @@ mod test {
         );
 
         super::update_from_shanpshot_info(
-            TAG1,
+            TAG1.to_string(),
             inputs[0..1].to_vec(),
             UPDATE_TIME1,
             context.clone(),
@@ -403,7 +442,7 @@ mod test {
         .unwrap();
 
         assert_eq!(
-            super::get_voters_info(TAG1, &voting_key, context.clone())
+            super::get_voters_info(TAG1.to_string(), voting_key.to_hex(), context.clone())
                 .await
                 .unwrap()
                 .voter_info,
@@ -425,7 +464,7 @@ mod test {
 
         // asserting that TAG2 is untouched, just in case
         assert_eq!(
-            super::get_voters_info(TAG2, &voting_key, context.clone())
+            super::get_voters_info(TAG2.to_string(), voting_key.to_hex(), context.clone())
                 .await
                 .unwrap()
                 .voter_info,
@@ -456,7 +495,7 @@ mod test {
         F::Extract: Reply + Send,
     {
         let result = warp::test::request()
-            .path(format!("/snapshot/{}/{}", tag, voting_key).as_ref())
+            .path(format!("/snapshot/voter/{}/{}", tag, voting_key).as_ref())
             .reply(filter)
             .await;
 

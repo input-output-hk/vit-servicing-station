@@ -1,7 +1,7 @@
 use crate::{
     db::{
-        models::snapshot::{Contributor, Snapshot, Voter},
-        schema::{contributors, snapshots, voters},
+        models::snapshot::{Contribution, Snapshot, Voter},
+        schema::{contributions, snapshots, voters},
         DbConnection, DbConnectionPool,
     },
     v0::errors::HandleError,
@@ -72,18 +72,35 @@ pub fn batch_put_voters(
     Ok(())
 }
 
-pub async fn query_contributors_by_voting_key_and_voter_group_and_snapshot_tag(
+pub async fn query_contributions_by_voting_key_and_voter_group_and_snapshot_tag(
     voting_key: String,
     voting_group: String,
     tag: String,
     pool: &DbConnectionPool,
-) -> Result<Vec<Contributor>, HandleError> {
+) -> Result<Vec<Contribution>, HandleError> {
     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
     tokio::task::spawn_blocking(move || {
-        contributors::dsl::contributors
-            .filter(contributors::dsl::voting_key.eq(voting_key))
-            .filter(contributors::dsl::voting_group.eq(voting_group))
-            .filter(contributors::dsl::snapshot_tag.eq(tag))
+        contributions::dsl::contributions
+            .filter(contributions::dsl::voting_key.eq(voting_key))
+            .filter(contributions::dsl::voting_group.eq(voting_group))
+            .filter(contributions::dsl::snapshot_tag.eq(tag))
+            .load(&db_conn)
+            .map_err(|e| HandleError::NotFound(format!("Error loading contributions: {}", e)))
+    })
+    .await
+    .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?
+}
+
+pub async fn query_contributions_by_stake_public_key_and_snapshot_tag(
+    stake_public_key: String,
+    tag: String,
+    pool: &DbConnectionPool,
+) -> Result<Vec<Contribution>, HandleError> {
+    let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
+    tokio::task::spawn_blocking(move || {
+        contributions::dsl::contributions
+            .filter(contributions::dsl::stake_public_key.eq(stake_public_key))
+            .filter(contributions::dsl::snapshot_tag.eq(tag))
             .load(&db_conn)
             .map_err(|e| HandleError::NotFound(format!("Error loading contributions: {}", e)))
     })
@@ -92,10 +109,10 @@ pub async fn query_contributors_by_voting_key_and_voter_group_and_snapshot_tag(
 }
 
 pub fn batch_put_contributions(
-    contributions: &[<Contributor as Insertable<contributors::table>>::Values],
+    contributions: &[<Contribution as Insertable<contributions::table>>::Values],
     db_conn: &DbConnection,
 ) -> Result<(), HandleError> {
-    diesel::replace_into(contributors::table)
+    diesel::replace_into(contributions::table)
         .values(contributions)
         .execute(db_conn)
         .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?;

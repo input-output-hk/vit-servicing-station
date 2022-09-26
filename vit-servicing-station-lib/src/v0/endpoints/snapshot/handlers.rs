@@ -1,10 +1,8 @@
 use crate::v0::context::SharedContext;
 use crate::v0::result::HandlerResult;
-use jormungandr_lib::crypto::account::Identifier;
 use jormungandr_lib::interfaces::Value;
 use serde::{Deserialize, Serialize};
 use snapshot_lib::{Fraction, RawSnapshot, SnapshotInfo};
-use warp::http::StatusCode;
 use warp::{Rejection, Reply};
 
 #[tracing::instrument(skip(context))]
@@ -13,17 +11,20 @@ pub async fn get_voters_info(
     voting_key: String,
     context: SharedContext,
 ) -> Result<impl Reply, Rejection> {
-    let key = if let Ok(key) = Identifier::from_hex(&voting_key) {
-        key
-    } else {
-        return Ok(warp::reply::with_status(
-            "Invalid voting key",
-            StatusCode::UNPROCESSABLE_ENTITY,
-        )
-        .into_response());
-    };
+    Ok(HandlerResult(
+        super::get_voters_info(tag, voting_key, context).await,
+    ))
+}
 
-    Ok(HandlerResult(super::get_voters_info(&tag, &key, context).await).into_response())
+#[tracing::instrument(skip(context))]
+pub async fn get_delegator_info(
+    tag: String,
+    id: String,
+    context: SharedContext,
+) -> Result<impl Reply, Rejection> {
+    Ok(HandlerResult(
+        super::get_delegator_info(tag, id, context).await,
+    ))
 }
 
 #[tracing::instrument(skip(context))]
@@ -61,7 +62,7 @@ pub async fn put_raw_snapshot(
 ) -> Result<impl Reply, Rejection> {
     Ok(HandlerResult(
         super::update_from_raw_snapshot(
-            &tag,
+            tag,
             input.snapshot,
             input.update_timestamp,
             input.min_stake_threshold,
@@ -81,7 +82,7 @@ pub async fn put_snapshot_info(
     context: SharedContext,
 ) -> Result<impl Reply, Rejection> {
     Ok(HandlerResult(
-        super::update_from_shanpshot_info(&tag, input.snapshot, input.update_timestamp, context)
+        super::update_from_shanpshot_info(tag, input.snapshot, input.update_timestamp, context)
             .await,
     ))
 }
