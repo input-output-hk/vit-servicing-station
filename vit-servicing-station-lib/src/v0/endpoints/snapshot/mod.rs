@@ -155,7 +155,7 @@ pub async fn update_from_shanpshot_info(
 
         voters.push(
             Voter {
-                voting_key: entry.hir.voting_key.clone(),
+                voting_key: entry.hir.voting_key.to_hex(),
                 voting_group: entry.hir.voting_group.clone(),
                 voting_power: Into::<u64>::into(entry.hir.voting_power)
                     .try_into()

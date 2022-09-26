@@ -1,36 +1,16 @@
-use crate::db::{
-    schema::{contributors, snapshots, voters},
-    Db,
-};
+use crate::db::schema::{contributors, snapshots, voters};
 use diesel::{ExpressionMethods, Insertable, Queryable};
-use jormungandr_lib::crypto::account::Identifier;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Queryable)]
+#[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     /// Tag - a unique identifier of the current snapshot
     pub tag: String,
     /// Timestamp for the latest update of the current snapshot
-    #[serde(alias = "lastUpdated")]
     #[serde(deserialize_with = "crate::utils::serde::deserialize_unix_timestamp_from_rfc3339")]
     #[serde(serialize_with = "crate::utils::serde::serialize_unix_timestamp_as_rfc3339")]
     pub last_updated: i64,
-}
-
-impl Queryable<snapshots::SqlType, Db> for Snapshot {
-    type Row = (
-        // 0 -> tag
-        String,
-        // 1 -> last_updated
-        i64,
-    );
-
-    fn build(row: Self::Row) -> Self {
-        Self {
-            tag: row.0,
-            last_updated: row.1,
-        }
-    }
 }
 
 impl Insertable<snapshots::table> for Snapshot {
@@ -47,38 +27,13 @@ impl Insertable<snapshots::table> for Snapshot {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Queryable)]
+#[serde(rename_all = "camelCase")]
 pub struct Voter {
-    #[serde(alias = "votingKey")]
-    pub voting_key: Identifier,
-    #[serde(alias = "votingPower")]
+    pub voting_key: String,
     pub voting_power: i64,
-    #[serde(alias = "votingGroup")]
     pub voting_group: String,
-    #[serde(alias = "snapshotTag")]
     pub snapshot_tag: String,
-}
-
-impl Queryable<voters::SqlType, Db> for Voter {
-    type Row = (
-        // 0 -> voting_key
-        String,
-        // 1 -> voting_power
-        i64,
-        // 2 -> voting_group
-        String,
-        // 3 -> snapshot_tag
-        String,
-    );
-
-    fn build(row: Self::Row) -> Self {
-        Self {
-            voting_key: Identifier::from_hex(&row.0).expect("should hex decoded Identifier"),
-            voting_power: row.1,
-            voting_group: row.2,
-            snapshot_tag: row.3,
-        }
-    }
 }
 
 impl Insertable<voters::table> for Voter {
@@ -91,7 +46,7 @@ impl Insertable<voters::table> for Voter {
 
     fn values(self) -> Self::Values {
         (
-            voters::voting_key.eq(self.voting_key.to_hex()),
+            voters::voting_key.eq(self.voting_key),
             voters::voting_power.eq(self.voting_power),
             voters::voting_group.eq(self.voting_group),
             voters::snapshot_tag.eq(self.snapshot_tag),
@@ -99,47 +54,15 @@ impl Insertable<voters::table> for Voter {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Queryable)]
+#[serde(rename_all = "camelCase")]
 pub struct Contributor {
-    #[serde(alias = "stakePublicKey")]
     pub stake_public_key: String,
-    #[serde(alias = "rewardAddress")]
     pub reward_address: String,
     pub value: i64,
-    #[serde(alias = "votingKey")]
     pub voting_key: String,
-    #[serde(alias = "votingGroup")]
     pub voting_group: String,
-    #[serde(alias = "snapshotTag")]
     pub snapshot_tag: String,
-}
-
-impl Queryable<contributors::SqlType, Db> for Contributor {
-    type Row = (
-        // 1 -> reward_address
-        String,
-        // 1 -> reward_address
-        String,
-        // 2 -> value
-        i64,
-        // 3 -> voting_key
-        String,
-        // 4 -> voting_group
-        String,
-        // 5 -> snapshot_tag
-        String,
-    );
-
-    fn build(row: Self::Row) -> Self {
-        Self {
-            stake_public_key: row.0,
-            reward_address: row.1,
-            value: row.2,
-            voting_key: row.3,
-            voting_group: row.4,
-            snapshot_tag: row.5,
-        }
-    }
 }
 
 impl Insertable<contributors::table> for Contributor {
