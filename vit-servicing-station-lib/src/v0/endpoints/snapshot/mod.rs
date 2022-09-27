@@ -1,6 +1,8 @@
 mod handlers;
 mod routes;
 
+use std::{collections::HashMap, ops::Add};
+
 use crate::{
     db::{
         models::{
@@ -30,16 +32,17 @@ use snapshot_lib::{
 pub type Tag = String;
 pub type Group = String;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct VoterInfo {
     pub voting_group: Group,
     pub voting_power: Value,
     pub delegations_power: u64,
     pub delegations_count: u64,
+    pub voting_power_saturation: f64,
 }
 
 /// Voter information in the current snapshot
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct VotersInfo {
     /// A listing of voter information in the current snapshot
     pub voter_info: Vec<VoterInfo>,
@@ -60,6 +63,16 @@ pub async fn get_voters_info(
     let snapshot = query_snapshot_by_tag(tag.clone(), pool).await?;
     let mut voter_info = Vec::new();
     let voters = query_voters_by_voting_key_and_snapshot_tag(id.clone(), tag.clone(), pool).await?;
+
+    let mut total_voting_power_per_groups = HashMap::new();
+    for voter in &voters {
+        let val = total_voting_power_per_groups
+            .get(&voter.voting_group)
+            .unwrap_or(&0_f64);
+        let val = val.add(voter.voting_power as f64);
+        total_voting_power_per_groups.insert(voter.voting_group.clone(), val);
+    }
+
     for voter in voters {
         let contributors = query_contributions_by_voting_key_and_voter_group_and_snapshot_tag(
             id.clone(),
@@ -68,6 +81,10 @@ pub async fn get_voters_info(
             pool,
         )
         .await?;
+
+        let total_voting_power_per_group = total_voting_power_per_groups
+            .get(&voter.voting_group)
+            .unwrap_or(&0_f64);
         voter_info.push(VoterInfo {
             voting_power: Value::from(voter.voting_power as u64),
             delegations_count: contributors.len() as u64,
@@ -76,6 +93,11 @@ pub async fn get_voters_info(
                 .map(|contributor| contributor.value as u64)
                 .sum(),
             voting_group: voter.voting_group,
+            voting_power_saturation: if total_voting_power_per_group != &0_f64 {
+                voter.voting_power as f64 / total_voting_power_per_group
+            } else {
+                0_f64
+            },
         })
     }
 
@@ -254,12 +276,14 @@ mod test {
                 voting_power: Value::from(1),
                 delegations_power: 0,
                 delegations_count: 0,
+                voting_power_saturation: 1_f64,
             },
             VoterInfo {
                 voting_group: GROUP2.to_string(),
                 voting_power: Value::from(2),
                 delegations_power: 0,
                 delegations_count: 0,
+                voting_power_saturation: 1_f64,
             },
         ];
 
@@ -274,6 +298,7 @@ mod test {
                         voting_power,
                         delegations_power: _,
                         delegations_count: _,
+                        voting_power_saturation: _,
                     },
                 )| SnapshotInfo {
                     contributions: vec![],
@@ -300,6 +325,7 @@ mod test {
             voting_power: Value::from(3),
             delegations_power: 0,
             delegations_count: 0,
+            voting_power_saturation: 1_f64,
         }];
 
         let content_b = std::iter::repeat(keys[1].clone())
@@ -313,6 +339,7 @@ mod test {
                         voting_power,
                         delegations_power: _,
                         delegations_count: _,
+                        voting_power_saturation: _,
                     },
                 )| SnapshotInfo {
                     contributions: vec![],
@@ -427,7 +454,8 @@ mod test {
                         .iter()
                         .map(|KeyContribution { value, .. }| value)
                         .sum(),
-                    delegations_count: snapshot.contributions.len() as u64
+                    delegations_count: snapshot.contributions.len() as u64,
+                    voting_power_saturation: 1_f64,
                 })
                 .collect::<Vec<_>>()
         );
@@ -457,7 +485,8 @@ mod test {
                         .iter()
                         .map(|KeyContribution { value, .. }| value)
                         .sum(),
-                    delegations_count: snapshot.contributions.len() as u64
+                    delegations_count: snapshot.contributions.len() as u64,
+                    voting_power_saturation: 1_f64,
                 })
                 .collect::<Vec<_>>()
         );
@@ -479,7 +508,8 @@ mod test {
                         .iter()
                         .map(|KeyContribution { value, .. }| value)
                         .sum(),
-                    delegations_count: snapshot.contributions.len() as u64
+                    delegations_count: snapshot.contributions.len() as u64,
+                    voting_power_saturation: 1_f64,
                 })
                 .collect::<Vec<_>>()
         );
