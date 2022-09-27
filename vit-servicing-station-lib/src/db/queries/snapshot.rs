@@ -61,6 +61,24 @@ pub async fn query_voters_by_voting_key_and_snapshot_tag(
     .map_err(|e| HandleError::InternalError(format!("Error executing voters: {}", e)))?
 }
 
+pub async fn query_total_voting_power_by_voting_group_and_snapshot_tag(
+    voting_group: String,
+    tag: String,
+    pool: &DbConnectionPool,
+) -> Result<i64, HandleError> {
+    let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
+    tokio::task::spawn_blocking(move || {
+        voters::dsl::voters
+            .filter(voters::dsl::voting_group.eq(voting_group))
+            .filter(voters::dsl::snapshot_tag.eq(tag))
+            .load::<Voter>(&db_conn)
+            .map_err(|e| HandleError::NotFound(format!("Error loading voters: {}", e)))
+            .map(|voters| voters.iter().map(|voter| voter.voting_power).sum())
+    })
+    .await
+    .map_err(|e| HandleError::InternalError(format!("Error executing voters: {}", e)))?
+}
+
 pub fn batch_put_voters(
     voters: &[<Voter as Insertable<voters::table>>::Values],
     db_conn: &DbConnection,

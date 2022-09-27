@@ -1,8 +1,6 @@
 mod handlers;
 mod routes;
 
-use std::{collections::HashMap, ops::Add};
-
 use crate::{
     db::{
         models::{
@@ -13,7 +11,8 @@ use crate::{
             batch_put_contributions, batch_put_voters, put_snapshot, query_all_snapshots,
             query_contributions_by_stake_public_key_and_snapshot_tag,
             query_contributions_by_voting_key_and_voter_group_and_snapshot_tag,
-            query_snapshot_by_tag, query_voters_by_voting_key_and_snapshot_tag,
+            query_snapshot_by_tag, query_total_voting_power_by_voting_group_and_snapshot_tag,
+            query_voters_by_voting_key_and_snapshot_tag,
         },
     },
     v0::{context::SharedContext as SharedContext_, errors::HandleError},
@@ -64,15 +63,6 @@ pub async fn get_voters_info(
     let mut voter_info = Vec::new();
     let voters = query_voters_by_voting_key_and_snapshot_tag(id.clone(), tag.clone(), pool).await?;
 
-    let mut total_voting_power_per_groups = HashMap::new();
-    for voter in &voters {
-        let val = total_voting_power_per_groups
-            .get(&voter.voting_group)
-            .unwrap_or(&0_f64);
-        let val = val.add(voter.voting_power as f64);
-        total_voting_power_per_groups.insert(voter.voting_group.clone(), val);
-    }
-
     for voter in voters {
         let contributors = query_contributions_by_voting_key_and_voter_group_and_snapshot_tag(
             id.clone(),
@@ -82,9 +72,14 @@ pub async fn get_voters_info(
         )
         .await?;
 
-        let total_voting_power_per_group = total_voting_power_per_groups
-            .get(&voter.voting_group)
-            .unwrap_or(&0_f64);
+        let total_voting_power_per_group =
+            query_total_voting_power_by_voting_group_and_snapshot_tag(
+                voter.voting_group.clone(),
+                tag.clone(),
+                pool,
+            )
+            .await? as f64;
+
         voter_info.push(VoterInfo {
             voting_power: Value::from(voter.voting_power as u64),
             delegations_count: contributors.len() as u64,
@@ -93,7 +88,7 @@ pub async fn get_voters_info(
                 .map(|contributor| contributor.value as u64)
                 .sum(),
             voting_group: voter.voting_group,
-            voting_power_saturation: if total_voting_power_per_group != &0_f64 {
+            voting_power_saturation: if total_voting_power_per_group != 0_f64 {
                 voter.voting_power as f64 / total_voting_power_per_group
             } else {
                 0_f64
@@ -259,6 +254,10 @@ mod test {
                 "1111111111111111111111111111111111111111111111111111111111111111",
             )
             .unwrap(),
+            Identifier::from_hex(
+                "2222222222222222222222222222222222222222222222222222222222222222",
+            )
+            .unwrap(),
         ];
 
         const GROUP1: &str = "group1";
@@ -276,7 +275,7 @@ mod test {
                 voting_power: Value::from(1),
                 delegations_power: 0,
                 delegations_count: 0,
-                voting_power_saturation: 1_f64,
+                voting_power_saturation: 1_f64 / 3_f64,
             },
             VoterInfo {
                 voting_group: GROUP2.to_string(),
@@ -286,6 +285,14 @@ mod test {
                 voting_power_saturation: 1_f64,
             },
         ];
+
+        let key_1_values = [VoterInfo {
+            voting_group: GROUP1.to_string(),
+            voting_power: Value::from(2),
+            delegations_power: 0,
+            delegations_count: 0,
+            voting_power_saturation: 2_f64 / 3_f64,
+        }];
 
         let content_a = std::iter::repeat(keys[0].clone())
             .take(key_0_values.len())
@@ -309,6 +316,30 @@ mod test {
                     },
                 },
             )
+            .chain(
+                std::iter::repeat(keys[1].clone())
+                    .take(key_1_values.len())
+                    .zip(key_1_values.iter().cloned())
+                    .map(
+                        |(
+                            voting_key,
+                            VoterInfo {
+                                voting_group,
+                                voting_power,
+                                delegations_power: _,
+                                delegations_count: _,
+                                voting_power_saturation: _,
+                            },
+                        )| SnapshotInfo {
+                            contributions: vec![],
+                            hir: VoterHIR {
+                                voting_key,
+                                voting_group,
+                                voting_power,
+                            },
+                        },
+                    ),
+            )
             .collect::<Vec<_>>();
 
         update_from_shanpshot_info(
@@ -320,17 +351,17 @@ mod test {
         .await
         .unwrap();
 
-        let key_1_values = [VoterInfo {
+        let key_2_values = [VoterInfo {
             voting_group: GROUP1.to_string(),
             voting_power: Value::from(3),
             delegations_power: 0,
             delegations_count: 0,
-            voting_power_saturation: 1_f64,
+            voting_power_saturation: 0.5_f64,
         }];
 
-        let content_b = std::iter::repeat(keys[1].clone())
-            .take(key_1_values.len())
-            .zip(key_1_values.iter().cloned())
+        let content_b = std::iter::repeat(keys[2].clone())
+            .take(key_2_values.len())
+            .zip(key_2_values.iter().cloned())
             .map(
                 |(
                     voting_key,
@@ -369,8 +400,16 @@ mod test {
                 .voter_info[..],
         );
 
-        assert!(
+        assert_eq!(
+            &key_1_values[..],
             &super::get_voters_info(TAG1.to_string(), keys[1].to_hex(), context.clone())
+                .await
+                .unwrap()
+                .voter_info[..],
+        );
+
+        assert!(
+            &super::get_voters_info(TAG1.to_string(), keys[2].to_hex(), context.clone())
                 .await
                 .unwrap()
                 .voter_info
@@ -378,8 +417,8 @@ mod test {
         );
 
         assert_eq!(
-            &key_1_values[..],
-            &super::get_voters_info(TAG2.to_string(), keys[1].to_hex(), context)
+            &key_2_values[..],
+            &super::get_voters_info(TAG2.to_string(), keys[2].to_hex(), context)
                 .await
                 .unwrap()
                 .voter_info[..],
