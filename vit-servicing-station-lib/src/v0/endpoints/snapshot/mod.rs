@@ -15,7 +15,7 @@ use crate::{
             query_voters_by_voting_key_and_snapshot_tag,
         },
     },
-    v0::{context::SharedContext as SharedContext_, errors::HandleError},
+    v0::{context::SharedContext, errors::HandleError},
 };
 use diesel::Insertable;
 pub use handlers::{RawSnapshotInput, SnapshotInfoInput};
@@ -55,7 +55,7 @@ pub struct VotersInfo {
 pub async fn get_voters_info(
     tag: String,
     id: String,
-    context: SharedContext_,
+    context: SharedContext,
 ) -> Result<VotersInfo, HandleError> {
     let pool = &context.read().await.db_connection_pool;
 
@@ -116,7 +116,7 @@ pub struct DelegatorInfo {
 pub async fn get_delegator_info(
     tag: String,
     id: String,
-    context: SharedContext_,
+    context: SharedContext,
 ) -> Result<DelegatorInfo, HandleError> {
     let pool = &context.read().await.db_connection_pool;
 
@@ -140,7 +140,7 @@ pub async fn get_delegator_info(
     })
 }
 
-pub async fn get_tags(context: SharedContext_) -> Result<Vec<Tag>, HandleError> {
+pub async fn get_tags(context: SharedContext) -> Result<Vec<Tag>, HandleError> {
     let pool = &context.read().await.db_connection_pool;
 
     Ok(query_all_snapshots(pool)
@@ -160,7 +160,7 @@ pub async fn update_from_raw_snapshot(
     voting_power_cap: Fraction,
     direct_voters_group: Option<String>,
     representatives_group: Option<String>,
-    context: SharedContext_,
+    context: SharedContext,
 ) -> Result<(), HandleError> {
     let direct_voter = direct_voters_group.unwrap_or_else(|| DEFAULT_DIRECT_VOTER_GROUP.into());
     let representative =
@@ -179,7 +179,7 @@ pub async fn update_from_shanpshot_info(
     tag: String,
     snapshot: impl IntoIterator<Item = SnapshotInfo>,
     update_timestamp: i64,
-    context: SharedContext_,
+    context: SharedContext,
 ) -> Result<(), HandleError> {
     let pool = &context.read().await.db_connection_pool;
 
@@ -273,15 +273,15 @@ mod test {
             VoterInfo {
                 voting_group: GROUP1.to_string(),
                 voting_power: Value::from(1),
-                delegations_power: 0,
-                delegations_count: 0,
+                delegations_power: 2,
+                delegations_count: 2,
                 voting_power_saturation: 1_f64 / 3_f64,
             },
             VoterInfo {
                 voting_group: GROUP2.to_string(),
                 voting_power: Value::from(2),
-                delegations_power: 0,
-                delegations_count: 0,
+                delegations_power: 2,
+                delegations_count: 2,
                 voting_power_saturation: 1_f64,
             },
         ];
@@ -289,8 +289,8 @@ mod test {
         let key_1_values = [VoterInfo {
             voting_group: GROUP1.to_string(),
             voting_power: Value::from(2),
-            delegations_power: 0,
-            delegations_count: 0,
+            delegations_power: 2,
+            delegations_count: 2,
             voting_power_saturation: 2_f64 / 3_f64,
         }];
 
@@ -308,7 +308,18 @@ mod test {
                         voting_power_saturation: _,
                     },
                 )| SnapshotInfo {
-                    contributions: vec![],
+                    contributions: vec![
+                        KeyContribution {
+                            reward_address: "address_1".to_string(),
+                            stake_public_key: "stake_public_key_1".to_string(),
+                            value: 1,
+                        },
+                        KeyContribution {
+                            reward_address: "address_2".to_string(),
+                            stake_public_key: "stake_public_key_2".to_string(),
+                            value: 1,
+                        },
+                    ],
                     hir: VoterHIR {
                         voting_key,
                         voting_group,
@@ -331,7 +342,18 @@ mod test {
                                 voting_power_saturation: _,
                             },
                         )| SnapshotInfo {
-                            contributions: vec![],
+                            contributions: vec![
+                                KeyContribution {
+                                    reward_address: "address_1".to_string(),
+                                    stake_public_key: "stake_public_key_1".to_string(),
+                                    value: 1,
+                                },
+                                KeyContribution {
+                                    reward_address: "address_2".to_string(),
+                                    stake_public_key: "stake_public_key_2".to_string(),
+                                    value: 1,
+                                },
+                            ],
                             hir: VoterHIR {
                                 voting_key,
                                 voting_group,
@@ -418,10 +440,78 @@ mod test {
 
         assert_eq!(
             &key_2_values[..],
-            &super::get_voters_info(TAG2.to_string(), keys[2].to_hex(), context)
+            &super::get_voters_info(TAG2.to_string(), keys[2].to_hex(), context.clone())
                 .await
                 .unwrap()
                 .voter_info[..],
+        );
+
+        assert_eq!(
+            super::get_delegator_info(
+                TAG1.to_string(),
+                "stake_public_key_1".to_string(),
+                context.clone()
+            )
+            .await
+            .unwrap(),
+            DelegatorInfo {
+                dreps: vec![
+                    "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+                    "1111111111111111111111111111111111111111111111111111111111111111".to_string()
+                ],
+                voting_groups: vec!["group1".to_string(), "group2".to_string()],
+                last_updated: UPDATE_TIME1,
+            }
+        );
+
+        assert_eq!(
+            super::get_delegator_info(
+                TAG1.to_string(),
+                "stake_public_key_2".to_string(),
+                context.clone()
+            )
+            .await
+            .unwrap(),
+            DelegatorInfo {
+                dreps: vec![
+                    "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+                    "1111111111111111111111111111111111111111111111111111111111111111".to_string()
+                ],
+                voting_groups: vec!["group1".to_string(), "group2".to_string()],
+                last_updated: UPDATE_TIME1,
+            }
+        );
+
+        assert_eq!(
+            super::get_delegator_info(
+                TAG2.to_string(),
+                "stake_public_key_1".to_string(),
+                context.clone()
+            )
+            .await
+            .unwrap(),
+            DelegatorInfo {
+                dreps: vec![
+                    "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+                    "1111111111111111111111111111111111111111111111111111111111111111".to_string()
+                ],
+                voting_groups: vec!["group1".to_string(), "group2".to_string()],
+                last_updated: UPDATE_TIME2,
+            }
+        );
+
+        assert_eq!(
+            super::get_delegator_info(TAG2.to_string(), "stake_public_key_2".to_string(), context)
+                .await
+                .unwrap(),
+            DelegatorInfo {
+                dreps: vec![
+                    "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+                    "1111111111111111111111111111111111111111111111111111111111111111".to_string()
+                ],
+                voting_groups: vec!["group1".to_string(), "group2".to_string()],
+                last_updated: UPDATE_TIME2,
+            }
         );
     }
 
