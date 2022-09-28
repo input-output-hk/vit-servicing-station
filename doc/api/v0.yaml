@@ -275,13 +275,13 @@ paths:
         "400":
           description: Invalid combination of table/column (e.g. using funds column on challenges table)
 
-  /api/v0/snapshot/{tag}/{voting_key}:
+  /api/v0/snapshot/voter/{tag}/{voting_key}:
     get:
-      operationId: getVotingPower
-      summary: Get voting power by voting key
+      operationId: getVoterInfo
+      summary: Get voter's info by voting key
       tags: [snapshot]
       description: |
-        Get voting power by voting key
+        Get voter's info by voting key
       parameters:
         - in: path
           name: tag
@@ -290,6 +290,34 @@ paths:
           required: true
         - in: path
           name: voting_key
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VotersInfo"
+        "400":
+          description: Not found
+
+  /api/v0/snapshot/delegator/{tag}/{stake_public_key}:
+    get:
+      operationId: getDelegatorInfo
+      summary: Get delegator's info by stake public key
+      tags: [snapshot]
+      description: |
+        Get delegator's info by stake public key
+      parameters:
+        - in: path
+          name: tag
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: stake_public_key
           schema:
             type: string
           required: true
@@ -942,18 +970,35 @@ components:
           description: Date and time for the latest update to this snapshot information.
 
     VoterInfo:
+      type: object
+      description: voter's info
+      required:
+        - voting_power
+        - voting_group
+        - delegations_power
+        - delegations_count
+        - voting_power_saturation
       properties:
         voting_power:
+          description: voter's voting power
           type: integer
           format: u64
         voting_group:
+          description: voter's voting group on which he is assigned
           type: string
         delegations_power:
+          description: voter's delegation's power, which represents total voting power which was delegated to this voter
           type: integer
           format: u64
         delegations_count:
+          description: amount of delegators, who was delegated to this voter
           type: integer
           format: u64
+        voting_power_saturation:
+          description: voting power's share of the total voting power corresponds to the current voting group
+          type: number
+          minimum: 0
+          maximum: 1
       example:
         [
           {
@@ -961,6 +1006,7 @@ components:
             "voting_group": "representative",
             "delegations_power": 400,
             "delegations_count": 200,
+            "voting_power_saturation": 0.5,
           },
         ]
 
@@ -1066,17 +1112,15 @@ components:
           type: string
           format: date-time
           description: Date and time for the latest update to this snapshot information.
-    UserInfo:
+
+    DelegatorInfo:
       type: object
-      description: User info
+      description: delegator's info
       required:
-        - is_voter
         - delegators
         - voting_groups
+        - last_updated
       properties:
-        is_voter:
-          type: boolean
-          description: Is this user an active voter (representative) or delegator
         dreps:
           type: array
           description: List of delegated representatives for the current user
@@ -1090,11 +1134,14 @@ components:
           items: 
             description: Voting group id (the same as voting token id)
             type: string
-            pattern: '[0-9a-f]{56}.[0-9a-f]+'
+        last_updated:
+          description: Date and time for the latest update to this snapshot information
+          type: string
+          format: date-time
       example: 
         {
-          is_voter: true,
           delegators: ["f5285eeead8b5885a1420800de14b0d1960db1a990a6c2f7b517125bedc000db", "7ef044ba437057d6d944ace679b7f811335639a689064cd969dffc8b55a7cc19"],
-          voting_groups: ["00000000000000000000000000000000000000000000000000000000.6c1e8abc"]
+          voting_groups: ["group1", "group2"],
+          last_updated: "2021-02-11T10:10:27+00:00"
         }
           

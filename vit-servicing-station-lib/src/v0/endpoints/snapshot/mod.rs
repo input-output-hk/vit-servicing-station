@@ -54,18 +54,19 @@ pub struct VotersInfo {
 #[tracing::instrument(skip(context))]
 pub async fn get_voters_info(
     tag: String,
-    id: String,
+    voting_key: String,
     context: SharedContext,
 ) -> Result<VotersInfo, HandleError> {
     let pool = &context.read().await.db_connection_pool;
 
     let snapshot = query_snapshot_by_tag(tag.clone(), pool).await?;
     let mut voter_info = Vec::new();
-    let voters = query_voters_by_voting_key_and_snapshot_tag(id.clone(), tag.clone(), pool).await?;
+    let voters =
+        query_voters_by_voting_key_and_snapshot_tag(voting_key.clone(), tag.clone(), pool).await?;
 
     for voter in voters {
         let contributors = query_contributions_by_voting_key_and_voter_group_and_snapshot_tag(
-            id.clone(),
+            voting_key.clone(),
             voter.voting_group.clone(),
             tag.clone(),
             pool,
@@ -115,7 +116,7 @@ pub struct DelegatorInfo {
 #[tracing::instrument(skip(context))]
 pub async fn get_delegator_info(
     tag: String,
-    id: String,
+    stake_public_key: String,
     context: SharedContext,
 ) -> Result<DelegatorInfo, HandleError> {
     let pool = &context.read().await.db_connection_pool;
@@ -123,7 +124,7 @@ pub async fn get_delegator_info(
     let snapshot = query_snapshot_by_tag(tag.clone(), pool).await?;
 
     let contributions =
-        query_contributions_by_stake_public_key_and_snapshot_tag(id, tag, pool).await?;
+        query_contributions_by_stake_public_key_and_snapshot_tag(stake_public_key, tag, pool).await?;
 
     Ok(DelegatorInfo {
         dreps: contributions

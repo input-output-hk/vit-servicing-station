@@ -19,11 +19,11 @@ pub async fn get_voters_info(
 #[tracing::instrument(skip(context))]
 pub async fn get_delegator_info(
     tag: String,
-    id: String,
+    stake_public_key: String,
     context: SharedContext,
 ) -> Result<impl Reply, Rejection> {
     Ok(HandlerResult(
-        super::get_delegator_info(tag, id, context).await,
+        super::get_delegator_info(tag, stake_public_key, context).await,
     ))
 }
 
