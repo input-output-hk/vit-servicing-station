@@ -124,7 +124,8 @@ pub async fn get_delegator_info(
     let snapshot = query_snapshot_by_tag(tag.clone(), pool).await?;
 
     let contributions =
-        query_contributions_by_stake_public_key_and_snapshot_tag(stake_public_key, tag, pool).await?;
+        query_contributions_by_stake_public_key_and_snapshot_tag(stake_public_key, tag, pool)
+            .await?;
 
     Ok(DelegatorInfo {
         dreps: contributions
