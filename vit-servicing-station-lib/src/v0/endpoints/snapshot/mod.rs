@@ -17,7 +17,6 @@ use crate::{
     },
     v0::{context::SharedContext, errors::HandleError},
 };
-use diesel::Insertable;
 pub use handlers::{RawSnapshotInput, SnapshotInfoInput};
 use itertools::Itertools;
 use jormungandr_lib::interfaces::Value;
@@ -208,20 +207,16 @@ pub async fn update_from_shanpshot_info(
                 voting_group: entry.hir.voting_group.clone(),
                 snapshot_tag: tag.clone(),
             }
-            .values()
         }));
 
-        voters.push(
-            Voter {
-                voting_key: entry.hir.voting_key.to_hex(),
-                voting_group: entry.hir.voting_group.clone(),
-                voting_power: Into::<u64>::into(entry.hir.voting_power)
-                    .try_into()
-                    .expect("value should not exceed i64 limit"),
-                snapshot_tag: tag.clone(),
-            }
-            .values(),
-        );
+        voters.push(Voter {
+            voting_key: entry.hir.voting_key.to_hex(),
+            voting_group: entry.hir.voting_group.clone(),
+            voting_power: Into::<u64>::into(entry.hir.voting_power)
+                .try_into()
+                .expect("value should not exceed i64 limit"),
+            snapshot_tag: tag.clone(),
+        });
     }
     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
     batch_put_voters(&voters, &db_conn)?;

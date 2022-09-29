@@ -6,7 +6,7 @@ use crate::{
     },
     v0::errors::HandleError,
 };
-use diesel::{ExpressionMethods, Insertable, QueryDsl, RunQueryDsl};
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 
 pub async fn query_all_snapshots(pool: &DbConnectionPool) -> Result<Vec<Snapshot>, HandleError> {
     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
@@ -38,7 +38,7 @@ pub async fn query_snapshot_by_tag(
 pub fn put_snapshot(snapshot: Snapshot, pool: &DbConnectionPool) -> Result<(), HandleError> {
     let db_conn = pool.get().map_err(HandleError::DatabaseError)?;
     diesel::replace_into(snapshots::table)
-        .values(snapshot.values())
+        .values(snapshot)
         .execute(&db_conn)
         .map_err(|e| HandleError::InternalError(format!("Error executing request: {}", e)))?;
     Ok(())
@@ -79,10 +79,7 @@ pub async fn query_total_voting_power_by_voting_group_and_snapshot_tag(
     .map_err(|e| HandleError::InternalError(format!("Error executing voters: {}", e)))?
 }
 
-pub fn batch_put_voters(
-    voters: &[<Voter as Insertable<voters::table>>::Values],
-    db_conn: &DbConnection,
-) -> Result<(), HandleError> {
+pub fn batch_put_voters(voters: &[Voter], db_conn: &DbConnection) -> Result<(), HandleError> {
     diesel::replace_into(voters::table)
         .values(voters)
         .execute(db_conn)
@@ -127,7 +124,7 @@ pub async fn query_contributions_by_stake_public_key_and_snapshot_tag(
 }
 
 pub fn batch_put_contributions(
-    contributions: &[<Contribution as Insertable<contributions::table>>::Values],
+    contributions: &[Contribution],
     db_conn: &DbConnection,
 ) -> Result<(), HandleError> {
     diesel::replace_into(contributions::table)
