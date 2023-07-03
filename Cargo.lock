@@ -1693,6 +1693,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "jormungandr-lib"
+version = "0.15.0"
+source = "git+https://github.com/input-output-hk/jormungandr?branch=catalyst-fund9.1#56fe78db4a087091e10ac69d4bf8a05348d898a1"
+dependencies = [
+ "base64 0.13.0",
+ "bech32",
+ "cardano-legacy-address",
+ "chain-addr",
+ "chain-core",
+ "chain-crypto",
+ "chain-impl-mockchain",
+ "chain-time",
+ "chain-vote",
+ "hex",
+ "http",
+ "humantime",
+ "parity-multiaddr",
+ "rand 0.8.3",
+ "rand_chacha 0.3.0",
+ "rand_core 0.6.2",
+ "serde",
+ "serde_with",
+ "thiserror",
+ "time 0.3.9",
+ "typed-bytes",
+]
+
+[[package]]
 name = "jortestkit"
 version = "0.1.0"
 source = "git+https://github.com/input-output-hk/jortestkit.git?branch=master#34b0c3cee98edeafb4d16396bc1f189361d4326c"
@@ -3316,7 +3344,7 @@ checksum = "fe0f37c9e8f3c5a4a66ad655a93c74daac4ad00c441533bf5c6e7990bb42604e"
 name = "snapshot-service"
 version = "0.1.0"
 dependencies = [
- "jormungandr-lib",
+ "jormungandr-lib 0.15.0 (git+https://github.com/input-output-hk/jormungandr?branch=catalyst-fund9.1)",
  "notify",
  "serde",
  "serde_json",
@@ -4058,7 +4086,7 @@ dependencies = [
  "eccoxide",
  "http-zipkin",
  "itertools 0.9.0",
- "jormungandr-lib",
+ "jormungandr-lib 0.15.0 (git+https://github.com/input-output-hk/jormungandr?branch=catalyst-fund9.1)",
  "libsqlite3-sys",
  "log",
  "notify",
@@ -4140,7 +4168,7 @@ name = "voting-hir"
 version = "0.1.0"
 source = "git+https://github.com/input-output-hk/catalyst-toolbox?branch=catalyst-fund9#9abbf7e3a259ca79433976859ad9b2e0d503b4e9"
 dependencies = [
- "jormungandr-lib",
+ "jormungandr-lib 0.15.0 (git+https://github.com/input-output-hk/jormungandr?branch=catalyst-fund9)",
  "serde",
 ]
 
