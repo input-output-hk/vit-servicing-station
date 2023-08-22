@@ -1,3 +1,5 @@
+##This repo is unmaintained please refer to https://github.com/input-output-hk/catalyst-core/tree/main/src/vit-servicing-station
+
 # VIT Servicing Station
 
 --------------
