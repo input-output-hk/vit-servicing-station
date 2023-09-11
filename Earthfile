@@ -3,7 +3,7 @@ VERSION 0.7
 FROM debian:stable-slim
 
 rust-toolchain:
-    FROM rust:1.65-slim-bullseye
+    FROM rust:1.71-slim-bullseye
     RUN rustup component add rustfmt
 
 # Installs Cargo chef
@@ -69,5 +69,5 @@ build:
 
     RUN cargo build --locked --release -p vit-servicing-station-cli -p vit-servicing-station-server
 
-    SAVE ARTIFACT /src/target/release/vit-servicing-station-cli
-    SAVE ARTIFACT /src/target/release/ivit-servicing-station-server
+    SAVE ARTIFACT /src/target/release/vit-servicing-station-cli vit-servicing-station-cli
+    SAVE ARTIFACT /src/target/release/vit-servicing-station-server vit-servicing-station-server
