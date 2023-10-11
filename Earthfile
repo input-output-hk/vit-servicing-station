@@ -14,7 +14,7 @@ install-chef:
 # Prepares the local cache
 prepare-cache:
     FROM +install-chef
-    COPY --dir vit-servicing-station-lib vit-servicing-station-cli vit-servicing-station-server vit-servicing-station-tests snapshot-service .
+    COPY --dir vit-servicing-station-lib vit-servicing-station-cli vit-servicing-station-server vit-servicing-station-tests .
     COPY Cargo.lock Cargo.toml .
     RUN cargo chef prepare
     SAVE ARTIFACT recipe.json
@@ -55,7 +55,7 @@ builder:
         libsqlite3-dev \
         pkg-config \
         protobuf-compiler
-    COPY --dir vit-servicing-station-lib vit-servicing-station-cli vit-servicing-station-server vit-servicing-station-tests snapshot-service .
+    COPY --dir vit-servicing-station-lib vit-servicing-station-cli vit-servicing-station-server vit-servicing-station-tests .
     COPY Cargo.lock Cargo.toml .
     COPY +build-cache/cargo_home $CARGO_HOME
     COPY +build-cache/target target
@@ -64,7 +64,7 @@ builder:
 build:
     FROM +builder
 
-    COPY --dir vit-servicing-station-lib vit-servicing-station-cli vit-servicing-station-server vit-servicing-station-tests snapshot-service .
+    COPY --dir vit-servicing-station-lib vit-servicing-station-cli vit-servicing-station-server vit-servicing-station-tests .
     COPY Cargo.lock Cargo.toml .
 
     RUN cargo build --locked --release -p vit-servicing-station-cli -p vit-servicing-station-server
