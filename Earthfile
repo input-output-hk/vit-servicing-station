@@ -71,3 +71,23 @@ build:
 
     SAVE ARTIFACT /src/target/release/vit-servicing-station-cli vit-servicing-station-cli
     SAVE ARTIFACT /src/target/release/vit-servicing-station-server vit-servicing-station-server
+
+publish:
+    FROM debian:stable-slim
+    WORKDIR /app
+
+    ARG tag=latest
+
+    RUN apt-get update && \
+        apt-get install -y --no-install-recommends \
+        libssl-dev \
+        libpq-dev \
+        libsqlite3-dev
+
+    COPY +build/vit-servicing-station-server .
+    COPY vit-servicing-station-server/entrypoint.sh .
+    RUN chmod +x entrypoint.sh
+
+    ENTRYPOINT ["/app/entrypoint.sh"]
+
+    SAVE IMAGE vit-servicing-station-server:${tag}
