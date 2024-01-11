@@ -77,15 +77,21 @@ publish:
     WORKDIR /app
 
     ARG tag=latest
+    ARG fetcher_version=2.1.1
 
     RUN apt-get update && \
         apt-get install -y --no-install-recommends \
+        ca-certificates \
         libssl-dev \
         libpq-dev \
         libsqlite3-dev
 
+    # Install fetcher
+    IMPORT github.com/input-output-hk/catalyst-ci/tools/fetcher:v${fetcher_version} AS fetcher
+    COPY fetcher+build/fetcher /usr/local/bin/fetcher
+
     COPY +build/vit-servicing-station-server .
-    COPY vit-servicing-station-server/entrypoint.sh .
+    COPY entrypoint.sh .
     RUN chmod +x entrypoint.sh
 
     ENTRYPOINT ["/app/entrypoint.sh"]
